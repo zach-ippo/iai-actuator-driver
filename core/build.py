@@ -87,7 +87,7 @@ UNITS: dict[str, dict[str, list[str]]] = {
         "src": ["coord_*.cpp"],
         "tests": ["test_coord*.cpp"],
     },
-    "sel": {  # the SEL protocol (sel_frame.hpp): a stack of its own beside the Modbus one, nothing in the C ABI yet
+    "sel": {  # the SEL protocol (sel_frame, sel_messages): a stack of its own beside the Modbus one, no C ABI yet
         "src": ["sel_*.cpp"],
         "tests": ["test_sel*.cpp"],
     },

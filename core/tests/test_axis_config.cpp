@@ -51,6 +51,16 @@ NvWriteOptions nv(bool allow, bool force = false) {
     return o;
 }
 
+template <class F>
+std::string what_of(F&& f) {
+    try {
+        f();
+    } catch (const std::exception& e) {
+        return e.what();
+    }
+    return std::string();
+}
+
 bool any_has(const std::vector<std::string>& texts, const std::string& part) {
     for (const auto& t : texts)
         if (t.find(part) != std::string::npos) return true;
@@ -194,6 +204,20 @@ TEST(axis_config_unchanged_ram_only_write_is_not_called_ram_only) {
     CHECK(!again.changed);
     CHECK_EQ(fc10_frames(sim->requests()), 0);
     CHECK_EQ(again.note, std::string(kRamUnchangedNote));
+}
+
+TEST(axis_config_con_pio_pattern_above_mxpt_is_refused) {
+    auto sim = make_sim(SimProfile::Pcon);
+    Axis ax = open_sim(sim);
+    ax.connect();
+    const ParameterInfo mxpt = ax.read_parameter("3.16");
+    REQUIRE(mxpt.value.number.has_value());
+    REQUIRE(*mxpt.value.number > 0);
+    sim->clear_requests();
+    const std::string text = what_of([&] { ax.write_parameter(25, *mxpt.value.number + 1); });
+    CHECK(text.find("MXPT") != std::string::npos);
+    CHECK_THROWS(ax.write_parameter(25, 32767), SoftLimitError);
+    CHECK_EQ(fc10_frames(sim->requests()), 0);
 }
 
 TEST(axis_config_parameters_list_ec_and_con) {

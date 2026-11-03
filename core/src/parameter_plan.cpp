@@ -474,6 +474,14 @@ ParameterWritePlan plan_con(const ParameterContext& ctx, int no, const ParamValu
         throw SoftLimitError(std::string(e.what()) + "; nothing written");
     }
     std::vector<std::string> warnings = check.warnings;
+    // No.25 PIO pattern: not above the unit's own highest pattern MXPT 3.16 (ON-WIRE: a PCON-CB reads 5), when it reads
+    if (p.no == 25 && check.value.number) {
+        const ClassItem* mxpt = find_item(ctx.classes, reg::kControllerMonitorCategory, reg::kControllerItemMxpt);
+        if (mxpt != nullptr && mxpt->raw != 0 && mxpt->raw != 0xFFFFFFFFu && *check.value.number > mxpt->raw)
+            throw SoftLimitError(util::format("No.25: PIO pattern %s is above this unit's highest pattern MXPT (3.16) %u; "
+                                              "nothing written",
+                                              util::g(*check.value.number).c_str(), static_cast<unsigned>(mxpt->raw)));
+    }
     if (p.dangerous)
         warnings.push_back(util::format("No.%d (%s) is a dangerous parameter (home, motor / encoder, lead / axis type, "
                                         "gains, PIO / fieldbus / baud configuration): check it against the unit's "

@@ -649,7 +649,7 @@ void Axis::Impl::check_unit_speed(double speed) {
     const auto cap = lim->unit_speed_cap();
     if (cap.first && speed > *cap.first + 1e-9) {
         const std::string u = units_label();
-        throw SoftLimitError("speed " + gs(speed) + " " + u + "/s exceeds this EC's maximum speed " + f2(*cap.first) +
+        throw SoftLimitError("speed " + gs(speed) + " " + u + "/s exceeds this unit's maximum speed " + f2(*cap.first) +
                              " " + u + "/s (" + cap.second + "); use <= " + gs(speed_cap()) + " " + u + "/s");
     }
 }
@@ -661,7 +661,7 @@ void Axis::Impl::check_unit_accel(double accel, const std::string& what, bool de
     if (decel) caps.emplace_back(lim->max_decel_g, "MAXD 7.6");
     for (const auto& c : caps) {
         if (c.first && accel > *c.first + 1e-9)
-            throw SoftLimitError(what + " " + gs(accel) + " G exceeds this EC's maximum " + f2(*c.first) + " G (" +
+            throw SoftLimitError(what + " " + gs(accel) + " G exceeds this unit's maximum " + f2(*c.first) + " G (" +
                                  c.second + "); use <= " + gs(accel_cap()) + " G");
     }
 }

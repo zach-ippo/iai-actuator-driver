@@ -136,11 +136,23 @@ class AxisLimitsTest(unittest.TestCase):
             ec.identify()
             self.assertEqual(ec.accel_cap_g, 0.3)
             rec.clear()
-            with self.assertRaisesRegex(SoftLimitError, r"exceeds this EC's maximum 0\.30 G \(MAXA 7\.5\)"):
+            with self.assertRaisesRegex(SoftLimitError, r"exceeds this unit's maximum 0\.30 G \(MAXA 7\.5\)"):
                 ec.move_to(5.0, speed_mm_s=20.0, accel_g=0.31)
             self.assertEqual(sent(rec, 0x10), [])
             self.assertEqual(sim.alarm_code, 0)
             self.assertEqual(ec.move_to(5.0, speed_mm_s=20.0, accel_g=0.3).position_mm, 5.0)
+
+    def test_unit_maximum_refusals_do_not_say_ec_on_a_pcon(self) -> None:
+        ec, sim, rec = open_sim("pcon", max_accel=3.0)
+        with ec:
+            ec.identify()
+            lim = ec.read_axis_limits()
+            for what, kwargs in (("accel", {"speed_mm_s": 20.0, "accel_g": lim.max_accel_g + 0.5}),
+                                 ("speed", {"speed_mm_s": lim.max_speed_mm_s + 50.0})):
+                with self.subTest(what=what):
+                    with self.assertRaisesRegex(SoftLimitError, r"exceeds this unit's maximum") as caught:
+                        ec.move_to(5.0, **kwargs)
+                    self.assertNotIn("this EC's", str(caught.exception))
 
     def test_rod_row_decel_within_maxd_runs_with_allow_above_caps(self) -> None:
         ec, _, _ = open_sim("rod")  # row 0: 240 mm/s, accel 0.10 / decel 0.47 G (the EC-R6S rod)

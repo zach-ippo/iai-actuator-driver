@@ -158,7 +158,7 @@ std::vector<std::uint16_t> Axis::Impl::validate_entry(const PositionEntry& entry
     check_unit_accel(entry.accel_g, what(&PositionEntry::accel_g, "accel_g"), false);
     if (lim && lim->max_decel_g && entry.decel_g > *lim->max_decel_g + 1e-9)
         throw SoftLimitError(what(&PositionEntry::decel_g, "decel_g") + " " + gs(entry.decel_g) +
-                             " G exceeds this EC's maximum " + util::fixed(*lim->max_decel_g) + " G (MAXD 7.6)");
+                             " G exceeds this unit's maximum " + util::fixed(*lim->max_decel_g) + " G (MAXD 7.6)");
     if (!(entry.band_mm > 0 && entry.band_mm <= stroke.max - stroke.min))
         throw SoftLimitError(what(&PositionEntry::band_mm, "band") + " " + gs(entry.band_mm) + " " + u +
                              " is outside 0.." + gs(stroke.max - stroke.min) + " " + u + " (the stroke)");

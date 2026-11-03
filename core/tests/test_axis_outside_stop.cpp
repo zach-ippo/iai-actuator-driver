@@ -377,3 +377,36 @@ TEST(axis_outside_stop_a_slower_speed_extends_a_handle_deadline_but_not_an_expli
     r.ax->change_speed(5.0, false);
     CHECK_THROWS(second.wait(0.5), MotionTimeoutError);
 }
+
+// ======================================================================================= move_by after a fast step
+
+TEST(axis_outside_stop_fast_relative_steps_add_to_the_commanded_target) {
+    // 50 x move_by(-0.02, completion fast): each step returns on the first in-band sample while PNOW still lags; added
+    // to PNOW the steps were lost (0.69 mm of 1.00 mm on hardware). Added to the last target they all arrive.
+    Rig r(60.0);
+    MoveOptions step = slow(5.0);
+    step.accel_g = 0.1;
+    step.completion = Completion::Fast;
+    const double start = r.ax->status().position_mm;
+    for (int i = 0; i < 50; ++i) r.ax->move_by(-0.02, step);
+    const Status st = r.ax->wait_idle(start - 1.0, 0.02, 10.0);
+    CHECK_NEAR(st.position_mm, start - 1.0, 0.015);
+    CHECK_EQ(r.tx.stops_on(), 0);
+}
+
+TEST(axis_outside_stop_relative_steps_count_from_the_position_after_a_safe_move_or_a_stop) {
+    Rig r(60.0);
+    // a move the safe rule confirmed: the step counts from PNOW (the documented rule)
+    MoveOptions o = slow(20.0);
+    r.ax->move_to(50.0, o);
+    CHECK_NEAR(r.ax->move_by(1.0, o)->position_mm, 51.0, 0.11);
+    // a fast move cut short by a stop: the step counts from where it stopped, not from the old target
+    MoveOptions fast = slow(20.0, false);
+    fast.completion = Completion::Fast;
+    r.ax->move_to(90.0, fast);
+    REQUIRE(wait_until([&] { return r.sim->position_mm() > 55.0; }));
+    const Status stopped = r.ax->stop();
+    const std::optional<Status> st = r.ax->move_by(1.0, o);
+    REQUIRE(st.has_value());
+    CHECK_NEAR(st->position_mm, stopped.position_mm + 1.0, 0.15);
+}

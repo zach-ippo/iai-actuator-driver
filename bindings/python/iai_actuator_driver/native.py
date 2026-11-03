@@ -3758,7 +3758,9 @@ class NativeAxis:
         accel_pattern: str | None = None,
         completion: str | None = None,
     ) -> NativeStatus | NativeMoveHandle | None:
-        """Move relative to the measured position, sent as an absolute target (Axis::move_by). As :meth:`move_to`."""
+        """Move relative to the measured position, sent as an absolute target (Axis::move_by). Right after a move that
+        ended by the fast rule (or was not waited for) and is still within its band, relative to that move's target
+        instead, so fast steps add up. As :meth:`move_to`."""
         return self._move(
             "iad_axis_move_by", "iad_move_options_init", delta_mm, speed_mm_s, accel_g, band_mm, wait, timeout,
             accel_pattern=accel_pattern, completion=completion,

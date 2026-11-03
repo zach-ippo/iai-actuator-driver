@@ -774,6 +774,10 @@ Axis::Impl::MoveWatch Axis::Impl::send_direct(const DirectMove& move, bool new_m
             std::lock_guard<std::mutex> lock(mutex);
             last_move = move;
             last_target = reg::from_counts(move.pcmd);
+            if (move.ppow)
+                commanded.reset();  // a push ends where it meets the work
+            else if (new_move)
+                commanded = Commanded{reg::from_counts(move.pcmd), reg::from_counts(move.inp), watch, false};
         }
         // the target recover() compares the position with (recovery.hpp); a push ends where it meets the work
         recovery::hooks::note_target(bus, slave,
@@ -824,11 +828,30 @@ std::optional<Status> Axis::Impl::move_to(double position, const MoveOptions& o)
     });
 }
 
+double Axis::Impl::relative_base(const Status& st) {
+    // A step right after a move that ended by the fast rule (or was not waited for) is added to that move's target:
+    // PNOW still lags behind it, and 50 x move_by(-0.02, completion fast) lost 0.69 mm when each step was added to PNOW
+    // (ON-WIRE on a PCON-CB + RCP6). Only while the axis is within that move's band: a move cut short, superseded or
+    // settled elsewhere counts from where the axis is.
+    std::optional<Commanded> c;
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        c = commanded;
+    }
+    if (!c || c->settled || superseded(c->watch) || stopped_from_outside(c->watch)) return st.position_mm;
+    return std::fabs(st.position_mm - c->target) <= c->band + kPosEps ? c->target : st.position_mm;
+}
+
+void Axis::Impl::note_settled(const detail::MoveWatch* watch) {
+    std::lock_guard<std::mutex> lock(mutex);
+    if (commanded && (!watch || watch->move == commanded->watch.move)) commanded->settled = true;
+}
+
 std::optional<Status> Axis::Impl::move_by(double delta, const MoveOptions& o) {
     detail::check_timeout(o.timeout_s);
     const detail::SendGate gate(*bus, slave, decision_mark());  // before the position it adds to is read
     if (!std::isfinite(delta)) throw SoftLimitError("invalid distance " + gs(delta) + "; nothing sent");
-    const double target = util::round2(measured_status().position_mm + delta);
+    const double target = util::round2(relative_base(measured_status()) + delta);
     return move_to(target, o);
 }
 

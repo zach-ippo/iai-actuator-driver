@@ -6,8 +6,9 @@
 // * Every motion input is checked against the unit's own limits (limits()) BEFORE anything is sent: SoftLimitError,
 //   nothing written. Every unit is driven the same way.
 // * Moves use the 9-word direct block at 0x9900 (FC10): the move starts at once and re-targets a running move.
-//   move_by / jog are absolute targets computed from the measured position (the EC's incremental base is not verified;
-//   the JOG coils run at ~100 mm/s from a parameter and are never used).
+//   move_by / jog are absolute targets computed from the measured position, or from the last target while that move
+//   still finishes by the fast rule (the EC's incremental base is not verified; the JOG coils run at ~100 mm/s from a
+//   parameter and are never used).
 // * Completion (the safe rule): PEND (or PSFL) AND the position within the band of the target AND PNOW unchanged over
 //   settle_s (PEND can rise before standstill; MOVE clears early). An alarm ends the wait with EcAlarmError, a timeout
 //   sends a decel stop and raises MotionTimeoutError; settling away from the target raises MotionIncompleteError.
@@ -283,7 +284,10 @@ public:
     std::optional<Status> move_to(double position, const MoveOptions& options = {});
     /// Absolute move at `speed` (waits).
     std::optional<Status> move_to(double position, double speed, double accel_g = 0.1, double band = 0.1);
-    /// Relative to the measured position (sent as an absolute target).
+    /// Relative to the measured position (sent as an absolute target); while the last move of this object is still
+    /// finishing (it ended by the fast rule or was not waited for, no stop or newer move since) and the axis is within
+    /// its band, relative to that move's target instead (ON-WIRE on a PCON-CB + RCP6: 50 fast steps of -0.02 mm lost
+    /// 0.69 mm when each was added to PNOW, which still lagged).
     std::optional<Status> move_by(double delta, const MoveOptions& options = {});
     /// A small relative step at a low default speed (10 units/s): limits().jog_step.
     std::optional<Status> jog(double delta, const MoveOptions& options = MoveOptions::jog());
@@ -432,7 +436,8 @@ public:
     /// (options.wait is ignored). With the monitor running a status younger than kFreshS that shows the axis ready
     /// replaces the status read before the command (the move is then one frame).
     MoveHandle start_move_to(double position, const MoveOptions& options = {});
-    /// move_by without waiting (the measured position: a monitor status younger than kFreshS when it runs).
+    /// move_by without waiting (the measured position: a monitor status younger than kFreshS when it runs; the base
+    /// rule of move_by).
     MoveHandle start_move_by(double delta, const MoveOptions& options = {});
     /// jog without waiting.
     MoveHandle start_jog(double delta, const MoveOptions& options = MoveOptions::jog());

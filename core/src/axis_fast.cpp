@@ -194,6 +194,7 @@ Status Axis::Impl::wait_done(std::optional<double> target, std::optional<double>
             const bool arrived = !target || std::fabs(st.position_mm - *target) <= b + kPosEps;
             if (is_done(st, target, b, mode, settle)) {
                 motion_pending = false;
+                if (mode == Completion::Safe) note_settled(watch);  // move_by adds to the position again
                 return st;
             }
             if (watch && ended_from_outside(*watch, st, target, b)) return st;

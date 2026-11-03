@@ -74,8 +74,13 @@ bool MoveHandle::done() {
     Axis::Impl& ax = axis_of<Axis::Impl>(s_->axis);
     const Status st = ax.sample_since(s_->sent_at, s_->completion == Completion::Fast);
     ax.check_during_motion(st);
-    if (ax.is_done(st, s_->target, s_->band, s_->completion, s_->settle) ||
-        ax.ended_from_outside(s_->watch, st, s_->target, s_->band)) {
+    if (ax.is_done(st, s_->target, s_->band, s_->completion, s_->settle)) {
+        if (s_->completion == Completion::Safe) ax.note_settled(&s_->watch);  // move_by adds to the position again
+        s_->result = st;
+        ax.motion_pending = false;
+        return true;
+    }
+    if (ax.ended_from_outside(s_->watch, st, s_->target, s_->band)) {
         s_->result = st;
         ax.motion_pending = false;
         return true;
@@ -143,8 +148,9 @@ bool MoveHandle::monitored(double until) {
     s_->sample_at = now_s();
     const Status st = ax.confirmed(sample->status);
     ax.check_during_motion(st);
-    if (ax.is_done(st, s_->target, s_->band, s_->completion, s_->settle) ||
-        ax.ended_from_outside(s_->watch, st, s_->target, s_->band)) {
+    const bool done = ax.is_done(st, s_->target, s_->band, s_->completion, s_->settle);
+    if (done && s_->completion == Completion::Safe) ax.note_settled(&s_->watch);  // move_by adds to the position again
+    if (done || ax.ended_from_outside(s_->watch, st, s_->target, s_->band)) {
         s_->result = st;
         ax.motion_pending = false;
     }

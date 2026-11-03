@@ -283,6 +283,14 @@ struct Axis::Impl {
     std::shared_ptr<CancelToken> cancel_token = std::make_shared<CancelToken>();
     std::optional<DirectMove> last_move;      ///< (mutex) the last 0x9900 block this object sent (change_speed)
     std::optional<double> last_target;        ///< (mutex)
+    /// The last 0x9900 move of this object that is not a push (move_by's base while it is still finishing).
+    struct Commanded {
+        double target = 0.0;
+        double band = 0.0;
+        detail::MoveWatch watch;
+        bool settled = false;  ///< the safe rule confirmed it (in position, PNOW unchanged over settle_s)
+    };
+    std::optional<Commanded> commanded;       ///< (mutex)
     std::optional<CommandMethod> home_method; ///< (mutex) the method of the last home start (finish_home)
 
     // coordinated motion (coord.hpp, src/coord_run.cpp)
@@ -432,6 +440,11 @@ struct Axis::Impl {
     Status check_move(double position, const MoveOptions& options);
     std::optional<Status> move_to(double position, const MoveOptions& options);
     std::optional<Status> move_by(double delta, const MoveOptions& options);
+    /// The position move_by adds to: the last commanded target while that move is still finishing (not confirmed by
+    /// the safe rule, the newest move of this object, no stop since) and `st` is within its band; else st's position.
+    double relative_base(const Status& st);
+    /// The safe rule confirmed the move `watch` (nullptr: whichever move ran) at rest.
+    void note_settled(const detail::MoveWatch* watch);
     std::optional<Status> move_to_position(int row, const PositionMoveOptions& options);
     struct StoredRow {
         double target = 0.0;

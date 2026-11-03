@@ -39,6 +39,7 @@
 #include "iai_actuator_driver/position.hpp"
 #include "iai_actuator_driver/parameters.hpp"
 #include "iai_actuator_driver/results.hpp"
+#include "iai_actuator_driver/nonvolatile.hpp"
 #include "iai_actuator_driver/json.hpp"
 #include "iai_actuator_driver/axis.hpp"
 #include "iai_actuator_driver/info.hpp"

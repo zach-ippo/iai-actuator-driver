@@ -9,6 +9,7 @@
 
 #include "axis_impl.hpp"
 #include "iai_actuator_driver/log.hpp"
+#include "iai_actuator_driver/nonvolatile.hpp"
 #include "iai_actuator_driver/sim.hpp"
 #include "harness.hpp"
 
@@ -206,7 +207,7 @@ TEST(axis_nv_guard_software_reset_drops_pending_ram_writes) {
 
 TEST(axis_nv_guard_one_warning_per_hour_never_a_refusal) {
     WarningCapture capture;
-    detail::NvWriteTracker t("SIM slave 1");
+    NvWriteTracker t("SIM slave 1");
     const double t0 = 1000.0;
     for (int i = 0; i < kNvWarnPerHour; ++i) CHECK(!t.record(t0 + i));
     CHECK(capture.take().empty());

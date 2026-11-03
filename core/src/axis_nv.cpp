@@ -20,7 +20,6 @@
 #include "util.hpp"
 
 namespace iai_actuator_driver {
-namespace detail {
 
 NvWriteTracker::NvWriteTracker(std::string label) : label_(std::move(label)) {}
 
@@ -70,13 +69,13 @@ bool NvWriteTracker::record(double now) {
         if (warn) last_warning_ = now;
         label = label_;
     }
-    log_debug(kAxisLog, util::format("non-volatile write%s%s (%ld on this axis, %d in the last hour)",
-                                     label.empty() ? "" : " on ", label.c_str(), total, count));
+    log_debug(detail::kAxisLog, util::format("non-volatile write%s%s (%ld on this axis, %d in the last hour)",
+                                             label.empty() ? "" : " on ", label.c_str(), total, count));
     if (!warn) return false;
     char buf[512];
     std::snprintf(buf, sizeof buf, kNvRateWarning, count, label.empty() ? "this axis" : label.c_str(),
                   static_cast<double>(kNvWriteCycles) / count / 24.0);
-    log_warning(kAxisLog, buf);
+    log_warning(detail::kAxisLog, buf);
     return true;
 }
 
@@ -106,6 +105,8 @@ void NvWriteTracker::set_label(std::string label) {
     label_ = std::move(label);
 }
 
+namespace detail {
+
 double motion_time_s(double distance, double speed, double accel_g) {
     const double accel = std::max(accel_g, 0.01) * reg::kGmms2;
     const double v = std::max(speed, 0.01);
@@ -128,13 +129,13 @@ int Axis::nonvolatile_writes_last_hour() const { return impl_->nv()->last_hour(n
 bool Axis::has_uncommitted_parameters() const { return impl_->nv()->uncommitted(); }
 
 void Axis::share_nonvolatile_state(const std::string& unit_key, const std::string& label) {
-    std::shared_ptr<detail::NvWriteTracker> tracker =
-        unit_key.empty() ? std::make_shared<detail::NvWriteTracker>(label) : detail::shared_nv_tracker(unit_key, label);
+    std::shared_ptr<NvWriteTracker> tracker =
+        unit_key.empty() ? std::make_shared<NvWriteTracker>(label) : shared_nv_tracker(unit_key, label);
     std::lock_guard<std::mutex> lock(impl_->mutex);
     impl_->nv_tracker = std::move(tracker);
 }
 
-void Axis::forget_nonvolatile_state(const std::string& unit_key_prefix) { detail::forget_nv_trackers(unit_key_prefix); }
+void Axis::forget_nonvolatile_state(const std::string& unit_key_prefix) { forget_nv_trackers(unit_key_prefix); }
 
 bool Axis::testing_note_nonvolatile_write(double now, const std::string& what) {
     log_debug(detail::kAxisLog, "non-volatile write: " + what);

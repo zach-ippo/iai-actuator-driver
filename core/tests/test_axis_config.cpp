@@ -233,6 +233,18 @@ TEST(axis_config_con_inverted_soft_limits_are_refused) {
     CHECK_EQ(fc10_frames(sim->requests()), 0);
 }
 
+TEST(axis_config_con_soft_limit_below_the_position_warns) {
+    auto sim = make_sim(SimProfile::Pcon);
+    Axis ax = open_sim(sim);
+    ax.connect();
+    ax.move_to(5.0, 20.0);
+    ParameterWriteOptions o;
+    o.commit = false;
+    const ParameterWriteResult r = ax.write_parameter(3, 2.0, o);
+    CHECK(r.changed);
+    CHECK(any_has(r.warnings, "0x0D9"));
+}
+
 TEST(axis_config_parameters_list_ec_and_con) {
     auto gripper = make_sim(SimProfile::Gripper);
     Axis ec = open_sim(gripper);

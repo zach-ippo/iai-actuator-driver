@@ -512,6 +512,12 @@ ParameterWritePlan plan_con(const ParameterContext& ctx, int no, const ParamValu
                 plus ? "below" : "above", plus ? "-" : "+", plus ? 4 : 3,
                 util::fixed(other->signed_value() * 0.01, 2).c_str(), unit_text.c_str(), plus ? 4 : 3));
         }
+        if (plus && ctx.position_mm && *ctx.position_mm > mine * 0.01 + 1e-9)
+            warnings.push_back(util::format(
+                "No.3 = %s%s is below the axis's current position %s%s: the unit raises alarm 0x0D9 on the next move "
+                "(ON-WIRE: PCON-CB)",
+                util::fixed(mine * 0.01, 2).c_str(), unit_text.c_str(), util::fixed(*ctx.position_mm, 2).c_str(),
+                unit_text.c_str()));
     }
     // the reset warning is the Axis's: added only to a write that is not skipped (axis_config.cpp)
 

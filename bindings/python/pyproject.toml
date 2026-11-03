@@ -1,0 +1,50 @@
+[build-system]
+# 77: the SPDX license expression and license-files below (70.1: setuptools.command.bdist_wheel, which setup.py uses to
+# tag the platform wheels of a release)
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iai-actuator-driver"
+version = "1.1.0"
+description = "UNOFFICIAL: Python driver, command line and local test GUI for IAI ELECYLINDER actuators and CON-family controllers over RS-485 (Modbus RTU). Not an IAI product."
+readme = "README.md"
+license = "Apache-2.0"
+# copies of the repository's LICENSE, licenses/NOTICE and licenses/NATIVE_THIRD_PARTY.txt (the notices of what is
+# linked into the native library the wheels carry; a project cannot name files outside its folder);
+# tests/test_packaging.py checks that they equal the repository's files
+license-files = ["LICENSE", "NOTICE", "NATIVE_THIRD_PARTY.txt"]
+authors = [{name = "Zachary Ippolito"}]
+requires-python = ">=3.11"
+dependencies = ["pyserial>=3.5"]
+keywords = ["IAI", "ELECYLINDER", "RoboCylinder", "PCON", "Modbus", "RTU", "RS-485", "actuator", "driver"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Manufacturing",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: OS Independent",
+    "Topic :: System :: Hardware :: Hardware Drivers",
+]
+
+[project.scripts]
+iai-actuator-driver = "iai_actuator_driver.cli:main"
+iai-check = "iai_actuator_driver.cli:check_main"
+
+[tool.setuptools]
+packages = [
+    "iai_actuator_driver",
+    "iai_actuator_driver._native",  # the log bridge, the ABI tables and the native library's folder (_native/<rid>/)
+    "iai_actuator_driver._shared",  # the Python parts of the driver modules (records, planner, tables)
+    "ec_driver",  # deprecated import alias (rename-project: keep)
+]
+
+# Release wheels: setup.py tags one wheel per platform (py3-none-<platform>) when IAD_WHEEL_PLATFORM is set; the
+# release workflow first copies the native library into iai_actuator_driver/_native/<rid>/ (win-x64, linux-x64,
+# linux-arm64). Without the variable the sdist and a local install carry no library: the package then needs one built
+# or named by IAI_ACTUATOR_DRIVER_NATIVE (the sdist is "source, needs the native library"). The libraries are never
+# committed.
+[tool.setuptools.package-data]
+# only the library files, never build leftovers of the folder
+iai_actuator_driver = ["_native/*/*.dll", "_native/*/*.so", "_native/*/*.dylib"]

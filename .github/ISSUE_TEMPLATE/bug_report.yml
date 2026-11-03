@@ -1,0 +1,69 @@
+name: Bug report
+description: The driver, a command line or the GUI does something wrong.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This driver is unofficial: do not report it to IAI. Close IA-OS before you test (one program per port).
+        If the problem also shows with `--sim`, say so: then no unit is needed to reproduce it.
+  - type: input
+    id: version
+    attributes:
+      label: Driver version
+      description: The output of `iai-actuator-driver --version`, or the version in the file name you installed.
+      placeholder: "1.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: edition
+    attributes:
+      label: Language / edition
+      description: "`iai-actuator-driver` is Python, `iai-actuator-driver-cpp` is C++, `iai-actuator-driver-cs` is C#."
+      options:
+        - Python on the core (the default)
+        - Python pure fallback (1.0.x and earlier, IAI_DRIVER_BACKEND=python)
+        - C# / .NET
+        - C++
+        - C or another C FFI (LabVIEW ...)
+        - iai-gui
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11, 64-bit
+    validations:
+      required: true
+  - type: input
+    id: unit
+    attributes:
+      label: Controller and unit model
+      description: The `model` in the iai-check report, or the label on the unit. Write "simulator" if no unit is involved.
+      placeholder: EC-GRBP8M-20-1-1-PN-WA-WL2
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected and what you got instead. Include the full error message.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: The commands or code, in order, from a connected unit or from `--sim`.
+    validations:
+      required: true
+  - type: textarea
+    id: check
+    attributes:
+      label: iai-check report
+      description: |
+        Run `iai-check --port COM3` (read-only; use your own port) and drag the file `iai-check-<time>.json` into this
+        box. It is too long to paste; zip it if GitHub refuses it. The file holds the unit's serial number and the
+        port name, and the issue is public. Leave this empty if no unit is involved.

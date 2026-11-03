@@ -1,0 +1,383 @@
+# ci-layout: no push trigger. A pull request or a manual run (workflow_dispatch) runs one small job (quick) and the full
+# set of jobs. GitHub Actions minutes are limited, so a push to any branch starts nothing: the tests run on the
+# development PC (tools/test.py). The quick job also checks that every package carries one version
+# (.github/release/check_version.py).
+# The full set is one job per area (gui, build, core, dotnet, python-native), each run only when its paths changed (on
+# a pull request). The Python package runs on the core only (the pure-Python edition was removed after 1.0.x), so every
+# job that imports it gets a native library first: the DLL of core-windows or the .so of core-linux. The build job waits
+# for every test job that ran (gui, core-windows, python-native).
+# The changes job does the same version check. Every test runs on the simulator: no job opens a serial port.
+# A manual run (workflow_dispatch) or a change to the workflows runs every job of the full set.
+# Releases are built locally (.github/release/local_release.py); release.yml runs by hand only, as a dry run.
+#
+#   quick   every pull request and manual run: Windows, Python 3.13: the DLL built with zig (python build.py shared),
+#           then the whole driver suite on IAI_DRIVER_BACKEND=native (tests/run_backend.py) against that DLL. The C++
+#           tests, the C smoke test, Linux and Python 3.11 are left to the full set
+#   gui     apps/gui and the driver package: the GUI tests on Windows (the DLL of core-windows) and Linux (the .so of
+#           core-linux) with Python 3.11 and 3.13
+#   build   the sdists and the wheels of the driver and the GUI (Windows); checks that the driver does not import
+#           without its library, then installs both wheels and runs their commands against the DLL of core-windows; it
+#           waits for gui, core-windows and python-native (a job that did not run does not hold it back, a failed one
+#           does)
+#   core    core/ and the Python package: Windows with zig (python build.py: C++ tests, DLL, C smoke test; the DLL goes
+#           to python-native, gui and build; a change outside the core area, such as docs/ or apps/gui/, builds only the
+#           DLL) and Linux with CMake and gcc (ctest; build.py targets Windows only, then the Python binding tests and
+#           the whole driver suite (tests/run_backend.py) against the .so; a change to apps/gui/ alone builds only the
+#           .so, for the GUI tests)
+#   python-native  Windows, Python 3.11 and 3.13, on every change to core/, bindings/python/, docs/, examples/,
+#           .github/release/, licenses/, .github/*.md or a root file: the Python native binding tests, then the whole
+#           driver suite on IAI_DRIVER_BACKEND=native (tests/run_backend.py; it also checks the documents), both against
+#           the DLL of core-windows (on Linux, core-linux runs the suite against its .so)
+#   dotnet  bindings/dotnet: the whole C# solution; its native tests use a DLL built with zig first; then the .NET
+#           Framework 4.8 smoke of the netstandard2.0 build, with the DLL next to it and preloaded by full path
+name: CI
+
+on:
+  # No push trigger (Actions minutes are limited). A pull request runs the quick job and the areas it changes; a manual
+  # run (Actions, CI, Run workflow) runs the quick job and every area.
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # a newer update of the pull request replaces the run of the one before it (Actions minutes are limited)
+  cancel-in-progress: true
+
+jobs:
+  # One Windows job with no path filter. The rest of the file (changes and everything that needs it) runs beside it.
+  quick:
+    name: Quick (windows-latest, zig, Python 3.13)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # The Python package, the core (version.hpp, CMakeLists.txt) and the C# projects carry one version.
+      - name: One version everywhere
+        run: python .github/release/check_version.py
+      - name: Install zig (the ziglang package)
+        run: python -m pip install ziglang
+      # The first zig compile builds its libc++ cache and takes about a minute.
+      - name: Shared library (DLL and import library)
+        working-directory: core
+        run: python build.py shared
+      - name: Install the driver (editable) and pyserial
+        run: python -m pip install -e bindings/python
+      # The binding tests skip when no library loads: fail here instead, so a skipped run never passes as green.
+      - name: The binding loads the DLL
+        env:
+          IAI_ACTUATOR_DRIVER_NATIVE: ${{ github.workspace }}\core\build\iai_actuator_driver.dll
+        run: python -c "from iai_actuator_driver import native; native.load(); print(native.find_library(), native.library_version(), native.abi_version())"
+      # run_backend.py: a test past 120 s dumps every stack and ends the run, and no binding thread (iad-*) may outlive
+      # it.
+      - name: Driver tests on the core (simulator only)
+        working-directory: bindings/python
+        env:
+          IAI_ACTUATOR_DRIVER_NATIVE: ${{ github.workspace }}\core\build\iai_actuator_driver.dll
+        run: python tests/run_backend.py --backend native
+
+  changes:
+    name: Changed areas
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      python: ${{ steps.areas.outputs.python }}
+      gui: ${{ steps.areas.outputs.gui }}
+      core: ${{ steps.areas.outputs.core }}
+      dotnet: ${{ steps.areas.outputs.dotnet }}
+      native: ${{ steps.areas.outputs.native }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # The Python package, the core (version.hpp, CMakeLists.txt) and the C# projects carry one version.
+      - name: One version everywhere
+        run: python3 .github/release/check_version.py
+      - name: Compare with the base commit
+        id: areas
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # The path filters (extended regular expressions over the changed paths). The python area (the sdist and
+          # wheel build) also covers the root files, licenses/, .github/*.md (CONTRIBUTING.md, SECURITY.md) and docs/
+          # (tests/test_packaging.py checks the documents, their links and their wording, and the package copies of
+          # the notices), .github/release/ (the version check it runs) and core/include/ (the header the binding
+          # layout tests read without a library). The core area also covers the Python package (every module
+          # of it is a binding over the core: native.py, the driver modules, _native/ and _shared/) and its binding and
+          # runner tests, so python-native runs with a fresh DLL whenever one of them changes.
+          # The native area (core/ and every Python file, and what tests/test_packaging.py reads: the root files,
+          # licenses/, .github/*.md, docs/, examples/ and .github/release/) runs the whole driver suite on the core: a
+          # change on either side can break it.
+          python='^(bindings/python/|examples/|docs/|licenses/|core/include/|[.]github/release/|[.]github/[^/]+[.]md$|[^/]+$)'
+          gui='^(apps/gui/|bindings/python/iai_actuator_driver/)'
+          native_py='bindings/python/iai_actuator_driver/'
+          native_tests='bindings/python/tests/(test_native[^/]*[.]py|test_backend[^/]*[.]py|run_backend[.]py|test_run_backend[.]py)'
+          core="^(core/|bindings/python/setup[.]py|$native_py|$native_tests)"
+          dotnet='^(bindings/dotnet/|core/)'
+          native='^(core/|bindings/python/|examples/|docs/|licenses/|[.]github/release/|[.]github/[^/]+[.]md$|[^/]+$)'
+          every='^[.]github/workflows/'
+          if [ "$EVENT" = workflow_dispatch ] || [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            changed=ALL
+          else
+            changed=$(git diff --name-only "$BASE" "$GITHUB_SHA")
+          fi
+          printf '%s\n' "$changed"
+          for area in python gui core dotnet native; do
+            if [ "$changed" = ALL ] || printf '%s\n' "$changed" | grep -Eq "${!area}|$every"; then
+              echo "$area=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "$area=false" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
+  # The driver runs on the core only: each leg gets the library of its OS (core-windows, core-linux).
+  gui:
+    name: GUI (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    needs: [changes, core-windows, core-linux]
+    if: needs.changes.outputs.gui == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python-version: ["3.11", "3.13"]
+        include:
+          - os: windows-latest
+            native: native-windows-x64
+            lib: iai_actuator_driver.dll
+          - os: ubuntu-latest
+            native: native-linux-x64
+            lib: libiai_actuator_driver.so
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: The native library of core-windows or core-linux
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.native }}
+          path: ${{ runner.temp }}/${{ matrix.native }}
+      - name: Install the driver (editable) and pyserial
+        run: python -m pip install -e bindings/python
+      - name: GUI tests
+        env:
+          IAI_ACTUATOR_DRIVER_NATIVE: ${{ runner.temp }}/${{ matrix.native }}/${{ matrix.lib }}
+        run: python -m unittest discover -s apps/gui -t apps -q
+
+  build:
+    name: Build the sdists and the wheels
+    # every test job: a skipped one (its area did not change) does not hold the build back, a failed one does (!failure())
+    needs: [changes, gui, core-windows, python-native]
+    if: ${{ !cancelled() && !failure() && (needs.changes.outputs.python == 'true' || needs.changes.outputs.gui == 'true') }}
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      # The sdist and the py3-none-any wheel carry no library ("source, needs the native library"): the commands run
+      # against the DLL of core-windows (core-windows runs whenever this job does).
+      - name: The DLL of core-windows
+        uses: actions/download-artifact@v4
+        with:
+          name: native-windows-x64
+          path: ${{ runner.temp }}/native-windows-x64
+      - name: Build the sdists and the wheels (the driver, the GUI)
+        run: |
+          python -m pip install build
+          python -m build bindings/python --outdir dist
+          python -m build apps/gui --outdir dist
+      - name: Install both wheels; without the library the driver does not import, and says why
+        run: |
+          python -m pip install dist/*.whl
+          cd "$RUNNER_TEMP"
+          if python -c "import iai_actuator_driver" 2> import-error.txt; then
+            echo "the driver imported without its native library"; exit 1
+          fi
+          grep "needs its native library" import-error.txt
+      - name: Run their commands on the simulator, against the DLL
+        working-directory: ${{ runner.temp }}
+        env:
+          IAI_ACTUATOR_DRIVER_NATIVE: ${{ runner.temp }}/native-windows-x64/iai_actuator_driver.dll
+        run: |
+          iai-actuator-driver --version
+          iai-actuator-driver --sim status
+          iai-gui --version
+          python -c "import gui, pathlib; pages = {p.name for p in pathlib.Path(gui.__file__).parent.glob('*.html')}; assert {'index.html', 'workbench.html'} <= pages, pages"
+      - name: Upload the sdists and the wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  core-windows:
+    name: Core (windows-latest, zig)
+    needs: changes
+    # the DLL serves python-native, gui and build too
+    if: needs.changes.outputs.native == 'true' || needs.changes.outputs.gui == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install zig (the ziglang package)
+        run: python -m pip install ziglang
+
+      # The first zig compile builds its libc++ cache and takes about a minute.
+      - name: C++ tests
+        if: needs.changes.outputs.core == 'true'
+        working-directory: core
+        run: python build.py test
+      - name: Shared library (DLL and import library)
+        working-directory: core
+        run: python build.py shared
+      - name: C smoke test (C99 program against the DLL)
+        if: needs.changes.outputs.core == 'true'
+        working-directory: core
+        run: python build.py smoke
+
+      # The Python tests against this DLL run in python-native, gui and build, from the uploaded artifact.
+      - name: Upload the DLL and its import library
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-windows-x64
+          path: |
+            core/build/iai_actuator_driver.dll
+            core/build/iai_actuator_driver.lib
+          if-no-files-found: error
+
+  python-native:
+    name: Python native binding (windows-latest, Python ${{ matrix.python-version }})
+    needs: [changes, core-windows]
+    if: needs.changes.outputs.native == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: The DLL of core-windows
+        uses: actions/download-artifact@v4
+        with:
+          name: native-windows-x64
+          path: ${{ runner.temp }}\native-windows-x64
+      - name: Install the driver (editable) and pyserial
+        run: python -m pip install -e bindings/python
+      # The binding tests skip when no library loads: fail here instead, so a skipped run never passes as green.
+      - name: The binding loads the DLL
+        env:
+          IAI_ACTUATOR_DRIVER_NATIVE: ${{ runner.temp }}\native-windows-x64\iai_actuator_driver.dll
+        run: python -c "from iai_actuator_driver import native; native.load(); print(native.find_library(), native.library_version(), native.abi_version())"
+      - name: Native binding tests (simulator only)
+        working-directory: bindings/python
+        env:
+          IAI_ACTUATOR_DRIVER_NATIVE: ${{ runner.temp }}\native-windows-x64\iai_actuator_driver.dll
+        run: python -m unittest discover -s tests -p "test_native*.py" -v
+      # The whole suite: a test past 120 s dumps every stack and ends the run, and no binding thread (iad-*) may outlive
+      # it.
+      - name: Driver tests on the core (simulator only)
+        if: ${{ !cancelled() }}
+        working-directory: bindings/python
+        env:
+          IAI_ACTUATOR_DRIVER_NATIVE: ${{ runner.temp }}\native-windows-x64\iai_actuator_driver.dll
+        run: python tests/run_backend.py --backend native
+
+  core-linux:
+    name: Core (ubuntu-latest, CMake and gcc)
+    needs: changes
+    # the .so serves the gui job's Linux legs too
+    if: needs.changes.outputs.core == 'true' || needs.changes.outputs.gui == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pyserial
+        run: python -m pip install pyserial
+
+      - name: Configure (tests, command line and the shared library)
+        run: cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release -DIAI_ACTUATOR_DRIVER_BUILD_SHARED=ON
+      - name: Build
+        # a bare --parallel is an unlimited make -j: every gcc of both library targets at once runs the runner out of memory
+        run: cmake --build core/build --parallel "$(nproc)"
+      - name: C++ tests and C smoke test
+        if: needs.changes.outputs.core == 'true'
+        run: ctest --test-dir core/build --output-on-failure
+
+      - name: Python binding tests against the .so
+        if: needs.changes.outputs.core == 'true'
+        working-directory: bindings/python
+        env:
+          IAI_ACTUATOR_DRIVER_NATIVE: ${{ github.workspace }}/core/build/libiai_actuator_driver.so
+        run: python -m unittest discover -s tests -p test_native_binding.py -v
+      # The whole driver suite on Linux (python-native runs it on Windows): a test past 120 s dumps every stack and ends
+      # the run, and no binding thread (iad-*) may outlive it.
+      - name: Driver tests on the core against the .so (simulator only)
+        if: needs.changes.outputs.core == 'true'
+        working-directory: bindings/python
+        env:
+          IAI_ACTUATOR_DRIVER_NATIVE: ${{ github.workspace }}/core/build/libiai_actuator_driver.so
+        run: python tests/run_backend.py --backend native
+
+      # CMake names the file libiai_actuator_driver.so.<version> and makes .so and .so.1 symlinks to it; copy the real file.
+      - name: Collect the shared library
+        run: |
+          mkdir -p native-out
+          cp -L core/build/libiai_actuator_driver.so native-out/
+      - name: Upload the shared library
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-linux-x64
+          path: native-out/libiai_actuator_driver.so
+          if-no-files-found: error
+
+  dotnet:
+    name: .NET (windows-latest)
+    needs: changes
+    if: needs.changes.outputs.dotnet == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install zig (the ziglang package)
+        run: python -m pip install ziglang
+      - name: Native library for the native binding tests
+        working-directory: core
+        run: python build.py shared
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: C# solution tests (the native tests use the DLL built above)
+        run: dotnet test bindings/dotnet/IaiActuatorDriver.sln --configuration Release
+      - name: .NET Framework 4.8 smoke (the netstandard2.0 build; the DLL next to the tests)
+        run: dotnet test bindings/dotnet/tests/IaiActuatorDriver.Net48Smoke --configuration Release
+      - name: .NET Framework 4.8 smoke, the DLL preloaded by full path (IAI_ACTUATOR_DRIVER_NATIVE, LoadLibrary)
+        env:
+          IAI_ACTUATOR_DRIVER_NATIVE: ${{ github.workspace }}\core\build\iai_actuator_driver.dll
+        run: dotnet test bindings/dotnet/tests/IaiActuatorDriver.Net48Smoke --configuration Release --no-build

@@ -1,0 +1,419 @@
+/* Coordinated (experimental) view, built by coord.js inside #viewCoord. Palette and buttons from styles.css. */
+
+#viewCoord .coord-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+#viewCoord .coord-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  min-width: 0;
+}
+@media (min-width: 1100px) {
+  #viewCoord .coord-grid {
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  }
+}
+
+#viewCoord .coord-intro p {
+  margin: 6px 0 0;
+}
+#viewCoord .coord-intro .pane-head {
+  margin-bottom: 0;
+}
+#viewCoord .tag.exp {
+  background: #fff1d6;
+  color: var(--warn);
+}
+#viewCoord .coord-empty p {
+  margin: 0 0 10px;
+}
+#viewCoord .mini.toggle[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--ok);
+  font-weight: 600;
+}
+
+/* Form */
+#viewCoord .coord-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+#viewCoord .coord-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px 10px;
+}
+#viewCoord .coord-fields.pair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+#viewCoord .coord-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+#viewCoord .coord-field.wide {
+  grid-column: 1 / -1;
+}
+#viewCoord .coord-field.span2 {
+  grid-column: span 2;
+}
+#viewCoord .coord-field input,
+#viewCoord .coord-field select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px;
+  font-weight: 400;
+}
+#viewCoord select.invalid {
+  border-color: var(--err);
+  background: #fff1ec;
+}
+#viewCoord .coord-fieldset:disabled input,
+#viewCoord .coord-fieldset:disabled select {
+  background: #f1f4f4;
+  color: var(--muted);
+}
+
+/* Readiness */
+#viewCoord .coord-readiness {
+  margin-top: 14px;
+}
+#viewCoord .coord-ready {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 13px;
+}
+#viewCoord .coord-ready-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 0;
+}
+#viewCoord .coord-ready-row .small {
+  overflow-wrap: anywhere;
+}
+#viewCoord .chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 20px;
+  background: #edf2f3;
+  color: var(--muted);
+}
+#viewCoord .chip.ok {
+  background: #e3f4ef;
+  color: var(--ok);
+}
+#viewCoord .chip.bad {
+  background: #fff1ec;
+  color: var(--err);
+}
+#viewCoord #coordPrepare {
+  margin-top: 8px;
+}
+
+/* Actions */
+#viewCoord .coord-actions {
+  margin-top: 14px;
+  align-items: center;
+}
+#viewCoord #coordStop {
+  margin-left: auto;
+}
+#viewCoord #coordStop.big {
+  flex: 1 1 100%;
+  margin-left: 0;
+  padding: 12px 20px;
+  font-size: 22px;
+  letter-spacing: 3px;
+  border: 3px solid #ffd7d2;
+  border-radius: 12px;
+  box-shadow: 0 2px 0 var(--red-dark);
+}
+#viewCoord .coord-runnote {
+  margin: 8px 0 0;
+}
+
+/* Plan and run output */
+#viewCoord .coord-out h2 {
+  margin-bottom: 10px;
+}
+#viewCoord .coord-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-left: 4px solid var(--line);
+  border-radius: 8px;
+  background: #f4f7f7;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+#viewCoord .coord-verdict.ok {
+  border-left-color: var(--ok);
+  background: #eef8f5;
+}
+#viewCoord .coord-verdict.bad {
+  border-left-color: var(--err);
+  background: #fff1ec;
+  color: var(--err);
+}
+#viewCoord .coord-kv th {
+  width: 36%;
+}
+#viewCoord .coord-list {
+  margin-top: 10px;
+}
+#viewCoord .coord-list ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+#viewCoord .coord-list li {
+  overflow-wrap: anywhere;
+}
+#viewCoord .coord-list.warn li {
+  color: var(--warn);
+}
+#viewCoord .coord-list.bad li {
+  color: var(--err);
+}
+#viewCoord .coord-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+#viewCoord .coord-code {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f4f7f7;
+  font: 12px/1.45 Consolas, "Cascadia Mono", monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Plot */
+#viewCoord .coord-plotcard .pane-head {
+  margin-bottom: 8px;
+}
+#viewCoord label.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+#viewCoord #coordPlot {
+  display: block;
+  width: 100%;
+  height: clamp(260px, 52vh, 560px);
+}
+#viewCoord .pl-bg {
+  fill: #fbfcfc;
+}
+#viewCoord .pl-grid line {
+  stroke: #e3e9eb;
+  stroke-width: 1;
+}
+#viewCoord .pl-ticks text {
+  fill: var(--muted);
+  font-size: 11px;
+}
+#viewCoord .pl-axis {
+  fill: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+#viewCoord .pl-frame {
+  fill: none;
+  stroke: #c9d4d8;
+}
+#viewCoord .pl-stroke {
+  fill: none;
+  stroke: #8fa3ad;
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+#viewCoord .pl-path,
+#viewCoord .pl-preview,
+#viewCoord .pl-lead,
+#viewCoord .pl-trace,
+#viewCoord .pl-trace-lead {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+#viewCoord .pl-path {
+  stroke: var(--blue);
+  stroke-width: 3;
+  stroke-opacity: 0.55;
+}
+#viewCoord .pl-preview {
+  stroke: var(--err);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+#viewCoord .pl-lead {
+  stroke: var(--blue);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 5;
+}
+#viewCoord .pl-trace {
+  stroke: #d9822b;
+  stroke-width: 1.5;
+}
+#viewCoord .pl-trace-lead {
+  stroke: #efc497;
+  stroke-width: 1.5;
+}
+#viewCoord .pl-start {
+  fill: white;
+  stroke: var(--ok);
+  stroke-width: 2;
+}
+#viewCoord .pl-cur circle {
+  fill: rgba(23, 47, 64, 0.12);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+#viewCoord .pl-cur line {
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+#viewCoord .coord-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+#viewCoord .lg {
+  white-space: nowrap;
+}
+#viewCoord .lg i {
+  display: inline-block;
+  width: 20px;
+  height: 0;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-top: 2px solid;
+}
+#viewCoord .lg-path i {
+  border-top: 3px solid rgba(23, 108, 145, 0.55);
+}
+#viewCoord .lg-preview i {
+  border-top: 2px dashed var(--err);
+}
+#viewCoord .lg-lead i {
+  border-top: 2px dashed var(--blue);
+}
+#viewCoord .lg-trace i {
+  border-top-color: #d9822b;
+}
+#viewCoord .lg-trace-lead i {
+  border-top-color: #efc497;
+}
+#viewCoord .lg-stroke i {
+  border-top: 2px dashed #8fa3ad;
+}
+#viewCoord .lg-start i {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--ok);
+  background: white;
+}
+#viewCoord .lg-cur i {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: rgba(23, 47, 64, 0.12);
+}
+#viewCoord .coord-plotnote {
+  margin: 6px 0 0;
+}
+#viewCoord .coord-plotnote:empty {
+  display: none;
+}
+
+/* Run progress */
+#viewCoord .coord-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+}
+#viewCoord .coord-progress .track {
+  flex: 1;
+  height: 10px;
+  border-radius: 6px;
+  background: #e3e9eb;
+  overflow: hidden;
+}
+#viewCoord .coord-progress .bar {
+  width: 0;
+  height: 100%;
+  background: var(--blue);
+  transition: width 0.2s linear;
+}
+#viewCoord .coord-progress .small {
+  white-space: nowrap;
+}
+
+/* Header tab while a coordinated run is going (any view) */
+#tabCoord.running {
+  border-color: #f0b429;
+  color: white;
+  font-weight: 600;
+}
+#tabCoord.running::after {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: #f0b429;
+  vertical-align: middle;
+  animation: coord-pulse 0.9s ease-in-out infinite alternate;
+}
+@keyframes coord-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #tabCoord.running::after {
+    animation: none;
+  }
+  #viewCoord .coord-progress .bar {
+    transition: none;
+  }
+}

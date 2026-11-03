@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IAI Actuator Driver Single Axis __VERSION__</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="appbar">
+      <div class="appbar-main">
+        <div class="brand">IAI Actuator Driver Single Axis <span class="ver" id="verBadge" title="IAI Actuator Driver version">v__VERSION__</span><small>ELECYLINDER · ROBOCYLINDER · MODBUS RTU</small></div>
+        <div class="unofficial" role="note">Unofficial — not an IAI product</div>
+        <nav class="views" role="tablist" aria-label="Views">
+          <button type="button" role="tab" id="tabOperate" data-view="viewOperate" aria-selected="true" class="active">Operate</button>
+          <button type="button" role="tab" id="tabInfo" data-view="viewInfo" aria-selected="false"
+            title="Everything the EC tells about itself. Read-only: never writes to the EC.">Unit info</button>
+        </nav>
+        <span class="spacer"></span>
+        <button type="button" class="linkbtn" id="aboutBtn" title="Version, unofficial-use notice, evidence words and documentation">About</button>
+        <button type="button" class="linkbtn" id="quitBtn" title="Stop every axis, leave each unit as found (control back to PIO where it had it) and end the GUI program">Quit</button>
+        <a class="classic-link" href="/" title="The multi-axis workbench">Workbench</a>
+        <span class="badge off" id="connBadge">Starting...</span>
+      </div>
+      <div class="stop-warn hidden" id="stopWarn" role="alert">
+        <span id="stopWarnText"></span>
+      </div>
+      <button id="stopBtn" class="stop" type="button"
+        title="Decelerate to stop with the EC's STOP input (Space or Esc). Verified on moves commanded over Modbus (also with PIO in control); untested on moves a PLC commanded over PIO - use the PLC / hardware stop for those. Not a safety function.">
+        STOP<small>SPACE / ESC</small>
+      </button>
+    </header>
+
+    <main class="main">
+      <div class="grid" id="viewOperate" role="tabpanel" aria-labelledby="tabOperate">
+        <div class="col">
+          <section class="card panel" aria-labelledby="connTitle">
+            <h2 id="connTitle">Connection</h2>
+            <form id="connectForm" class="fields">
+              <label>Port<input id="port" type="text" value="COM3" autocomplete="off" spellcheck="false" /></label>
+              <label title="Tried first; the other rates are tried automatically (an EC boots at 38400; after another PC tool has connected it may be at 115200)."
+                >Baud (tried first)
+                <select id="baud">
+                  <option>9600</option>
+                  <option>19200</option>
+                  <option>38400</option>
+                  <option>57600</option>
+                  <option selected>115200</option>
+                  <option>230400</option>
+                </select>
+              </label>
+              <label>Slave<input id="slave" type="number" min="1" max="247" step="1" value="1" /></label>
+              <label title="Optional override. Empty = the EC's own soft limits (minus 0.30 mm), read at connect. An override can only narrow them.">Stroke min (mm, optional)<input id="strokeMin" type="number" step="0.01" placeholder="EC limit" /></label>
+              <label title="Optional override. Empty = the EC's own soft limits (minus 0.30 mm), read at connect. An override can only narrow them.">Stroke max (mm, optional)<input id="strokeMax" type="number" step="0.01" placeholder="EC limit" /></label>
+              <label class="check" title="Use iai_actuator_driver's simulator; no serial port is opened"><input id="simulate" type="checkbox" checked /> Simulator (no serial port)</label>
+              <label title="Which simulated unit (seeded with the live values of the three ECs tested). Ignored for a real port."
+                >Sim profile
+                <select id="simProfile">
+                  <option value="slider" selected>ELECYLINDER slider (EC-S)</option>
+                  <option value="gripper">ELECYLINDER gripper (EC-GR)</option>
+                  <option value="rod">ELECYLINDER rod (EC-R)</option>
+                  <option value="pcon">PCON + RCP6 RoboCylinder</option>
+                  <option value="rotary">Rotary axis (deg)</option>
+                  <option value="unknown">Generic IAI unit (a unit code without a family name)</option>
+                </select>
+              </label>
+              <div class="buttons">
+                <button class="primary" id="connectBtn" type="submit">Connect</button>
+                <button id="disconnectBtn" type="button" disabled>Disconnect</button>
+              </div>
+            </form>
+            <p class="small" id="driverInfo">Not connected. Connecting only reads from the unit. Close IA-OS (and any other program using the port) first.</p>
+            <p class="small" id="strokeInfo"></p>
+            <ul class="warn-list hidden" id="strokeWarn" role="status"></ul>
+            <p class="error hidden" id="lastError" role="status"></p>
+          </section>
+
+          <section class="stats" aria-label="Axis status">
+            <div class="card stat position">
+              <div>
+                <div class="label">Position</div>
+                <strong id="tPosition">—<span class="u">mm</span></strong>
+              </div>
+              <div class="pos-side">
+                <div class="small" id="tSpeed"></div>
+                <div class="small" id="statusAge"></div>
+              </div>
+            </div>
+            <div class="card stat" id="tileAlarm"><div class="label">Alarm code</div><strong id="tAlarm">—</strong></div>
+            <div class="card stat" id="tileModbus"><div class="label">Modbus control</div><strong id="tModbus">—</strong></div>
+            <div class="card stat" id="tileLink"><div class="label">Link</div><strong id="tLink">—</strong></div>
+          </section>
+
+          <section class="card panel" aria-labelledby="lampTitle">
+            <h2 id="lampTitle">Status lamps</h2>
+            <div class="lamps" id="lamps"></div>
+            <div class="label lamp-group" title="ZONS 0x9013 b12 / b13 / b14 - the same on every EC tested (DOPM differs per model)">Position markers (ZONS)</div>
+            <div class="lamps" id="markers"></div>
+            <p class="small mono" id="rawRegs"></p>
+          </section>
+
+          <section class="card panel" aria-labelledby="ctlTitle">
+            <h2 id="ctlTitle">Controls</h2>
+            <div class="buttons">
+              <button class="needs-conn" id="servoOnBtn" type="button">Servo ON</button>
+              <button class="needs-conn" id="servoOffBtn" type="button">Servo OFF</button>
+              <button class="needs-conn" id="homeBtn" type="button"
+                title="Home return: ~30 mm/s to the mechanical end, then back to 0.00 mm">Home</button>
+              <button class="needs-conn" id="resetBtn" type="button">Alarm reset</button>
+            </div>
+            <p class="small">The first command after connecting also gives Modbus control of the axis, only while it is at rest
+              (switching it during motion would stop the move); it is handed back to PIO on disconnect.</p>
+            <div class="section-gap" id="controlMode">
+              <div class="label">Control mode (PMSS)</div>
+              <div class="mode-toggle" role="group" aria-label="Control mode">
+                <button class="needs-conn" id="modePcBtn" type="button" aria-pressed="false"
+                  title="PC: the unit takes its commands from this page over Modbus (PMSL on)">PC</button>
+                <button class="needs-conn pio" id="modePioBtn" type="button" aria-pressed="false"
+                  title="PIO: the unit follows its PIO inputs and runs its stored rows at their own speeds (PMSL off)">PIO</button>
+              </div>
+              <p class="small" id="controlInfo" role="status"></p>
+            </div>
+            <p class="small hidden" id="pioNote" role="status">PIO has control (PMSS = 0, as after every power-up). On hardware
+              a Modbus STOP stopped a move commanded over Modbus with PMSS = 0; it is untested on a move a PLC commanded over
+              PIO, so stop those from the PLC or with the hardware stop. The first command takes Modbus control while the
+              axis is at rest.</p>
+            <div class="section-gap">
+              <div class="label">Configuration (each asks for confirmation; only at rest)</div>
+              <div class="buttons">
+                <button class="needs-conn" id="swResetBtn" type="button"
+                  title="Restart the EC's firmware: servo OFF (0x45 cmd 9), then 0x45 cmd 5 (the frames seen on the wire). Applies committed parameters. Incremental units lose their home.">Software reset</button>
+              </div>
+              <p class="small" id="resetInfo" role="status"></p>
+              <form id="baudForm" class="fields" novalidate>
+                <label title="The EC's new baud rate (broadcast 0x45 cmd 4; every EC on the line switches). Only the codes verified on hardware are offered."
+                  >New baud
+                  <select id="newBaud">
+                    <option selected>115200</option>
+                    <option>230400</option>
+                    <option>38400</option>
+                  </select>
+                </label>
+                <label
+                  >Method
+                  <select id="baudMethod">
+                    <option value="direct" selected>Direct (broadcast at the current rate)</option>
+                    <option value="break">Break (200 ms break, 9600, broadcast; unverified)</option>
+                  </select>
+                </label>
+                <button class="needs-conn" id="baudBtn" type="submit">Change baud</button>
+              </form>
+              <p class="small" id="baudInfo">A baud change is volatile: the EC answers at 38400 again after every power-up
+                (the driver auto-detects the rate at connect). 115200 (code 0x14) and 230400 (0x15) are verified on hardware.
+                38400 (0x06) is taken by the EC-GRBP8M gripper and the PCON-CB and ignored by the EC-R6S rod (sent direct):
+                the driver checks after the switch and says when a unit kept its rate; to get back to 38400, power-cycle the unit.</p>
+            </div>
+          </section>
+
+          <section class="card panel" aria-labelledby="moveTitle">
+            <h2 id="moveTitle">Move</h2>
+            <form id="moveForm" class="fields" novalidate>
+              <label>Target (<span class="u">mm</span>)<input id="target" type="number" step="0.01" value="75" /></label>
+              <label>Speed (<span class="u">mm</span>/s)<input id="speed" type="number" step="1" value="20" /></label>
+              <label>Accel (G)<input id="accel" type="number" step="0.01" value="0.1" /></label>
+              <button class="primary needs-conn" id="moveBtn" type="submit">Move</button>
+            </form>
+            <p class="small" id="limitsInfo"></p>
+
+            <div class="section-gap">
+              <div class="label">Position table (read from the EC)</div>
+              <div class="buttons" id="quickMoves"><span class="small">Connect to load positions 0-2.</span></div>
+              <p class="small">Quick buttons move to the stored position using the speed and accel above, not the table's own speed.</p>
+            </div>
+
+            <div class="section-gap">
+              <div class="label">Run stored position (0x9800 = n: the row's own speed / accel, a push row pushes)</div>
+              <div class="buttons" id="storedMoves"><span class="small">Connect to load positions 0-2.</span></div>
+              <p class="small">Runs the row exactly as the EC stores it (asks first; a row faster than this session's caps needs
+                a second confirmation). Modbus control is taken first: the EC ignores 0x9800 while PIO has control.</p>
+            </div>
+
+            <div class="section-gap">
+              <div class="label">Jog (relative move from the measured position)</div>
+              <div class="buttons">
+                <button class="needs-conn" type="button" data-jog="-10">−10 <span class="u">mm</span></button>
+                <button class="needs-conn" type="button" data-jog="-5">−5 <span class="u">mm</span></button>
+                <button class="needs-conn" type="button" data-jog="-1">−1 <span class="u">mm</span></button>
+                <button class="needs-conn" type="button" data-jog="1">+1 <span class="u">mm</span></button>
+                <button class="needs-conn" type="button" data-jog="5">+5 <span class="u">mm</span></button>
+                <button class="needs-conn" type="button" data-jog="10">+10 <span class="u">mm</span></button>
+              </div>
+              <p class="small">Sent as driver moves at the speed above. The EC's own JOG inputs are never used (they run at ~100 mm/s).</p>
+            </div>
+            <p class="error hidden" id="moveError" role="alert"></p>
+          </section>
+
+          <section class="card panel" aria-labelledby="pushTitle">
+            <h2 id="pushTitle">Push</h2>
+            <form id="pushForm" class="fields" novalidate>
+              <label>Approach to (<span class="u">mm</span>)<input id="pushTarget" type="number" step="0.01" value="80" /></label>
+              <label>Band (<span class="u">mm</span>)<input id="pushBand" type="number" step="0.01" value="10" /></label>
+              <label>Force (%)<input id="pushForce" type="number" step="1" min="20" max="70" value="30" /></label>
+              <label
+                >Direction
+                <select id="pushDir">
+                  <option value="1" selected>Away from home (+)</option>
+                  <option value="-1">Toward home (−)</option>
+                </select>
+              </label>
+              <label>Speed (<span class="u">mm</span>/s)<input id="pushSpeed" type="number" step="1" value="10" /></label>
+              <button class="primary needs-conn" id="pushBtn" type="submit">Push</button>
+            </form>
+            <p class="error hidden" id="pushUnavailable" role="status">
+              This unit cannot push (its push cap is 0 %): push is disabled.
+            </p>
+            <div class="push-result idle" id="pushResult" role="status">
+              <span class="push-state" id="pushState">No push yet</span><span id="pushMsg"></span>
+            </div>
+            <p class="small">
+              Approaches at the speed above, then pushes over the band at min(speed, 20 mm/s) with the force limit
+              (20–70 %; accel from the Move panel). Start on the approach side of the push zone. After contact the
+              motor keeps pushing until the next move: move or jog away to release.
+            </p>
+            <p class="error hidden" id="pushError" role="alert"></p>
+          </section>
+        </div>
+
+        <aside class="col">
+          <section class="card panel" aria-labelledby="idTitle">
+            <h2 id="idTitle">Identity</h2>
+            <table class="kv"><tbody id="identity"><tr><td class="small">Not connected.</td></tr></tbody></table>
+          </section>
+          <section class="card panel" aria-labelledby="logTitle">
+            <h2 id="logTitle">Event log</h2>
+            <ul class="log" id="events"></ul>
+          </section>
+          <div class="notice">
+            Unofficial, not an IAI product. Behaviour is labelled VERIFIED, ON-WIRE, DOC or UNVERIFIED (see About).
+            Keep a hardware stop within reach. The browser STOP is a Modbus decelerate-stop, not a safety function.
+            The unit has no communication watchdog: if this PC stops, a move in progress is completed.
+          </div>
+        </aside>
+      </div>
+
+      <!-- Unit info / diagnostics: read-only (unitinfo.js: only GET /api/unit_info, /api/unit_live and /api/read_block,
+           FC03 + FC11 reads inside the EC's own directory). The one exception is the "Edit" button of a writable user
+           parameter (params.js): it asks for confirmation and sends POST /api/param (write + PARW commit). -->
+      <div class="info-view hidden" id="viewInfo" role="tabpanel" aria-labelledby="tabInfo">
+        <section class="card panel info-head" aria-labelledby="infoTitle">
+          <div class="info-bar">
+            <div>
+              <h2 id="infoTitle">Unit info <span class="ro-badge" title="Only FC03 (read registers) and FC11 (report slave ID) are sent, every read inside the EC's own directory. Exception: a parameter's Edit button (confirmed) writes and commits that parameter.">READ-ONLY except parameter Edit</span></h2>
+              <p class="small" id="infoStamp">Not connected.</p>
+            </div>
+            <span class="spacer"></span>
+            <div class="buttons">
+              <button class="primary needs-conn" id="infoRefresh" type="button"
+                title="Read everything again (about 45 register reads; the live sections update on their own)">Refresh</button>
+              <button type="button" id="infoExpand">Expand all</button>
+              <button type="button" id="infoCollapse">Collapse all</button>
+              <button type="button" id="infoSave" disabled title="Save the last read as JSON (same schema as iai-actuator-driver info --json)">Save JSON</button>
+            </div>
+          </div>
+          <p class="small legend">
+            <span class="lamp-key"><i class="k-on"></i>bit = 1</span>
+            <span class="lamp-key"><i class="k-off"></i>bit = 0</span>
+            <span class="lamp-key"><i class="k-unk"></i>not read</span>
+            <span><span class="confirmed-key">Name</span> = meaning seen on hardware</span>
+            <span><span class="unconfirmed-key">Name?</span> = expected name (IAI symbol / manuals), unconfirmed on the EC</span>
+            <span>Active-low bits (*ALM): green = 1 = normal, red = 0 = active.</span>
+            <span>Hover a lamp or row for its evidence.</span>
+            <span><b>Live</b> sections follow the ~5 Hz status poll; the rest is as of the last Refresh.</span>
+          </p>
+          <ul class="warn-list hidden" id="infoErrors" role="status"></ul>
+        </section>
+
+        <details class="card fold" id="secIdentity" open>
+          <summary><h2>Identity</h2><span class="sum" id="sumIdentity"></span></summary>
+          <div class="fold-body" id="infoIdentity"></div>
+        </details>
+
+        <details class="card fold" id="secParams" open>
+          <summary><h2>User parameters</h2><span class="sum" id="sumParams"></span></summary>
+          <div class="fold-body" id="infoParams"></div>
+        </details>
+
+        <details class="card fold" id="secIo" open>
+          <summary><h2>I/O signals</h2><span class="live-tag">Live</span><span class="sum" id="sumIo"></span></summary>
+          <div class="fold-body" id="infoIo"></div>
+        </details>
+
+        <details class="card fold" id="secStatus" open>
+          <summary><h2>Status words</h2><span class="live-tag">Live</span><span class="sum" id="sumStatus"></span></summary>
+          <div class="fold-body" id="infoStatus"></div>
+        </details>
+
+        <details class="card fold" id="secMonitor" open>
+          <summary><h2>Live monitor</h2><span class="live-tag">Live</span><span class="sum" id="sumMonitor"></span></summary>
+          <div class="fold-body" id="infoMonitor"></div>
+        </details>
+
+        <details class="card fold" id="secAlarms" open>
+          <summary><h2>Alarm</h2><span class="sum" id="sumAlarms"></span></summary>
+          <div class="fold-body" id="infoAlarms"></div>
+        </details>
+
+        <details class="card fold" id="secMaint">
+          <summary><h2>Maintenance counters</h2><span class="sum" id="sumMaint"></span></summary>
+          <div class="fold-body" id="infoMaint"></div>
+        </details>
+
+        <details class="card fold" id="secPositions">
+          <summary><h2>Position table</h2><span class="sum" id="sumPositions"></span></summary>
+          <div class="fold-body" id="infoPositions"></div>
+        </details>
+
+        <details class="card fold" id="secBrowser">
+          <summary><h2>Raw register browser</h2><span class="sum">any directory block, read-only</span></summary>
+          <div class="fold-body">
+            <form id="browseForm" class="fields" novalidate>
+              <label>Directory block<select id="browseClass"><option value="">Refresh first</option></select></label>
+              <label>Offset (words)<input id="browseOffset" type="number" min="0" step="1" value="0" /></label>
+              <label>Count<input id="browseCount" type="number" min="1" max="512" step="1" value="64" /></label>
+              <label>View
+                <select id="browseView">
+                  <option value="hex" selected>Hex</option>
+                  <option value="dec">Decimal (unsigned)</option>
+                  <option value="signed">Decimal (signed)</option>
+                  <option value="ascii">ASCII</option>
+                </select>
+              </label>
+              <button class="primary needs-conn" id="browseRead" type="submit">Read</button>
+              <button type="button" class="needs-conn" id="browsePrev" title="Previous page">◀</button>
+              <button type="button" class="needs-conn" id="browseNext" title="Next page">▶</button>
+            </form>
+            <p class="small" id="browseInfo">Reads stay inside the block's extent from the EC's own directory (at most 512 words per read).
+              The EC answers 0000 for unmapped addresses, so the directory is the only guard.</p>
+            <div class="tbl-wrap"><table class="tbl regs" id="browseTable"></table></div>
+          </div>
+        </details>
+      </div>
+    </main>
+    <div id="toast" class="toast hidden" role="alert"></div>
+    <script src="/token.js"></script>
+    <script src="/app.js" defer></script>
+    <script src="/unitinfo.js" defer></script>
+    <script src="/params.js" defer></script>
+    <script src="/about.js" defer></script>
+  </body>
+</html>

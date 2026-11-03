@@ -1,0 +1,40 @@
+# iai_actuator_driver SDK @VERSION@ (@RID@): the C ABI of the IAI Actuator Driver native core as a prebuilt shared
+# library. Unofficial: not an IAI product.
+#
+#   find_package(iai_actuator_driver CONFIG REQUIRED)   # CMAKE_PREFIX_PATH or iai_actuator_driver_DIR: this SDK
+#   target_link_libraries(your_app PRIVATE iai_actuator_driver::shared)
+#
+# The target name is the one core/CMakeLists.txt gives the shared library in a source build
+# (add_subdirectory(core) with -DIAI_ACTUATOR_DRIVER_BUILD_SHARED=ON), so a project can switch between the two.
+#
+# Windows: the program needs iai_actuator_driver.dll next to it (or on PATH). CMake 3.21 and later can copy it:
+#   add_custom_command(TARGET your_app POST_BUILD
+#       COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:your_app> $<TARGET_FILE_DIR:your_app>
+#       COMMAND_EXPAND_LISTS)
+# Linux: the build tree gets an RPATH to this SDK's lib/ folder; ship libiai_actuator_driver.so.@ABI_MAJOR@ (the
+# library's SONAME: the ABI major) with the program.
+
+get_filename_component(_IAD_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+
+set(iai_actuator_driver_VERSION_STRING "@VERSION@")
+set(iai_actuator_driver_RID "@RID@")
+set(iai_actuator_driver_ABI_HEADER "${_IAD_PREFIX}/include/iai_actuator_driver.h")
+
+if(NOT TARGET iai_actuator_driver::shared)
+    add_library(iai_actuator_driver::shared SHARED IMPORTED)
+    set_target_properties(iai_actuator_driver::shared PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${_IAD_PREFIX}/include")
+    if(WIN32)
+        set_target_properties(iai_actuator_driver::shared PROPERTIES
+            IMPORTED_LOCATION "${_IAD_PREFIX}/bin/iai_actuator_driver.dll"
+            IMPORTED_IMPLIB "${_IAD_PREFIX}/lib/iai_actuator_driver.lib")
+    else()
+        set_target_properties(iai_actuator_driver::shared PROPERTIES
+            IMPORTED_LOCATION "${_IAD_PREFIX}/lib/libiai_actuator_driver.so.@ABI_MAJOR@"
+            IMPORTED_SONAME "libiai_actuator_driver.so.@ABI_MAJOR@")
+    endif()
+endif()
+
+get_target_property(iai_actuator_driver_RUNTIME_FILE iai_actuator_driver::shared IMPORTED_LOCATION)
+set(iai_actuator_driver_FOUND TRUE)
+unset(_IAD_PREFIX)

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>IaiActuatorDriver.Cli</RootNamespace>
+    <AssemblyName>iai-actuator-driver-cs</AssemblyName>
+    <Version>1.1.0</Version>
+    <Description>UNOFFICIAL command-line tool for IAI actuators over serial Modbus RTU (C# edition of IAI Actuator Driver). Not an IAI product.</Description>
+    <Authors>Zachary Ippolito</Authors>
+    <Copyright>Copyright 2026 Zachary Ippolito</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IaiActuatorDriver\IaiActuatorDriver.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="IaiActuatorDriver.Tests" />
+  </ItemGroup>
+
+</Project>

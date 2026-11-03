@@ -1,0 +1,8 @@
+# Seconds per test class: tools/unittest_jobs.py splits the suite into balanced worker processes with them.
+# Rewritten by --save-times; a class missing here counts 0.3 s per test.
+tools.hw.tests.test_harness.ArgumentsTest  0.00
+tools.hw.tests.test_harness.CommandLineEditionTest  0.17
+tools.hw.tests.test_harness.DocumentationTest  0.00
+tools.hw.tests.test_harness.InteractiveTest  55.94
+tools.hw.tests.test_harness.PythonEditionTest  30.16
+tools.hw.tests.test_harness.SafetyRulesTest  1.01

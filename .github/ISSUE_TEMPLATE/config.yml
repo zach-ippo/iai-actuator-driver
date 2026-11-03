@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Troubleshooting
+    url: https://github.com/zach-ippo/iai-actuator-driver/blob/main/docs/TROUBLESHOOTING.md
+    about: Error messages as printed, and what to try first.
+  - name: Security problem
+    url: https://github.com/zach-ippo/iai-actuator-driver/blob/main/.github/SECURITY.md
+    about: How to report a security problem without posting details in a public issue.

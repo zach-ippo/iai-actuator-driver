@@ -1,0 +1,12 @@
+# Load-sensitive tests: their subject is throughput or real-time latency (frames streamed or interleaved at a pace, a
+# time measured), so they can fail while other processes hold every CPU. The runners keep them out of their parallel
+# workers and run them afterwards, one after another (a serial tail), and run a failed one once more: run_backend.py
+# (python), tools/unittest_jobs.py (gui), core/tests/run_shards.py (core, the names from tools/test.py) and
+# tools/test.py (dotnet, after every suite has ended). With one worker they run in their usual place, without a retry.
+# A test whose subject is not the timing belongs on a stepped or virtual clock instead, not here.
+# Format: the suite, a space, the test id, two spaces, the reason. Suites: core (an ec_tests name), python
+# (module.Class.test), gui (gui.test_gui.Class.test), dotnet (the fully qualified name).
+core coord_run_fault_alarm_stops_every_axis_of_the_group  a coordinated run streams its frames in real time; the run must sample the axes before the alarm
+core coord_cell_a_link_fault_in_a_sync_segment_stops_the_group_before_a_slow_on_fault  the group's stop is timed against a slow on_fault (under 1 s)
+core axis_fast_stop_stays_immediate_with_the_monitor  STOP must go out within 50 ms while the monitor polls
+gui gui.test_gui.CoordinatedApiTest.test_run_to_completion_with_a_trace_and_a_result_then_the_plan_is_spent  the plan's shortest step is the line's measured exchange time

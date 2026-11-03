@@ -1,0 +1,1044 @@
+# The frozen C ABI 1.0 baseline: the manifest of the 1.0.0 release (core/abi/manifest.py output). Never edited again,
+# and not regenerated. bindings/python/tests/test_abi_manifest_gate.py holds every later manifest.txt against its
+# stable section ([iai_actuator_driver.h]); the testing header has no stability promise.
+abi 1.0
+testing 1
+
+[iai_actuator_driver.h] 315 functions, 46 structs
+const IAD_OK 0
+const IAD_ERR_SOFT_LIMIT -1
+const IAD_ERR_NOT_READY -2
+const IAD_ERR_ALARM -3
+const IAD_ERR_MOTION_TIMEOUT -4
+const IAD_ERR_MODBUS_TIMEOUT -5
+const IAD_ERR_FRAME -6
+const IAD_ERR_TRANSPORT -7
+const IAD_ERR_VERIFICATION -8
+const IAD_ERR_NONVOLATILE_REFUSED -9
+const IAD_ERR_INVALID_ARGUMENT -10
+const IAD_ERR_UNSUPPORTED -11
+const IAD_ERR_INTERNAL -12
+const IAD_ERR_BUFFER_TOO_SMALL -13
+const IAD_ERR_SERVO_BLOCKED -14
+const IAD_ERR_MOTION_INCOMPLETE -15
+const IAD_ERR_SLAVE_EXCEPTION -16
+const IAD_ERR_COMMAND_REJECTED -17
+const IAD_ERR_UNSAFE_REFUSED -18
+const IAD_ERR_CELL -19
+const IAD_ERR_MODBUS -20
+const IAD_ERR_DRIVER -21
+const IAD_ERR_RECOVERY -22
+const IAD_ERR_UNIT_REPLACED -23
+const IAD_ERR_FILE -24
+const IAD_ERR_CANCELLED -25
+const IAD_ABI_VERSION_MAJOR 1
+const IAD_ABI_VERSION_MINOR 0
+const IAD_ABI_VERSION ((IAD_ABI_VERSION_MAJOR << 16) | IAD_ABI_VERSION_MINOR)
+const IAD_ABI_COMPATIBLE(library_version) (IAD_ABI_VERSION_MAJOR == 0 ? (uint32_t)(library_version) == (uint32_t)IAD_ABI_VERSION : ((uint32_t)(library_version) >> 16) == (uint32_t)IAD_ABI_VERSION_MAJOR && (uint32_t)(library_version) >= (uint32_t)IAD_ABI_VERSION)
+const IAD_INT_UNKNOWN INT32_MIN
+const IAD_FALSE 0
+const IAD_TRUE 1
+const IAD_UNKNOWN 2
+const IAD_METHOD_DEFAULT 0
+const IAD_METHOD_COIL 1
+const IAD_METHOD_IAI 2
+const IAD_METHOD_IAI2 3
+const IAD_METHOD_REGISTER 4
+const IAD_TEACH_TABLE 0
+const IAD_TEACH_COIL 1
+const IAD_BAUD_DIRECT 0
+const IAD_BAUD_BREAK 1
+const IAD_ALARM_LEVEL_NONE 0
+const IAD_ALARM_LEVEL_MESSAGE 1
+const IAD_ALARM_LEVEL_OPERATION_CANCELLED 2
+const IAD_ALARM_LEVEL_COLD_START 3
+const IAD_ALARM_LEVEL_UNKNOWN 4
+const IAD_ACCEL_DEFAULT 0
+const IAD_ACCEL_TRAPEZOID 1
+const IAD_ACCEL_S_MOTION 2
+const IAD_ACCEL_FILTER 3
+const IAD_COMPLETION_DEFAULT 0
+const IAD_COMPLETION_SAFE 1
+const IAD_COMPLETION_FAST 2
+const IAD_LINE_AUTO 0
+const IAD_LINE_DIRECT 1
+const IAD_LINE_RCON 2
+const IAD_LINE_ROBONET 3
+const IAD_LINE_ROBONET_GATEWAY 4
+const IAD_PUSH_CONTACT 1
+const IAD_PUSH_MISSED 2
+const IAD_EVENT_NONE 0
+const IAD_EVENT_STATUS 1
+const IAD_EVENT_DONE 2
+const IAD_EVENT_LINK 3
+const IAD_EVENT_FAULT 4
+const IAD_EVENT_LINK_STATE 5
+const IAD_EVENT_CHECK_ITEM 6
+const IAD_EVENTS_STATUS 0x01
+const IAD_EVENTS_DONE 0x02
+const IAD_EVENTS_LINK 0x04
+const IAD_EVENTS_CHECK 0x08
+const IAD_EVENTS_ALL 0x0F
+const IAD_LOG_DEBUG 0
+const IAD_LOG_INFO 1
+const IAD_LOG_WARNING 2
+const IAD_LOG_ERROR 3
+const IAD_FRAME_TX 0
+const IAD_FRAME_RX 1
+const IAD_FRAME_RX_PARTIAL 2
+const IAD_FAST_BAUD_RATE 230400
+const IAD_AXIS_NAME_SIZE 128
+const IAD_MESSAGE_SIZE 256
+const IAD_STATE_SIZE 32
+const IAD_IAI_ALLOW_UNSAFE 0x1
+const IAD_IAI_ALLOW_NEVER_SEND 0x2
+const IAD_IAI_NO_CHECK 0x4
+const IAD_EVENT_SOURCE_MONITOR 1
+const IAD_EVENT_SOURCE_CHECK_LINK 2
+const IAD_EVENT_SOURCE_RECOVER 3
+const IAD_EVENT_SOURCE_SET_LINK_STATE 4
+const IAD_EVENT_SOURCE_CELL 5
+const IAD_CALLBACK_ABORT 2
+const IAD_CALL __stdcall if defined(_WIN32) && (defined(_M_IX86) || defined(__i386__)) else (empty)
+type iad_result int32_t
+type iad_bool int32_t
+type iad_tribool int32_t
+type iad_axis opaque struct
+type iad_cell opaque struct
+type iad_move_handle opaque struct
+type iad_transport opaque struct
+type iad_bus opaque struct
+type iad_sim opaque struct
+type iad_sim_line opaque struct
+type iad_line opaque struct
+type iad_gateway opaque struct
+callback iad_log_sink void(int32_t, const char*, const char*, void*)
+callback iad_frame_sink void(int32_t, const uint8_t*, size_t, void*)
+callback iad_transport_write_fn int32_t(void*, const uint8_t*, size_t)
+callback iad_transport_read_fn int32_t(void*, uint8_t*, size_t, double, size_t*)
+callback iad_transport_reset_input_fn int32_t(void*)
+callback iad_transport_set_baud_rate_fn int32_t(void*, int32_t)
+callback iad_transport_send_break_fn int32_t(void*, double)
+callback iad_transport_present_fn int32_t(void*)
+callback iad_transport_reopen_fn int32_t(void*, int32_t)
+callback iad_transport_close_fn void(void*)
+callback iad_transport_release_fn void(void*)
+callback iad_transport_set_read_timeout_fn int32_t(void*, double)
+callback iad_read_gate_fn int32_t(void*)
+callback iad_port_line_fn iad_result(void*)
+struct iad_axis_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double stroke_min
+    double stroke_max
+    double max_speed_mm_s
+    double max_accel_g
+    double max_push_pct
+    double poll_interval_s
+    double settle_s
+    int32_t method
+    iad_bool auto_modbus_control
+    double push_settle_s
+    int32_t completion
+    int32_t reserved0
+    uint64_t reserved[2]
+struct iad_open_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double read_timeout_s
+    double min_gap_s
+    int32_t slave
+    int32_t baud_rate
+    int32_t retries
+    int32_t line
+    double position_unit_mm
+    iad_bool fast
+    int32_t reserved0
+    uint64_t reserved[2]
+struct iad_sim_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double time_scale
+    double position_mm
+    double stroke_mm
+    double max_speed_mm_s
+    int32_t baud_rate
+    iad_bool pmsl
+    uint64_t reserved[4]
+struct iad_move_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double speed
+    double accel_g
+    double band
+    double timeout_s
+    iad_bool wait
+    int32_t accel_pattern
+    double decel_g
+    int32_t completion
+    int32_t reserved0
+    uint64_t reserved[2]
+struct iad_position_move_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double timeout_s
+    double speed_pct
+    iad_bool wait
+    iad_bool allow_above_caps
+    uint64_t reserved[4]
+struct iad_nv_write_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    iad_bool allow_nonvolatile
+    iad_bool force
+    iad_bool allow_unsafe
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_param_write_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    iad_bool commit
+    iad_bool allow_dangerous
+    iad_bool allow_unlisted
+    iad_bool allow_home_params
+    iad_bool force
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_baud_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double settle_s
+    int32_t method
+    iad_bool allow_unverified_code
+    uint64_t reserved[4]
+struct iad_reset_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double timeout_s
+    double reset_wait_s
+    uint64_t reserved[4]
+struct iad_cell_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double read_timeout_s
+    double min_gap_s
+    double scan_timeout_s
+    int32_t max_axes
+    int32_t baud_rate
+    int32_t retries
+    int32_t scan_first
+    int32_t scan_last
+    iad_bool identify
+    iad_bool stop_on_fault
+    int32_t line
+    double position_unit_mm
+    uint64_t reserved[3]
+struct iad_servo_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double timeout_s
+    iad_bool wait
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_home_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double timeout_s
+    iad_bool wait
+    int32_t method
+    uint64_t reserved[4]
+struct iad_stop_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double timeout_s
+    iad_bool wait
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_wait_idle_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double target
+    double band
+    double timeout_s
+    int32_t completion
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_change_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double timeout_s
+    iad_bool wait
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_cancel_paused_move_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double timeout_s
+    uint64_t reserved[4]
+struct iad_status
+    double position_mm
+    double velocity_mm_s
+    double current_ma
+    double uptime_s
+    int32_t alarm_code
+    int32_t alarm_level
+    iad_bool servo_on
+    iad_bool homed
+    iad_bool in_position
+    iad_bool moving
+    iad_bool alarm
+    iad_bool warning
+    iad_bool modbus_enabled
+    iad_bool emergency_stop
+    iad_bool paused
+    iad_bool homing
+    iad_bool safety_speed
+    iad_bool ready
+    iad_bool idle
+    iad_bool target_reached
+    iad_bool push_missed
+    iad_bool pushing
+    iad_tribool emg_input
+    iad_tribool drive_power_cut
+    iad_tribool enable_off
+    int32_t raw_words
+    uint32_t raw_dss1
+    uint32_t raw_dss2
+    uint32_t raw_dsse
+    uint32_t raw_dipm
+    uint32_t raw_dopm
+    iad_bool rcon
+    uint64_t reserved[8]
+struct iad_range
+    double min
+    double max
+    double unit_max
+    double configured
+    double recommended_min
+    iad_tribool available
+    int32_t count
+    char unit[8]
+    uint64_t reserved[4]
+struct iad_limits
+    iad_range position
+    iad_range speed
+    iad_range accel
+    iad_range decel
+    iad_range accel_decel
+    iad_range push
+    iad_range band
+    iad_range push_band
+    iad_range stored_rows
+    iad_range jog_step
+    iad_range speed_override
+    char units[8]
+    char kind[24]
+    char family[24]
+    double push_speed
+    uint64_t reserved[8]
+struct iad_identity
+    double soft_min_mm
+    double soft_max_mm
+    double max_speed_mm_s
+    double max_accel_g
+    double max_decel_g
+    int32_t slave
+    int32_t system_code
+    int32_t unit_code
+    int32_t run_status
+    int32_t axis_number
+    int32_t max_positions
+    int32_t actuator_kind
+    iad_tribool unit_known
+    iad_tribool rotary
+    int32_t reserved0
+    char product_family[16]
+    char model[64]
+    char model_name[64]
+    char controller_name[32]
+    char controller[64]
+    char unit_name[48]
+    char system_name[48]
+    char firmware[8]
+    char serial_number[32]
+    char actuator_serial[32]
+    char user_name[48]
+    char units[8]
+    char kind[24]
+    char identity_source[16]
+    uint64_t reserved[4]
+struct iad_position_entry
+    uint32_t struct_size
+    uint32_t reserved_header
+    double position_mm
+    double band_mm
+    double speed_mm_s
+    double zone_plus_mm
+    double zone_minus_mm
+    double accel_g
+    double decel_g
+    int32_t push_power
+    int32_t load_threshold
+    int32_t control_flags
+    int32_t checksum
+    iad_tribool checksum_ok
+    iad_bool is_push
+    iad_bool incremental
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_parameter
+    double value
+    double min
+    double max
+    int32_t number
+    iad_bool writable
+    iad_bool dangerous
+    int32_t reserved0
+    char name[64]
+    char symbol[16]
+    char item[16]
+    char address[16]
+    char text[64]
+    char unit[16]
+    char raw[16]
+    char family[8]
+    uint64_t reserved[4]
+struct iad_param_write_result
+    int32_t number
+    iad_bool changed
+    iad_bool verified
+    iad_bool committed
+    iad_bool commit_confirmed
+    iad_bool saved
+    iad_bool skipped
+    iad_bool forced
+    iad_bool listed_for_model
+    iad_bool verified_for_model
+    iad_bool home_parameter
+    int32_t warning_count
+    char key[16]
+    char address[16]
+    char name[64]
+    char before[64]
+    char after[64]
+    char unit[16]
+    uint64_t reserved[4]
+struct iad_position_write_result
+    double position_mm
+    double band_mm
+    double speed_mm_s
+    double zone_plus_mm
+    double zone_minus_mm
+    double accel_g
+    double decel_g
+    int32_t push_power
+    int32_t load_threshold
+    int32_t control_flags
+    int32_t checksum
+    iad_tribool checksum_ok
+    iad_bool is_push
+    iad_bool incremental
+    int32_t row
+    iad_bool skipped
+    iad_bool forced
+    int32_t warning_count
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_reset_result
+    iad_status status
+    double uptime_before_s
+    double uptime_after_s
+    double elapsed_s
+    iad_bool accepted
+    iad_bool reply_lost
+    iad_bool confirmed
+    int32_t baud_rate
+    iad_bool baud_changed
+    iad_bool needs_home
+    char confirmed_by[64]
+    uint64_t reserved[4]
+struct iad_baud_result
+    int32_t previous
+    int32_t baud_rate
+    int32_t method
+    int32_t code
+    iad_bool verified
+    iad_bool probed
+    iad_bool code_verified
+    int32_t reserved0
+    char frame[64]
+    uint64_t reserved[4]
+struct iad_cell_result
+    iad_status status
+    iad_result code
+    int32_t index
+    char axis[IAD_AXIS_NAME_SIZE]
+    char message[IAD_MESSAGE_SIZE]
+    uint64_t reserved[4]
+struct iad_push_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double speed
+    double accel_g
+    double timeout_s
+    int32_t direction
+    iad_bool wait
+    uint64_t reserved[4]
+struct iad_push_result
+    iad_status status
+    double position_mm
+    int32_t outcome
+    int32_t warning_count
+    char outcome_name[16]
+    uint64_t reserved[4]
+struct iad_sequence_point
+    uint32_t struct_size
+    uint32_t reserved_header
+    double position
+    double speed
+    double accel_g
+    double band
+    uint64_t reserved[2]
+struct iad_sequence_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double speed
+    double accel_g
+    double band
+    double blend_band
+    double timeout_s
+    int32_t completion
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_move_info
+    iad_status result
+    double target
+    double band
+    double timeout_s
+    double sent_at_s
+    double deadline_s
+    int32_t completion
+    iad_bool has_result
+    iad_bool cancelled
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_monitor_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double gap_s
+    double link_check_s
+    int32_t retries
+    int32_t events
+    int32_t queue_capacity
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_monitor_sample
+    iad_status status
+    double t_start_s
+    double t_s
+    double age_s
+    double poll_rate_hz
+    int64_t seq
+    int64_t polls
+    int64_t error_count
+    iad_bool running
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_event
+    iad_status status
+    double time_s
+    double wall_time_s
+    int64_t sequence
+    int32_t kind
+    int32_t dropped
+    char axis[IAD_AXIS_NAME_SIZE]
+    char name[IAD_STATE_SIZE]
+    char cause[IAD_STATE_SIZE]
+    char message[IAD_MESSAGE_SIZE]
+    int32_t source
+    int32_t index
+    uint64_t caller_thread
+    uint64_t reserved[4]
+struct iad_fast_summary
+    int32_t baud_rate
+    int32_t completion
+    iad_bool monitor
+    int32_t note_count
+    char notes[IAD_MESSAGE_SIZE]
+    uint64_t reserved[4]
+struct iad_track_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    iad_bool alarm_history
+    iad_bool parameters
+    uint64_t reserved[4]
+struct iad_link_check
+    iad_status status
+    double elapsed_s
+    iad_bool ok
+    int32_t reason_count
+    char state[IAD_STATE_SIZE]
+    char reasons[IAD_MESSAGE_SIZE]
+    char error[IAD_MESSAGE_SIZE]
+    uint64_t reserved[4]
+struct iad_recovery_policy
+    uint32_t struct_size
+    uint32_t reserved_header
+    double position_tolerance_mm
+    double poll_s
+    int32_t boot_baud_rate
+    iad_bool restore_baud_rate
+    iad_bool restore_control
+    iad_bool restore_safety_speed
+    iad_bool clear_message_alarms
+    iad_bool check_parameters
+    iad_bool require_session
+    int32_t reserved0
+    uint64_t reserved[3]
+struct iad_recovery_summary
+    iad_status status
+    double position_mm
+    double last_target_mm
+    double position_error_mm
+    double elapsed_s
+    int32_t baud_rate
+    int32_t baud_rate_found
+    int32_t alarm_code
+    iad_bool restarted
+    iad_bool same_unit
+    iad_bool port_reopened
+    iad_bool baud_restored
+    iad_bool control_restored
+    iad_bool safety_speed_restored
+    iad_bool needs_home
+    iad_bool needs_attention
+    iad_bool ready_to_move
+    iad_bool fault_alarm
+    iad_tribool at_target
+    iad_tribool servo_on
+    iad_tribool homed
+    iad_tribool modbus_control
+    iad_tribool safety_speed
+    int32_t note_count
+    iad_bool control_kept
+    char axis[IAD_AXIS_NAME_SIZE]
+    char cause[IAD_STATE_SIZE]
+    char summary[IAD_MESSAGE_SIZE]
+    uint64_t reserved[4]
+struct iad_check_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double step_mm
+    double speed_mm_s
+    double accel_g
+    iad_bool motion
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_check_summary
+    iad_bool passed
+    int32_t items
+    int32_t failed
+    int32_t warned
+    int32_t skipped
+    int32_t reserved0
+    uint64_t reserved[4]
+struct iad_axis_move
+    uint32_t struct_size
+    uint32_t reserved_header
+    double position
+    double speed
+    double accel_g
+    double band
+    double timeout_s
+    double decel_g
+    int32_t accel_pattern
+    int32_t completion
+    char axis[IAD_AXIS_NAME_SIZE]
+    uint64_t reserved[4]
+struct iad_motion_caps
+    double speed_cap
+    double accel_cap
+    double accel_only_cap
+    double decel_cap
+    double push_cap
+    double min_speed
+    char min_speed_source[IAD_MESSAGE_SIZE]
+    uint64_t reserved[4]
+struct iad_transport_callbacks
+    uint32_t struct_size
+    uint32_t reserved_header
+    double read_timeout_s
+    int32_t baud_rate
+    iad_bool real_timeout
+    iad_transport_write_fn write
+    iad_transport_read_fn read
+    iad_transport_reset_input_fn reset_input
+    iad_transport_set_baud_rate_fn set_baud_rate
+    iad_transport_send_break_fn send_break
+    iad_transport_present_fn present
+    iad_transport_reopen_fn reopen
+    iad_transport_close_fn close
+    iad_transport_release_fn release
+    iad_transport_set_read_timeout_fn set_read_timeout
+struct iad_bus_options
+    uint32_t struct_size
+    uint32_t reserved_header
+    double min_gap_s
+    int32_t retries
+    int32_t reserved0
+    uint64_t reserved[4]
+function iad_abi_version uint32_t(void)
+function iad_library_version const char*(void)
+function iad_last_error_message const char*(void)
+function iad_last_error_json iad_result(char*, size_t, size_t*)
+function iad_result_name const char*(iad_result)
+function iad_list_ports_json iad_result(char*, size_t, size_t*)
+function iad_axis_options_init iad_result(iad_axis_options*)
+function iad_open_options_init iad_result(iad_open_options*)
+function iad_sim_options_init iad_result(iad_sim_options*)
+function iad_move_options_init iad_result(iad_move_options*)
+function iad_jog_options_init iad_result(iad_move_options*)
+function iad_position_move_options_init iad_result(iad_position_move_options*)
+function iad_nv_write_options_init iad_result(iad_nv_write_options*)
+function iad_param_write_options_init iad_result(iad_param_write_options*)
+function iad_baud_options_init iad_result(iad_baud_options*)
+function iad_reset_options_init iad_result(iad_reset_options*)
+function iad_cell_options_init iad_result(iad_cell_options*)
+function iad_position_entry_init iad_result(iad_position_entry*)
+function iad_servo_options_init iad_result(iad_servo_options*)
+function iad_home_options_init iad_result(iad_home_options*)
+function iad_stop_options_init iad_result(iad_stop_options*)
+function iad_wait_idle_options_init iad_result(iad_wait_idle_options*)
+function iad_change_options_init iad_result(iad_change_options*)
+function iad_cancel_paused_move_options_init iad_result(iad_cancel_paused_move_options*)
+function iad_axis_open iad_result(const char*, const iad_open_options*, const iad_axis_options*, iad_axis**)
+function iad_axis_open_sim iad_result(const char*, const iad_sim_options*, const iad_open_options*, const iad_axis_options*, iad_axis**)
+function iad_axis_close iad_result(iad_axis*)
+function iad_axis_connect iad_result(iad_axis*, iad_bool, iad_identity*)
+function iad_axis_identify iad_result(iad_axis*, iad_identity*)
+function iad_axis_identity_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_get_options iad_result(iad_axis*, iad_axis_options*)
+function iad_axis_set_options iad_result(iad_axis*, const iad_axis_options*)
+function iad_axis_baud_rate iad_result(iad_axis*, int32_t*, iad_bool*)
+function iad_axis_modbus_control iad_result(iad_axis*, iad_bool)
+function iad_axis_status iad_result(iad_axis*, iad_status*)
+function iad_axis_limits iad_result(iad_axis*, iad_limits*)
+function iad_axis_limits_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_read_alarm_history_json iad_result(iad_axis*, iad_bool, char*, size_t, size_t*)
+function iad_axis_max_positions iad_result(iad_axis*, int32_t*)
+function iad_axis_read_position_table iad_result(iad_axis*, int32_t, iad_position_entry*)
+function iad_axis_servo iad_result(iad_axis*, iad_bool, const iad_servo_options*, iad_status*)
+function iad_axis_home iad_result(iad_axis*, const iad_home_options*, iad_status*)
+function iad_axis_reset_alarm iad_result(iad_axis*, int32_t, iad_status*)
+function iad_axis_check_move iad_result(iad_axis*, double, const iad_move_options*, iad_status*)
+function iad_axis_move_to iad_result(iad_axis*, double, const iad_move_options*, iad_status*)
+function iad_axis_move_by iad_result(iad_axis*, double, const iad_move_options*, iad_status*)
+function iad_axis_jog iad_result(iad_axis*, double, const iad_move_options*, iad_status*)
+function iad_axis_move_to_position iad_result(iad_axis*, int32_t, const iad_position_move_options*, iad_status*)
+function iad_axis_change_speed iad_result(iad_axis*, double, const iad_change_options*, iad_status*)
+function iad_axis_wait_idle iad_result(iad_axis*, const iad_wait_idle_options*, iad_status*)
+function iad_axis_stop iad_result(iad_axis*, const iad_stop_options*, iad_status*)
+function iad_axis_pause iad_result(iad_axis*)
+function iad_axis_resume iad_result(iad_axis*)
+function iad_axis_cancel_paused_move iad_result(iad_axis*, const iad_cancel_paused_move_options*, iad_status*)
+function iad_axis_write_position_table iad_result(iad_axis*, int32_t, const iad_position_entry*, const iad_nv_write_options*, iad_position_write_result*)
+function iad_axis_teach_position iad_result(iad_axis*, int32_t, int32_t, const iad_nv_write_options*, iad_position_write_result*)
+function iad_axis_parameters_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_read_parameter iad_result(iad_axis*, const char*, iad_parameter*)
+function iad_axis_read_parameter_json iad_result(iad_axis*, const char*, char*, size_t, size_t*)
+function iad_axis_write_parameter iad_result(iad_axis*, const char*, const char*, const iad_param_write_options*, iad_param_write_result*)
+function iad_axis_write_parameter_number iad_result(iad_axis*, const char*, double, const iad_param_write_options*, iad_param_write_result*)
+function iad_axis_nonvolatile_writes iad_result(iad_axis*, int64_t*, int32_t*, iad_bool*)
+function iad_axis_set_baud_rate iad_result(iad_axis*, int32_t, const iad_baud_options*, iad_baud_result*)
+function iad_axis_software_reset iad_result(iad_axis*, const iad_reset_options*, iad_reset_result*)
+function iad_axis_last_result_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_cell_open iad_result(const char*, const iad_cell_options*, const iad_axis_options*, iad_cell**)
+function iad_cell_open_sim iad_result(const char*, int32_t, const iad_sim_options*, const iad_cell_options*, const iad_axis_options*, iad_cell**)
+function iad_cell_close iad_result(iad_cell*)
+function iad_cell_axis_count iad_result(iad_cell*, size_t*)
+function iad_cell_axis_name iad_result(iad_cell*, size_t, char*, size_t, size_t*)
+function iad_cell_open_axis iad_result(iad_cell*, const char*, iad_axis**)
+function iad_cell_info_json iad_result(iad_cell*, char*, size_t, size_t*)
+function iad_cell_clear_fault iad_result(iad_cell*, const char*)
+function iad_cell_status_all iad_result(iad_cell*, const char*, double, iad_cell_result*, size_t, size_t*)
+function iad_cell_servo_all iad_result(iad_cell*, iad_bool, const char*, double, iad_cell_result*, size_t, size_t*)
+function iad_cell_home_all iad_result(iad_cell*, const char*, double, int32_t, iad_bool, iad_cell_result*, size_t, size_t*)
+function iad_cell_move_all iad_result(iad_cell*, const char*, const double*, size_t, const iad_move_options*, const double*, const double*, const double*, const double*, iad_cell_result*, size_t, size_t*)
+function iad_cell_wait_all iad_result(iad_cell*, const char*, double, iad_bool, iad_cell_result*, size_t, size_t*)
+function iad_cell_stop_all iad_result(iad_cell*, const char*, double, iad_bool, iad_cell_result*, size_t, size_t*)
+function iad_set_log_sink iad_result(iad_log_sink, void*)
+function iad_push_options_init iad_result(iad_push_options*)
+function iad_sequence_options_init iad_result(iad_sequence_options*)
+function iad_monitor_options_init iad_result(iad_monitor_options*)
+function iad_track_options_init iad_result(iad_track_options*)
+function iad_recovery_policy_init iad_result(iad_recovery_policy*)
+function iad_check_options_init iad_result(iad_check_options*)
+function iad_axis_push iad_result(iad_axis*, double, double, double, const iad_push_options*, iad_push_result*)
+function iad_axis_change_accel iad_result(iad_axis*, double, const iad_change_options*, iad_status*)
+function iad_axis_move_sequence iad_result(iad_axis*, const iad_sequence_point*, size_t, const iad_sequence_options*, iad_status*, size_t, size_t*)
+function iad_axis_start_move_to iad_result(iad_axis*, double, const iad_move_options*, iad_move_handle**)
+function iad_axis_start_move_by iad_result(iad_axis*, double, const iad_move_options*, iad_move_handle**)
+function iad_axis_start_jog iad_result(iad_axis*, double, const iad_move_options*, iad_move_handle**)
+function iad_move_handle_done iad_result(iad_move_handle*, iad_bool*, iad_status*)
+function iad_move_handle_wait iad_result(iad_move_handle*, double, iad_status*)
+function iad_move_handle_poll iad_result(iad_move_handle*, double, iad_bool*, iad_status*)
+function iad_move_handle_cancel iad_result(iad_move_handle*, iad_bool, double, iad_status*)
+function iad_move_handle_result iad_result(iad_move_handle*, iad_move_info*)
+function iad_move_handle_json iad_result(iad_move_handle*, char*, size_t, size_t*)
+function iad_move_handle_close iad_result(iad_move_handle*)
+function iad_axis_start_monitor iad_result(iad_axis*, const iad_monitor_options*)
+function iad_axis_stop_monitor iad_result(iad_axis*, double)
+function iad_axis_monitor_latest iad_result(iad_axis*, iad_monitor_sample*)
+function iad_axis_monitor_wait_update iad_result(iad_axis*, int64_t, double, iad_bool*, iad_monitor_sample*)
+function iad_axis_monitor_wait_done iad_result(iad_axis*, double, iad_bool*, iad_status*)
+function iad_axis_monitor_info_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_next_event iad_result(iad_axis*, double, iad_event*)
+function iad_axis_set_frame_sink iad_result(iad_axis*, iad_frame_sink, void*)
+function iad_axis_enable_fast iad_result(iad_axis*, int32_t, iad_bool, iad_fast_summary*)
+function iad_axis_disable_fast iad_result(iad_axis*, iad_fast_summary*)
+function iad_axis_fast_mode iad_result(iad_axis*, iad_bool*)
+function iad_axis_track iad_result(iad_axis*, const iad_track_options*, const char*, const char*, const char*)
+function iad_axis_session_from_backup iad_result(iad_axis*, const char*, const char*)
+function iad_axis_session_from_backup_file iad_result(iad_axis*, const char*, const char*)
+function iad_axis_session_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_forget iad_result(iad_axis*)
+function iad_axis_note_target iad_result(iad_axis*, double)
+function iad_axis_note_control iad_result(iad_axis*, iad_tribool, iad_tribool, int32_t, iad_tribool)
+function iad_axis_check_link iad_result(iad_axis*, iad_link_check*)
+function iad_axis_link_state iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_recover iad_result(iad_axis*, double, const iad_recovery_policy*, const char*, const char*, const char*, iad_recovery_summary*)
+function iad_axis_read_unit_info_json iad_result(iad_axis*, const char*, char*, size_t, size_t*)
+function iad_axis_backup_json iad_result(iad_axis*, const char*, const char*, char*, size_t, size_t*)
+function iad_backup_axes_json iad_result(iad_axis* const*, size_t, const char*, const char*, const char*, char*, size_t, size_t*)
+function iad_axis_self_test iad_result(iad_axis*, const iad_check_options*, const char*, iad_check_summary*)
+function iad_axis_line_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_gateway_status_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_set_position_unit iad_result(iad_axis*, double)
+function iad_axis_set_action_mode iad_result(iad_axis*, iad_bool, iad_tribool, iad_bool, iad_status*)
+function iad_axis_set_safety_speed iad_result(iad_axis*, iad_bool, iad_bool, iad_status*)
+function iad_axis_cancel iad_result(iad_axis*)
+function iad_axis_set_strategy iad_result(iad_axis*, int32_t)
+function iad_axis_strategy iad_result(iad_axis*, int32_t*)
+function iad_axis_stop_path iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_line_name iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_read_monitor_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_read_lean_status iad_result(iad_axis*, int32_t, iad_status*)
+function iad_axis_read_boot_baud_rate iad_result(iad_axis*, int32_t*)
+function iad_axis_gateway_monitor_json iad_result(iad_axis*, const char*, char*, size_t, size_t*)
+function iad_axis_motion_caps iad_result(iad_axis*, iad_motion_caps*)
+function iad_axis_read_home_pattern iad_result(iad_axis*, iad_bool*, uint32_t*)
+function iad_axis_finish_home iad_result(iad_axis*)
+function iad_cell_move_each iad_result(iad_cell*, const iad_axis_move*, size_t, iad_bool, double, iad_bool, iad_cell_result*, size_t, size_t*)
+function iad_cell_pause_all iad_result(iad_cell*, const char*, iad_bool, iad_cell_result*, size_t, size_t*)
+function iad_cell_resume_all iad_result(iad_cell*, const char*, iad_bool, iad_cell_result*, size_t, size_t*)
+function iad_cell_cancel iad_result(iad_cell*, const char*)
+function iad_cell_start_monitors iad_result(iad_cell*, const char*, const iad_monitor_options*)
+function iad_cell_stop_monitors iad_result(iad_cell*, const char*)
+function iad_cell_next_event iad_result(iad_cell*, double, iad_event*)
+function iad_cell_track_all iad_result(iad_cell*, const char*, const iad_track_options*, const char*, iad_cell_result*, size_t, size_t*)
+function iad_cell_check_links iad_result(iad_cell*, const char*, iad_link_check*, size_t, size_t*)
+function iad_cell_monitor_links iad_result(iad_cell*, double, const char*)
+function iad_cell_stop_link_monitor iad_result(iad_cell*)
+function iad_cell_recover_all iad_result(iad_cell*, const char*, double, const iad_recovery_policy*, const char*, iad_cell_result*, size_t, size_t*)
+function iad_cell_monitor_all_json iad_result(iad_cell*, const char*, char*, size_t, size_t*)
+function iad_cell_lines_json iad_result(iad_cell*, char*, size_t, size_t*)
+function iad_cell_gateway_status_json iad_result(iad_cell*, char*, size_t, size_t*)
+function iad_cell_set_position_unit iad_result(iad_cell*, const char*, double, const char*)
+function iad_cell_gateway_monitor_json iad_result(iad_cell*, const char*, const char*, char*, size_t, size_t*)
+function iad_cell_backup_json iad_result(iad_cell*, const char*, const char*, const char*, char*, size_t, size_t*)
+function iad_cell_last_result_json iad_result(iad_cell*, char*, size_t, size_t*)
+function iad_cell_coord_plan_json iad_result(iad_cell*, const char*, char*, size_t, size_t*)
+function iad_cell_coord_run_json iad_result(iad_cell*, const char*, char*, size_t, size_t*)
+function iad_callback_error iad_result(const char*)
+function iad_set_log_level iad_result(int32_t)
+function iad_transport_callbacks_init iad_result(iad_transport_callbacks*)
+function iad_bus_options_init iad_result(iad_bus_options*)
+function iad_transport_open_callbacks iad_result(const iad_transport_callbacks*, const char*, void*, iad_transport**)
+function iad_transport_open_serial iad_result(const char*, int32_t, double, iad_transport**)
+function iad_transport_close iad_result(iad_transport*)
+function iad_transport_release iad_result(iad_transport*)
+function iad_transport_info_json iad_result(iad_transport*, char*, size_t, size_t*)
+function iad_transport_write iad_result(iad_transport*, const uint8_t*, size_t)
+function iad_transport_read iad_result(iad_transport*, uint8_t*, size_t, size_t*)
+function iad_transport_reset_input iad_result(iad_transport*)
+function iad_transport_set_baud_rate iad_result(iad_transport*, int32_t)
+function iad_transport_set_read_timeout iad_result(iad_transport*, double)
+function iad_transport_send_break iad_result(iad_transport*, double)
+function iad_transport_reopen iad_result(iad_transport*, int32_t)
+function iad_bus_open iad_result(iad_transport*, const iad_bus_options*, iad_bus**)
+function iad_bus_close iad_result(iad_bus*)
+function iad_bus_transport iad_result(iad_bus*, iad_transport**)
+function iad_bus_info_json iad_result(iad_bus*, char*, size_t, size_t*)
+function iad_bus_set_retries iad_result(iad_bus*, int32_t)
+function iad_bus_set_min_gap iad_result(iad_bus*, double)
+function iad_bus_set_frame_sink iad_result(iad_bus*, iad_frame_sink, void*)
+function iad_bus_read_registers iad_result(iad_bus*, int32_t, int32_t, int32_t, int32_t, double, int32_t, uint16_t*)
+function iad_bus_write_coil iad_result(iad_bus*, int32_t, int32_t, iad_bool, int32_t)
+function iad_bus_write_register iad_result(iad_bus*, int32_t, int32_t, uint16_t)
+function iad_bus_write_registers iad_result(iad_bus*, int32_t, int32_t, const uint16_t*, size_t)
+function iad_bus_read_write_registers iad_result(iad_bus*, int32_t, int32_t, int32_t, int32_t, const uint16_t*, size_t, uint16_t*)
+function iad_bus_report_slave_id iad_result(iad_bus*, int32_t, int32_t, double, uint8_t*, size_t, size_t*)
+function iad_bus_iai_command iad_result(iad_bus*, int32_t, int32_t, int32_t, int32_t, const uint32_t*, size_t, uint32_t, int32_t, int32_t*, uint32_t*, size_t)
+function iad_bus_broadcast_coil iad_result(iad_bus*, int32_t, iad_bool)
+function iad_bus_probe iad_result(iad_bus*, int32_t, double, int32_t, iad_bool*)
+function iad_bus_detect_baud_rate iad_result(iad_bus*, const char*, const char*, int32_t, iad_bool, double, int32_t*)
+function iad_bus_set_baud_rate iad_result(iad_bus*, int32_t)
+function iad_bus_send_break iad_result(iad_bus*, double)
+function iad_bus_reopen iad_result(iad_bus*, int32_t)
+function iad_sim_open iad_result(const char*, iad_sim**)
+function iad_sim_close iad_result(iad_sim*)
+function iad_sim_transport iad_result(iad_sim*, iad_transport**)
+function iad_sim_line_open iad_result(const char*, iad_sim* const*, size_t, iad_sim_line**)
+function iad_sim_line_close iad_result(iad_sim_line*)
+function iad_sim_line_add iad_result(iad_sim_line*, iad_sim*)
+function iad_sim_line_remove iad_result(iad_sim_line*, int32_t)
+function iad_sim_line_transport iad_result(iad_sim_line*, iad_transport**)
+function iad_axis_open_bus iad_result(iad_bus*, int32_t, const iad_axis_options*, iad_axis**)
+function iad_axis_open_transport iad_result(iad_transport*, const iad_open_options*, const iad_axis_options*, iad_axis**)
+function iad_axis_bus iad_result(iad_axis*, iad_bus**)
+function iad_cell_open_transports iad_result(iad_transport* const*, size_t, const char*, const char*, const iad_cell_options*, const iad_axis_options*, iad_cell**)
+function iad_cell_bus iad_result(iad_cell*, const char*, iad_bus**)
+function iad_axis_cancel_latch iad_result(iad_axis*)
+function iad_axis_cancel_reset iad_result(iad_axis*)
+function iad_axis_cancel_latched iad_result(iad_axis*, iad_bool*)
+function iad_cell_cancel_latch iad_result(iad_cell*, const char*)
+function iad_cell_cancel_reset iad_result(iad_cell*, const char*)
+function iad_bus_lock iad_result(iad_bus*, double, iad_bool*)
+function iad_bus_unlock iad_result(iad_bus*)
+function iad_bus_preemptible_begin iad_result(iad_bus*, int32_t, iad_read_gate_fn, void*)
+function iad_bus_preemptible_end iad_result(iad_bus*)
+function iad_bus_suspend_monitors iad_result(iad_bus*, double, int32_t*)
+function iad_bus_resume_monitors iad_result(iad_bus*)
+function iad_bus_broadcast_iai_command iad_result(iad_bus*, int32_t, int32_t, int32_t, int32_t, uint32_t, double, uint8_t*, size_t, size_t*)
+function iad_bus_broadcast iad_result(iad_bus*, const uint8_t*, size_t, double, uint8_t*, size_t, size_t*)
+function iad_bus_set_line iad_result(iad_bus*, int32_t, double)
+function iad_bus_detect_line iad_result(iad_bus*, int32_t, double, double, int32_t*)
+function iad_bus_line_json iad_result(iad_bus*, char*, size_t, size_t*)
+function iad_bus_set_response_delay iad_result(iad_bus*, int32_t, double)
+function iad_bus_response_delay iad_result(iad_bus*, int32_t, double*)
+function iad_bus_response_timeout iad_result(iad_bus*, int32_t, const uint8_t*, size_t, int32_t, double*)
+function iad_call_json iad_result(const char*, const char*, char*, size_t, size_t*)
+function iad_axis_last_status_words iad_result(iad_axis*, const iad_status*, uint16_t*, size_t, size_t*)
+function iad_axis_state_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_kind_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_read_soft_limits_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_read_axis_limits_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_read_speed_limit iad_result(iad_axis*, double*)
+function iad_axis_read_support_words_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_categories_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_parameter_model_json iad_result(iad_axis*, iad_bool, char*, size_t, size_t*)
+function iad_axis_user_parameters_json iad_result(iad_axis*, char*, size_t, size_t*)
+function iad_axis_write_position_row iad_result(iad_axis*, int32_t, const iad_position_entry*, const iad_nv_write_options*, iad_bool, iad_position_write_result*)
+function iad_axis_enable_modbus_control iad_result(iad_axis*, iad_bool, iad_status*)
+function iad_axis_begin_stop iad_result(iad_axis*)
+function iad_axis_push_speed_json iad_result(iad_axis*, double, char*, size_t, size_t*)
+function iad_axis_servo_on_timeout_json iad_result(iad_axis*, const uint16_t*, size_t, char*, size_t, size_t*)
+function iad_axis_release_held iad_result(iad_axis*)
+function iad_axis_set_axis_limits_json iad_result(iad_axis*, const char*)
+function iad_axis_set_nv_unit iad_result(iad_axis*, const char*, const char*)
+function iad_nv_forget iad_result(const char*)
+function iad_constants_json iad_result(char*, size_t, size_t*)
+function iad_bus_shutdown iad_result(iad_bus*)
+function iad_bus_release iad_result(iad_bus*)
+function iad_axis_suspend_monitor iad_result(iad_axis*, double)
+function iad_axis_resume_monitor iad_result(iad_axis*)
+function iad_axis_monitor_target iad_result(iad_axis*, double*, double*)
+function iad_axis_set_port_owner iad_result(iad_axis*, iad_bool)
+function iad_line_open iad_result(int32_t, iad_gateway*, iad_bool, double, iad_line**)
+function iad_line_close iad_result(iad_line*)
+function iad_bus_line iad_result(iad_bus*, iad_line**)
+function iad_bus_attach_line iad_result(iad_bus*, iad_line*)
+function iad_bus_state_line_rules iad_result(iad_bus*, const char*)
+function iad_line_json iad_result(iad_line*, char*, size_t, size_t*)
+function iad_line_allows iad_result(iad_line*, const char*, iad_bool*)
+function iad_line_require iad_result(iad_line*, const char*, const char*)
+function iad_line_check_request iad_result(iad_line*, int32_t, const uint8_t*, size_t)
+function iad_line_require_control iad_result(iad_line*, int32_t)
+function iad_line_position_unit iad_result(iad_line*, int32_t, double*, char*, size_t, size_t*)
+function iad_line_set_position_unit iad_result(iad_line*, double, int32_t, const char*)
+function iad_line_require_position_unit iad_result(iad_line*, int32_t, iad_bool, double*)
+function iad_line_note_unreachable iad_result(iad_line*, const char*)
+function iad_line_explain_unreachable iad_result(iad_line*, const char*, char*, size_t, size_t*)
+function iad_line_gateway iad_result(iad_line*, iad_gateway**)
+function iad_line_rules_json iad_result(char*, size_t, size_t*)
+function iad_gateway_open iad_result(iad_bus*, int32_t, int32_t, const uint16_t*, size_t, double, double, iad_gateway**)
+function iad_gateway_close iad_result(iad_gateway*)
+function iad_gateway_info_json iad_result(iad_gateway*, char*, size_t, size_t*)
+function iad_gateway_status iad_result(iad_gateway*, double, uint16_t*, size_t, size_t*, double*)
+function iad_gateway_require_manu iad_result(iad_gateway*, uint16_t*, size_t, size_t*, double*)
+function iad_gateway_read_alarm iad_result(iad_gateway*, uint32_t*)
+function iad_gateway_set_cache_s iad_result(iad_gateway*, double)
+function iad_gateway_read_monitor_json iad_result(iad_gateway*, const char*, char*, size_t, size_t*)
+function iad_bus_probe_gateway iad_result(iad_bus*, int32_t, int32_t, double, uint16_t*, size_t, size_t*, double*)
+function iad_bus_read_serial_code iad_result(iad_bus*, int32_t, char*, size_t, size_t*)
+function iad_bus_robonet_hint iad_result(iad_bus*, int32_t, iad_bool, char*, size_t, size_t*)
+function iad_bus_set_port iad_result(iad_bus*, const char*, int32_t, double, iad_bool, iad_port_line_fn, void*)
+function iad_bus_port_info_json iad_result(iad_bus*, char*, size_t, size_t*)
+function iad_bus_ensure_baud_rate iad_result(iad_bus*, const char*, int32_t*, iad_bool*)
+function iad_bus_port_detect_line iad_result(iad_bus*, iad_bool, int32_t*)
+function iad_bus_scan iad_result(iad_bus*, const char*, double, iad_bool, int32_t*, size_t, size_t*)
+function iad_bus_scan_units_json iad_result(iad_bus*, const char*, double, iad_bool, iad_bool, char*, size_t, size_t*)
+function iad_bus_identify_json iad_result(iad_bus*, int32_t, char*, size_t, size_t*)
+function iad_bus_set_baud_rate_all iad_result(iad_bus*, int32_t, const char*, const iad_baud_options*, char*, size_t, size_t*)
+function iad_cell_open_buses iad_result(iad_bus* const*, size_t, const char*, const char*, const iad_cell_options*, const iad_axis_options*, iad_cell**)
+function iad_cell_open_axes iad_result(iad_axis* const*, size_t, const char*, const iad_cell_options*, iad_cell**)
+function iad_cell_axis_ref iad_result(iad_cell*, const char*, iad_axis**)
+function iad_cell_release iad_result(iad_cell*)
+function iad_cell_port_errors_json iad_result(iad_cell*, char*, size_t, size_t*)
+function iad_cell_read_all_json iad_result(iad_cell*, const char*, const char*, char*, size_t, size_t*)
+function iad_bus_port_detect_baud_rate iad_result(iad_bus*, const char*, const char*, double, int32_t*)
+function iad_bus_read_device_info_json iad_result(iad_bus*, int32_t, char*, size_t, size_t*)
+function iad_bus_set_transport iad_result(iad_bus*, iad_transport*)
+function iad_axis_session_from_info iad_result(iad_axis*, const char*, const char*)
+function iad_axis_session_update iad_result(iad_axis*, const char*)
+function iad_axis_set_link_state iad_result(iad_axis*, const char*, const char*, const char*, iad_bool*)
+function iad_axis_port_present iad_result(iad_axis*, iad_tribool*)
+function iad_axis_restart_signs iad_result(iad_axis*, const uint16_t*, size_t, const char*, char*, size_t, size_t*)
+function iad_cell_link_monitor_json iad_result(iad_cell*, char*, size_t, size_t*)
+function iad_axis_info_call_json iad_result(iad_axis*, const char*, const char*, char*, size_t, size_t*)
+function iad_axis_self_test_items_json iad_result(iad_axis*, int32_t, char*, size_t, size_t*)
+function iad_sim_port iad_result(iad_sim*, iad_transport**)
+function iad_sim_line_port iad_result(iad_sim_line*, iad_transport**)
+function iad_sim_gateway_line_open iad_result(const char*, const char*, iad_sim* const*, size_t, iad_sim_line**)
+function iad_last_result_json iad_result(char*, size_t, size_t*)
+function iad_cell_link_monitor_check_now iad_result(iad_cell*, const char*, iad_link_check*, size_t, size_t*)
+
+[iai_actuator_driver_testing.h] 28 functions, 0 structs
+const IAD_TESTING_ABI_VERSION 1
+const IAD_SIM_PASS 0
+const IAD_SIM_DROP 1
+const IAD_SIM_REPLY 2
+const IAD_SIM_EXCEPTION(code) (0x100 | ((code)&0xFF))
+const IAD_SIM_FAIL 3
+const IAD_SIM_ABORT 4
+callback iad_clock_now_fn double(void*)
+callback iad_clock_sleep_fn void(double, void*)
+callback iad_sim_request_hook int32_t(const uint8_t*, size_t, uint8_t*, size_t, size_t*, void*)
+function iad_testing_abi_version uint32_t(void)
+function iad_clock_use_real iad_result(void)
+function iad_clock_use_virtual iad_result(double)
+function iad_clock_use_callbacks iad_result(iad_clock_now_fn, iad_clock_sleep_fn, void*)
+function iad_clock_advance iad_result(double)
+function iad_clock_now iad_result(double*)
+function iad_sim_state_json iad_result(iad_sim*, char*, size_t, size_t*)
+function iad_sim_requests_json iad_result(iad_sim*, char*, size_t, size_t*)
+function iad_sim_events_json iad_result(iad_sim*, char*, size_t, size_t*)
+function iad_sim_power_cycle iad_result(iad_sim*, iad_tribool)
+function iad_sim_power_off iad_result(iad_sim*)
+function iad_sim_power_on iad_result(iad_sim*, iad_tribool)
+function iad_sim_unplug iad_result(iad_sim*)
+function iad_sim_replug iad_result(iad_sim*)
+function iad_sim_set_word_override iad_result(iad_sim*, int32_t, int32_t)
+function iad_sim_set_unreadable iad_result(iad_sim*, int32_t, int32_t, iad_bool)
+function iad_sim_set_stale_status_polls iad_result(iad_sim*, int32_t)
+function iad_sim_register_value iad_result(iad_sim*, int32_t, uint16_t*)
+function iad_sim_handle_frame iad_result(iad_sim*, const uint8_t*, size_t, uint8_t*, size_t, size_t*)
+function iad_sim_set_request_hook iad_result(iad_sim*, iad_sim_request_hook, void*)
+function iad_sim_control_json iad_result(iad_sim*, const char*, char*, size_t, size_t*)
+function iad_sim_line_requests_json iad_result(iad_sim_line*, char*, size_t, size_t*)
+function iad_sim_line_control_json iad_result(iad_sim_line*, const char*, char*, size_t, size_t*)
+function iad_sim_set_clock iad_result(iad_sim*, iad_clock_now_fn, void*)
+function iad_testing_set_timing iad_result(const char*, double)
+function iad_testing_axis_nv_record iad_result(iad_axis*, double, const char*, iad_bool*)
+function iad_testing_axis_nv_last_hour iad_result(iad_axis*, double, int32_t*)
+function iad_testing_set_port_list iad_result(const char*)

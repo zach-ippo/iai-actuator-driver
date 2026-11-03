@@ -1,0 +1,32 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+# captures can be large; keep decoded text
+*.pcap
+*.pcapng
+*.db
+*.sqlite
+.env
+# unit backups and local files stay out of the repository
+backups/
+bindings/dotnet/**/bin/
+bindings/dotnet/**/obj/
+examples/csharp/**/bin/
+examples/csharp/**/obj/
+.claude/
+# native core build outputs (python build.py shared, dotnet build): never committed
+core/build/
+bindings/python/iai_actuator_driver/_native/*/
+*.dll
+*.so
+*.dylib
+*.pdb
+*.exp
+*.ilk
+# results of tools/hw runs (they hold unit serial numbers and backups)
+hw-results/

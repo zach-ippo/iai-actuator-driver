@@ -1,0 +1,46 @@
+# Version and platform check of the iai_actuator_driver SDK @VERSION@ (@RID@).
+#
+# Platform: this SDK is for @RID@ only; another OS, CPU or a 32-bit build is reported as unsuitable, so
+# find_package keeps looking (for example in the SDK of the right platform, later in CMAKE_PREFIX_PATH).
+# Version: compatible when the requested version is not newer and the major matches (the rule the bindings apply to
+# the C ABI version).
+
+set(PACKAGE_VERSION "@CMAKE_VERSION@")
+
+set(_iad_suitable TRUE)
+if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(_iad_suitable FALSE)
+endif()
+if("@OS@" STREQUAL "windows")
+    if(NOT WIN32)
+        set(_iad_suitable FALSE)
+    endif()
+else()
+    if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set(_iad_suitable FALSE)
+    elseif("@ARCH@" STREQUAL "x64" AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+        set(_iad_suitable FALSE)
+    elseif("@ARCH@" STREQUAL "arm64" AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
+        set(_iad_suitable FALSE)
+    endif()
+endif()
+if(NOT _iad_suitable)
+    set(PACKAGE_VERSION "${PACKAGE_VERSION} (@RID@)")
+    set(PACKAGE_VERSION_UNSUITABLE TRUE)
+    unset(_iad_suitable)
+    return()
+endif()
+unset(_iad_suitable)
+
+if(NOT PACKAGE_FIND_VERSION)
+    set(PACKAGE_VERSION_COMPATIBLE TRUE)
+elseif(PACKAGE_VERSION VERSION_LESS PACKAGE_FIND_VERSION)
+    set(PACKAGE_VERSION_COMPATIBLE FALSE)
+elseif(NOT PACKAGE_FIND_VERSION_MAJOR EQUAL @MAJOR@)
+    set(PACKAGE_VERSION_COMPATIBLE FALSE)
+else()
+    set(PACKAGE_VERSION_COMPATIBLE TRUE)
+    if(PACKAGE_FIND_VERSION STREQUAL PACKAGE_VERSION)
+        set(PACKAGE_VERSION_EXACT TRUE)
+    endif()
+endif()

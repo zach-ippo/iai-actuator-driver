@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- First move with one axis through the C# library (IaiActuatorDriver.Axis).
+       How to run it: the comment at the top of Program.cs. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>IaiActuatorDriver.Examples</RootNamespace>
+    <!-- The library in this repository; override with -p:IadLibraryProject=... -->
+    <IadRoot>$(MSBuildThisFileDirectory)..\..\..\</IadRoot>
+    <IadLibraryProject Condition="'$(IadLibraryProject)' == ''">$(IadRoot)bindings\dotnet\src\IaiActuatorDriver\IaiActuatorDriver.csproj</IadLibraryProject>
+  </PropertyGroup>
+
+  <!-- The library project copies the native core (core/build/, or -p:NativeLibraryPath=...) next to the program. -->
+  <ItemGroup>
+    <ProjectReference Include="$(IadLibraryProject)" />
+  </ItemGroup>
+
+</Project>

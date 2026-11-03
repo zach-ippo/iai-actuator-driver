@@ -1,0 +1,34 @@
+# Line endings: LF in the repository and in the working tree, on every platform.
+* text=auto eol=lf
+
+# Windows-only files: CRLF in the working tree on every platform (stored with LF in the repository).
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.sln text eol=crlf
+
+# Binary files: no line-ending conversion, no text diff.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.bmp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.zip binary
+*.gz binary
+*.tgz binary
+*.7z binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.exe binary
+*.lib binary
+*.pdb binary
+*.nupkg binary
+*.snupkg binary
+*.whl binary
+*.pdf binary

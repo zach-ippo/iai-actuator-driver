@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    Packed as build/<PackageId>.targets and buildTransitive/<PackageId>.targets (see NativeRuntimes.targets).
+
+    .NET Framework projects do not reliably take runtimes/<rid>/native from a package (packages.config never does;
+    PackageReference only with a RuntimeIdentifier the package's runtimes/ folder matches), so this copies the x64
+    DLL next to the program. When NuGet copies it as well, both copies are the same file. iai_actuator_driver.dll is
+    64-bit: the program must run as a 64-bit process (PlatformTarget x64, or AnyCPU without Prefer32Bit).
+  -->
+  <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
+    <None Include="$(MSBuildThisFileDirectory)..\runtimes\win-x64\native\iai_actuator_driver.dll"
+          Link="iai_actuator_driver.dll" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+</Project>

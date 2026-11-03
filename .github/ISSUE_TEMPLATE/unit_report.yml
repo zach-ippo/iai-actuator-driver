@@ -1,0 +1,68 @@
+name: Unit report
+description: My unit works, works in part or does not work with the driver.
+title: "Unit report: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A result from your unit is how a path moves from UNVERIFIED to VERIFIED, so say exactly what you tried.
+        Close IA-OS first (one program per port). Do not report this driver to IAI: it is unofficial.
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options:
+        - It works
+        - It works in part
+        - It does not work
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Driver version
+      description: The output of `iai-actuator-driver --version`.
+      placeholder: "1.1.0"
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model code
+      description: The `model` in the iai-check report, or the label on the unit.
+      placeholder: EC-GRBP8M-20-1-1-PN-WA-WL2
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware
+      description: The `firmware` in the iai-check report, or the output of `iai-actuator-driver --port COM3 identify`.
+      placeholder: "0002"
+    validations:
+      required: true
+  - type: input
+    id: connection
+    attributes:
+      label: Connection
+      description: The adapter, the port, the baud rate and the slave address.
+      placeholder: IAI USB adapter on the SIO port, slave address 1, 38400 baud
+  - type: textarea
+    id: check
+    attributes:
+      label: iai-check report
+      description: |
+        Run `iai-check --port COM3` (read-only; use your own port) and drag the file `iai-check-<time>.json` into this
+        box. It is too long to paste; zip it if GitHub refuses it. The file holds the unit's serial number and the
+        port name, and the issue is public.
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What was tried
+      description: |
+        The commands or code, in order, and what each one did: whether the unit moved, and the output of anything
+        that failed. Say if you ran `iai-check --motion`.
+    validations:
+      required: true

@@ -1,0 +1,1123 @@
+/* EC test GUI. Palette, type, buttons, inputs, cards, badges and toast are
+   copied from the IAIAI GUI (C:\AI\iai-agent\gui\styles.css) so both tools look alike. */
+:root {
+  --nav: #12283b;
+  --ink: #172f40;
+  --muted: #607481;
+  --line: #dbe3e6;
+  --blue: #176c91;
+  --paper: #f4f6f5;
+  --accent: #c6e9df;
+  --red: #c62828;
+  --red-dark: #9e1f1f;
+  --ok: #1a8c85;
+  --warn: #a36a00;
+  --err: #a33d32;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font: 15px/1.5 "Segoe UI", Arial, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 9px 13px;
+}
+button:hover {
+  background: #eaf1f2;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.primary {
+  background: var(--blue);
+  color: white;
+  border-color: var(--blue);
+}
+.primary:hover {
+  background: #125c7d;
+}
+input,
+select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: white;
+  color: var(--ink);
+}
+input:focus,
+select:focus,
+button:focus-visible {
+  outline: 2px solid #77b9cc;
+}
+input.invalid {
+  border-color: var(--err);
+  background: #fff1ec;
+}
+
+/* Header bar: IAIAI rail colours, laid out horizontally. Sticky so STOP is always on screen. */
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  background: var(--nav);
+  color: #d8e4ec;
+  padding: 12px 32px;
+}
+.brand {
+  font-size: 23px;
+  font-weight: 650;
+  color: white;
+  letter-spacing: -0.7px;
+}
+.brand small {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #91b3c6;
+  margin-top: 2px;
+}
+.unofficial {
+  border: 1px solid #b98a2e;
+  background: #3a3220;
+  color: #f3d79b;
+  padding: 5px 12px;
+  border-radius: 30px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.appbar .spacer {
+  margin-left: auto;
+}
+.badge {
+  border: 1px solid #cbded6;
+  background: #e6f1eb;
+  color: var(--ink);
+  padding: 5px 11px;
+  border-radius: 30px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.badge.off {
+  background: #edf2f3;
+  border-color: var(--line);
+  color: var(--muted);
+}
+.badge.bad {
+  background: #fff1ec;
+  border-color: #e6b8ad;
+  color: var(--err);
+}
+button.stop {
+  background: var(--red);
+  border: 3px solid #ffd7d2;
+  color: white;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  padding: 12px 34px;
+  border-radius: 12px;
+  min-width: 170px;
+  box-shadow: 0 2px 0 var(--red-dark);
+}
+button.stop:hover {
+  background: #d93636;
+}
+button.stop:active,
+button.stop.pressed {
+  background: var(--red-dark);
+  transform: translateY(1px);
+}
+button.stop small {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  opacity: 0.85;
+}
+/* Shown next to STOP whenever the Modbus STOP cannot work (PIO has control) or was not confirmed. */
+.stop-warn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 460px;
+  background: #fff1ec;
+  border: 2px solid #f0a090;
+  color: var(--err);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.stop-warn button {
+  white-space: nowrap;
+  border-color: var(--red);
+  color: var(--red-dark);
+  font-weight: 700;
+}
+.warn-list {
+  margin: 10px 0 0;
+  padding: 10px 10px 10px 28px;
+  border-radius: 8px;
+  background: #fff6e5;
+  color: var(--warn);
+  font-size: 13px;
+}
+
+/* Page layout */
+.main {
+  padding: 26px 32px;
+  min-width: 0;
+}
+.grid {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) 380px;
+  gap: 20px;
+  align-items: start;
+}
+.col {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.panel {
+  padding: 18px 20px;
+}
+.panel h2 {
+  font-size: 17px;
+  margin: 0 0 12px;
+}
+.label {
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.hidden {
+  display: none !important;
+}
+.stopped-note {
+  max-width: 560px;
+  margin: 80px auto;
+  padding: 0 22px;
+}
+.token-missing {
+  padding: 12px 22px;
+  background: #fff1ec;
+  color: var(--err);
+  border-bottom: 2px solid var(--red);
+  font-weight: 600;
+}
+.notice {
+  font-size: 12px;
+  color: var(--muted);
+  background: #edf2f3;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 12px;
+}
+.error {
+  color: var(--err);
+  background: #fff1ec;
+  padding: 10px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  font-size: 13px;
+  margin: 10px 0 0;
+}
+
+/* Forms */
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.fields input[type="number"] {
+  width: 110px;
+}
+.fields input#port {
+  width: 120px;
+}
+.fields label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--ink);
+  padding-bottom: 10px;
+}
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.section-gap {
+  margin-top: 16px;
+}
+/* PC / PIO control mode: two buttons, the one in force is filled. PIO is amber: the unit then follows its PIO inputs. */
+.mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.mode-toggle button {
+  border: 0;
+  border-radius: 0;
+  min-width: 72px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+.mode-toggle button + button {
+  border-left: 1px solid var(--line);
+}
+.mode-toggle button[aria-pressed="true"] {
+  background: var(--nav);
+  color: white;
+}
+.mode-toggle button.pio[aria-pressed="true"] {
+  background: var(--warn);
+}
+
+/* Status tiles (IAIAI .stats/.stat) */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.stat {
+  padding: 14px 16px;
+}
+.stat strong {
+  font-size: 22px;
+  display: block;
+}
+.stat.position {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.stat.position strong {
+  font-size: 54px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+  line-height: 1.1;
+}
+.stat.position strong span {
+  font-size: 20px;
+  color: var(--muted);
+  margin-left: 6px;
+}
+.stat.on {
+  background: #edf5f0;
+  border-color: #cbded6;
+}
+.stat.on strong {
+  color: #1d6b4e;
+}
+.stat.alert {
+  background: #fff1ec;
+  border-color: #e6b8ad;
+}
+.stat.alert strong {
+  color: var(--err);
+}
+.stat.busy strong::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  background: var(--ok);
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.stat.position .pos-side {
+  text-align: right;
+}
+.stat.position .pos-side #tSpeed {
+  font-size: 15px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Indicator lamps: green = on; red for alarm / emergency stop; amber for warnings. */
+.lamps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 8px;
+}
+.lamp-group {
+  margin: 14px 0 8px;
+}
+.lamp {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  background: white;
+  cursor: help;
+}
+.lamp i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #cfd8dc;
+  box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.18);
+}
+.lamp.unknown {
+  color: var(--muted);
+}
+.lamp.unknown i {
+  background: transparent;
+  border: 1px dashed #aab7bd;
+}
+.lamp.on {
+  font-weight: 600;
+}
+.lamp.on.ok i,
+.lamp.on.busy i {
+  background: #2fbf4a;
+  box-shadow: 0 0 6px #2fbf4a, inset 0 -2px 3px rgba(0, 0, 0, 0.18);
+}
+.lamp.on.ok,
+.lamp.on.busy {
+  background: #edf8ef;
+  border-color: #b9dfc1;
+}
+.lamp.on.busy i {
+  animation: pulse 1s infinite;
+}
+.lamp.on.warn i {
+  background: #f0a500;
+  box-shadow: 0 0 6px #f0a500, inset 0 -2px 3px rgba(0, 0, 0, 0.18);
+}
+.lamp.on.warn {
+  background: #fff6e5;
+  border-color: #f0d49a;
+}
+.lamp.on.alert i {
+  background: var(--red);
+  box-shadow: 0 0 6px var(--red), inset 0 -2px 3px rgba(0, 0, 0, 0.18);
+}
+.lamp.on.alert {
+  background: #fff1ec;
+  border-color: #e6b8ad;
+  color: var(--err);
+}
+.mono {
+  font-family: Consolas, "Cascadia Mono", monospace;
+  margin: 12px 0 0;
+}
+
+/* Push outcome */
+.push-result {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  font-size: 13px;
+  background: #f7f9f9;
+}
+.push-state {
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-right: 10px;
+}
+.push-result.contact {
+  background: #edf8ef;
+  border-color: #b9dfc1;
+}
+.push-result.contact .push-state {
+  color: #1d6b4e;
+}
+.push-result.missed {
+  background: #fff6e5;
+  border-color: #f0d49a;
+}
+.push-result.missed .push-state {
+  color: var(--warn);
+}
+.push-result.running .push-state {
+  color: var(--ok);
+}
+.push-result.stopped,
+.push-result.failed {
+  background: #fff1ec;
+  border-color: #e6b8ad;
+}
+.push-result.stopped .push-state,
+.push-result.failed .push-state {
+  color: var(--err);
+}
+.push-result.idle {
+  color: var(--muted);
+}
+
+/* Identity table */
+.kv {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.kv th,
+.kv td {
+  text-align: left;
+  padding: 5px 0;
+  border-top: 1px solid var(--line);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.kv th {
+  width: 40%;
+  font-weight: 600;
+  color: var(--muted);
+  padding-right: 10px;
+}
+
+/* Event log */
+.log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: calc(100vh - 420px);
+  min-height: 220px;
+  overflow: auto;
+  font: 12px/1.45 Consolas, "Cascadia Mono", monospace;
+}
+.log li {
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.log time {
+  color: var(--muted);
+  margin-right: 8px;
+}
+.log .warn {
+  color: var(--warn);
+}
+.log .error {
+  color: var(--err);
+  background: none;
+  padding: 4px 0;
+  margin: 0;
+  font-size: 12px;
+}
+
+.toast {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  background: #993d32;
+  color: white;
+  max-width: 500px;
+  padding: 15px 20px;
+  border-radius: 10px;
+  z-index: 9;
+}
+
+/* View tabs in the header: IAIAI rail buttons (STOP stays in the same sticky bar). */
+.views {
+  display: flex;
+  gap: 6px;
+}
+.views button {
+  background: transparent;
+  color: #d8e4ec;
+  border-color: #3c5263;
+  padding: 6px 12px;
+}
+.views button:hover {
+  background: #1d3a4d;
+}
+.views button.active {
+  background: #284657;
+  border-color: #436c80;
+  color: white;
+  font-weight: 600;
+}
+
+/* Unit info view (read-only diagnostics) */
+.info-view {
+  display: grid;
+  gap: 16px;
+}
+.info-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.info-bar .spacer {
+  margin-left: auto;
+}
+.info-head h2 {
+  margin-bottom: 2px;
+}
+.info-head p {
+  margin: 0;
+}
+.ro-badge {
+  display: inline-block;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  color: #1d6b4e;
+  background: #edf5f0;
+  border: 1px solid #cbded6;
+  border-radius: 30px;
+  padding: 2px 9px;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 12px !important;
+}
+.lamp-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.lamp-key i {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.lamp-key .k-on {
+  background: #2fbf4a;
+}
+.lamp-key .k-off {
+  background: #cfd8dc;
+}
+.lamp-key .k-unk {
+  border: 1px dashed #aab7bd;
+}
+.confirmed-key {
+  font-weight: 600;
+  color: var(--ink);
+}
+.unconfirmed-key {
+  font-style: italic;
+  color: var(--ink);
+  border: 1px dashed #aab7bd;
+  border-radius: 6px;
+  padding: 0 6px;
+}
+details.fold > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 16px 20px;
+}
+details.fold > summary::-webkit-details-marker {
+  display: none;
+}
+details.fold > summary::before {
+  content: "\25B8";
+  color: var(--muted);
+  font-size: 13px;
+  display: inline-block;
+  transition: transform 0.15s;
+}
+details.fold[open] > summary::before {
+  transform: rotate(90deg);
+}
+details.fold > summary:hover {
+  background: #f7f9f9;
+}
+details.fold > summary h2 {
+  font-size: 17px;
+  margin: 0;
+  white-space: nowrap;
+}
+.sum {
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.live-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #1d6b4e;
+  background: #edf8ef;
+  border: 1px solid #b9dfc1;
+  border-radius: 30px;
+  padding: 1px 8px;
+}
+.fold-body {
+  padding: 0 20px 18px;
+}
+.sub-head {
+  margin: 18px 0 8px;
+}
+.sub-head .small {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.placeholder {
+  font-style: italic;
+}
+.tbl-wrap {
+  overflow-x: auto;
+}
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.tbl th {
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.tbl td,
+.tbl tbody th {
+  padding: 5px 8px;
+  border-top: 1px solid var(--line);
+  vertical-align: top;
+}
+.tbl tbody tr:hover {
+  background: #f4f8f9;
+}
+td.mono,
+th.mono {
+  font-family: Consolas, "Cascadia Mono", monospace;
+  margin: 0;
+}
+.tbl td.raw {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.tbl td.val {
+  font-weight: 600;
+}
+.tbl td.bad {
+  color: var(--err);
+  font-weight: 700;
+}
+.tbl tr.missing td {
+  color: var(--muted);
+}
+.tbl tr.param-row td {
+  background: #f2f8f5;
+}
+.tbl tr.unconfirmed-row td:nth-child(2) {
+  font-style: italic;
+}
+.tbl.regs tbody th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  border-bottom: 0;
+}
+.tbl.regs td {
+  white-space: pre;
+}
+.tbl.regs td.zero {
+  color: #a5b3ba;
+}
+.tbl.regs td.uncertain {
+  font-style: italic;
+  background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(163, 106, 0, 0.08) 6px 8px);
+}
+details.sub {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 8px 0;
+}
+details.sub > summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+details.sub[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+details.sub > .tbl-wrap {
+  padding: 0 4px 6px;
+}
+.word {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.word:first-child {
+  border-top: 0;
+}
+.word-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.word-head b {
+  font-size: 14px;
+}
+.word-head code {
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 13px;
+  background: #edf2f3;
+  padding: 1px 7px;
+  border-radius: 6px;
+}
+.lamps.bits {
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 6px;
+}
+.lamp.bit {
+  padding: 5px 8px;
+  font-size: 12px;
+  gap: 7px;
+}
+.lamp.bit i {
+  width: 12px;
+  height: 12px;
+}
+.lamp.bit small {
+  color: var(--muted);
+  font: 400 10px Consolas, "Cascadia Mono", monospace;
+}
+.lamp.bit.unconfirmed {
+  border-style: dashed;
+}
+.lamp.bit.unconfirmed span {
+  font-style: italic;
+}
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+}
+.stat.mini {
+  padding: 10px 14px;
+}
+.stat.mini strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+.stat.mini strong span {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 5px;
+}
+.stat.mini.stale strong {
+  color: var(--muted);
+}
+.monitor-notes,
+ul.notes {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.alarm-now {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #f7f9f9;
+  font-size: 14px;
+}
+.alarm-now.clear {
+  background: #edf8ef;
+  border-color: #b9dfc1;
+}
+.alarm-now.active {
+  background: #fff1ec;
+  border-color: #e6b8ad;
+  color: var(--err);
+}
+.alarm-now.warning {
+  background: #fff8e6;
+  border-color: #e8cf8f;
+  color: var(--warn);
+}
+.mini-btn {
+  padding: 3px 9px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+.busy-btn {
+  opacity: 0.7;
+}
+#browseClass {
+  max-width: 560px;
+}
+
+@media (max-width: 1150px) {
+  .grid {
+    grid-template-columns: 1fr 320px;
+  }
+  .main {
+    padding: 20px;
+  }
+  .appbar {
+    padding: 12px 20px;
+  }
+}
+@media (max-width: 850px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .brand small {
+    display: none;
+  }
+  button.stop {
+    font-size: 20px;
+    padding: 8px 20px;
+    min-width: 120px;
+  }
+  .log {
+    max-height: 300px;
+  }
+}
+
+/* Product bar: version chip, About button, demo-mode banner and the About dialog (both pages). */
+.brand .ver {
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0;
+}
+.brand small {
+  letter-spacing: 1.2px;
+}
+.ver {
+  border: 1px solid #436c80;
+  background: #1d3a4d;
+  color: #d8e4ec;
+  padding: 4px 11px;
+  border-radius: 30px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.appbar button.linkbtn {
+  background: transparent;
+  color: #d8e4ec;
+  border-color: #3c5263;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+.appbar button.linkbtn:hover {
+  background: #1d3a4d;
+}
+.demo-banner {
+  background: #fff6e5;
+  border-bottom: 1px solid #f0d49a;
+  color: var(--warn);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  padding: 6px 16px;
+}
+dialog.about {
+  border: none;
+  border-radius: 14px;
+  padding: 0;
+  width: min(580px, calc(100% - 32px));
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  color: var(--ink);
+  background: white;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+dialog.about::backdrop {
+  background: rgba(10, 25, 35, 0.45);
+}
+.about-body {
+  padding: 22px 26px;
+}
+.about-body h3 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.4px;
+}
+.about-body h4 {
+  margin: 18px 0 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+}
+.about-stage {
+  margin: 2px 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.about-notice {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border: 1px solid #b98a2e;
+  border-radius: 8px;
+  background: #fff6e5;
+  color: #6b4a00;
+  font-size: 13px;
+  font-weight: 600;
+}
+.about-note {
+  margin: 0;
+  font-size: 13px;
+}
+.about-evidence {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 13px;
+}
+.about-evidence dt {
+  font-weight: 700;
+  font-family: Consolas, monospace;
+}
+.about-evidence dd {
+  margin: 0;
+}
+.about-links {
+  margin: 0;
+  padding-left: 20px;
+  columns: 2;
+  font-size: 14px;
+}
+.about-links a {
+  color: var(--blue);
+}
+.about-links .muted {
+  color: var(--muted);
+}
+.about-body menu {
+  display: flex;
+  justify-content: flex-end;
+  margin: 16px 0 0;
+  padding: 0;
+}
+@media (max-width: 850px) {
+  .about-links {
+    columns: 1;
+  }
+}
+
+/* Header layout: everything but STOP sits in .appbar-main, which wraps inside itself, so STOP stays top right. */
+.appbar-main {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.appbar > button.stop {
+  flex: 0 0 auto;
+}
+@media (max-width: 850px) {
+  .appbar-main {
+    flex-basis: 100%;
+  }
+}
+.appbar a.classic-link {
+  color: #a9c6d6;
+  font-size: 13px;
+}
+
+/* Narrow windows (1366x768 or 1920x1080 at 125 % scaling): a compact header that wraps to a second row inside
+   .appbar-main; STOP stays top right at full height. */
+@media (max-width: 1199px) {
+  .appbar {
+    padding: 10px 16px;
+    gap: 12px;
+  }
+  .appbar-main {
+    gap: 6px 10px;
+  }
+  .brand {
+    font-size: 20px;
+  }
+  .brand small {
+    display: none;
+  }
+  .views button,
+  .appbar button.linkbtn {
+    padding: 5px 10px;
+  }
+  button.stop {
+    font-size: 22px;
+    letter-spacing: 2px;
+    padding: 10px 24px;
+    min-width: 150px;
+  }
+}

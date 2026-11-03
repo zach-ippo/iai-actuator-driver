@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{E558DC21-502D-40C3-A1F5-A25A0BB8228F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IaiActuatorDriver", "src\IaiActuatorDriver\IaiActuatorDriver.csproj", "{1CA292ED-3C40-43FF-AC81-CE907622B5F3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{5D7F197B-D1BF-4E01-9051-DFE4B1FA3AA9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IaiActuatorDriver.Tests", "tests\IaiActuatorDriver.Tests\IaiActuatorDriver.Tests.csproj", "{D501B4CE-06CB-4C3A-A871-82070843C6D0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IaiActuatorDriver.Cli", "src\IaiActuatorDriver.Cli\IaiActuatorDriver.Cli.csproj", "{9EE2E7D2-ED0B-4785-96D6-5062CE6D2DD8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1CA292ED-3C40-43FF-AC81-CE907622B5F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1CA292ED-3C40-43FF-AC81-CE907622B5F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1CA292ED-3C40-43FF-AC81-CE907622B5F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1CA292ED-3C40-43FF-AC81-CE907622B5F3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D501B4CE-06CB-4C3A-A871-82070843C6D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D501B4CE-06CB-4C3A-A871-82070843C6D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D501B4CE-06CB-4C3A-A871-82070843C6D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D501B4CE-06CB-4C3A-A871-82070843C6D0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9EE2E7D2-ED0B-4785-96D6-5062CE6D2DD8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9EE2E7D2-ED0B-4785-96D6-5062CE6D2DD8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9EE2E7D2-ED0B-4785-96D6-5062CE6D2DD8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9EE2E7D2-ED0B-4785-96D6-5062CE6D2DD8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1CA292ED-3C40-43FF-AC81-CE907622B5F3} = {E558DC21-502D-40C3-A1F5-A25A0BB8228F}
+		{D501B4CE-06CB-4C3A-A871-82070843C6D0} = {5D7F197B-D1BF-4E01-9051-DFE4B1FA3AA9}
+		{9EE2E7D2-ED0B-4785-96D6-5062CE6D2DD8} = {E558DC21-502D-40C3-A1F5-A25A0BB8228F}
+	EndGlobalSection
+EndGlobal

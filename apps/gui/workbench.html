@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IAI Actuator Driver Workbench __VERSION__</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/workbench.css" />
+    <link rel="stylesheet" href="/coord.css" />
+  </head>
+  <body>
+    <header class="appbar">
+      <div class="appbar-main">
+        <div class="brand">IAI Actuator Driver Workbench <span class="ver" id="verBadge" title="IAI Actuator Driver version">v__VERSION__</span><small>ELECYLINDER · ROBOCYLINDER · MODBUS RTU</small></div>
+        <div class="unofficial" role="note">Unofficial — not an IAI product</div>
+        <nav class="views" role="tablist" aria-label="Views">
+          <button type="button" role="tab" id="tabAxis" data-view="viewAxis" aria-selected="true" class="active">Axis</button>
+          <button type="button" role="tab" id="tabGroup" data-view="viewGroup" aria-selected="false">Group</button>
+          <button type="button" role="tab" id="tabFunctions" data-view="viewFunctions" aria-selected="false">Functions</button>
+          <button type="button" role="tab" id="tabCoord" data-view="viewCoord" aria-selected="false">Coordinated <span class="tag exp">Experimental</span></button>
+        </nav>
+        <div class="appbar-tools">
+          <button type="button" class="linkbtn" id="startBtn" aria-controls="startHere" title="What to try first, and what to report">Start here</button>
+          <button type="button" class="linkbtn" id="reportBtn" title="A plain-text report of this session to paste into a GitHub issue">Test report</button>
+          <button type="button" class="linkbtn" id="aboutBtn" title="Version, unofficial-use notice, evidence words and documentation">About</button>
+          <button type="button" class="linkbtn" id="quitBtn" title="Stop every axis, leave each unit as found (control back to PIO where it had it) and end the GUI program">Quit</button>
+          <span class="badge off" id="connBadge">No axis</span>
+        </div>
+      </div>
+      <button id="stopAll" class="stop" type="button"
+        title="Decelerate EVERY connected axis to a stop with its STOP input (Space or Esc). STOP frames go to all axes first, then each is held until it stands still. Not a safety function: use the hardware emergency stop for safety.">
+        STOP ALL<small>SPACE / ESC</small>
+      </button>
+      <div class="stop-banner hidden" id="stopBanner" role="alert"></div>
+      <div class="tab-note hidden" id="tabNote" role="status"></div>
+    </header>
+
+    <main class="wb">
+      <aside class="side">
+        <section class="card panel" aria-labelledby="connTitle">
+          <h2 id="connTitle">Connection</h2>
+          <div class="sub-row" id="serialHead"><span class="label">Serial ports</span>
+            <button type="button" class="mini" id="refreshPorts" title="List the PC's serial ports again (nothing is opened)">Refresh</button></div>
+          <ul class="portlist" id="portList"><li class="small">Listing ports...</li></ul>
+          <div class="fields stack" id="serialFields">
+            <label title="Normally one axis per COM port (slave 1). Several axes on one port (RCON gateway / SIO daisy chain): slave = axis number + 1, UNVERIFIED on hardware.">
+              Addresses to scan
+              <input id="scanSlaves" type="text" value="1-16" placeholder="e.g. 1-16 or 1,2,5" autocomplete="off" spellcheck="false" />
+              <span class="range">1 to 247 · slave = axis number + 1</span>
+            </label>
+            <label>Baud
+              <select id="connBaud">
+                <option value="auto" selected>auto-detect (recommended)</option>
+                <option>9600</option><option>19200</option><option>38400</option><option>57600</option>
+                <option>115200</option><option>230400</option>
+              </select>
+            </label>
+          </div>
+          <button type="button" class="primary wide" id="connectPorts" disabled>Connect selected ports</button>
+          <p class="conn-msg hidden" id="connMsg" role="status"></p>
+          <p class="small" id="serialNote">Close IA-OS (and any other program using the port) first.</p>
+
+          <div class="sub-row"><span class="label">Simulator (no serial port)</span></div>
+          <div class="fields stack">
+            <select id="simSetup" aria-label="Simulator setup"></select>
+          </div>
+          <button type="button" class="wide" id="addSim">Add simulator</button>
+
+          <div class="sub-row"><span class="label">Connected ports</span></div>
+          <ul class="connected" id="connectedPorts"><li class="small">None yet.</li></ul>
+        </section>
+
+        <section class="card panel" aria-labelledby="logTitle">
+          <h2 id="logTitle">Event log</h2>
+          <ol class="log" id="events" aria-live="polite"></ol>
+          <div class="log-foot">
+            <button type="button" class="mini" id="logCopyReport" title="Copy the test report (version, system, units, errors and this log) to the clipboard">Copy test report</button>
+            <span class="spacer"></span>
+            <a class="small" href="/classic" title="The single-axis test page">Single-axis page</a>
+          </div>
+        </section>
+      </aside>
+
+      <section class="content">
+        <section class="card panel start-here hidden" id="startHere" aria-labelledby="startTitle">
+          <div class="pane-head">
+            <h2 id="startTitle">Start here</h2>
+            <span class="small">An unofficial test tool for IAI ELECYLINDER and CON-family units.</span>
+            <span class="spacer"></span>
+            <button type="button" class="mini" id="startHide" title="Hide this panel (the Start here button in the header shows it again)">Hide</button>
+          </div>
+          <div class="start-grid">
+            <div class="start-col">
+              <h3>No hardware</h3>
+              <p>Simulated axes run the same driver code and never open a serial port.</p>
+              <button type="button" class="primary" id="startDemo">Add two simulated axes</button>
+              <p class="small">Two sliders on two ports: enough for the Group and Coordinated tabs.</p>
+            </div>
+            <div class="start-col">
+              <h3>With a unit</h3>
+              <p>Close IA-OS first: only one program can use a port. Tick the port marked IAI and press
+                <b>Connect selected ports</b>; the baud rate is detected. Start slow and short, and keep a hand on the
+                emergency stop. Back up a unit (Functions &gt; Back up this unit) before writing parameters or stored
+                positions.</p>
+              <p class="small hidden" id="startDemoNote">Demo mode: serial ports are not listed. Start iai-gui without
+                --sim-only to use a unit.</p>
+            </div>
+            <div class="start-col">
+              <h3>Things to try</h3>
+              <ol class="start-steps">
+                <li>Axis tab: Servo ON, Home, then a short slow move.</li>
+                <li>During a move press Space or Esc: STOP ALL.</li>
+                <li>Stored positions: run a row. Unit info &amp; alarms: alarm history and Self-test.</li>
+                <li>Group tab: move two axes together.</li>
+                <li>Coordinated tab (experimental): Plan a small circle, check the plot, then Run.</li>
+                <li>Test report: Copy, then paste it into a GitHub issue with what you did.</li>
+              </ol>
+            </div>
+          </div>
+          <p class="small start-foot"><b>What to report:</b> the test report, the steps, what you expected and what
+            happened, in an issue at github.com/zach-ippo/iai-actuator-driver. More in
+            <a href="/docs/GETTING_STARTED.md" target="_blank" rel="noopener">Getting started</a>
+            (section 4, Try the GUI without hardware).</p>
+          <details class="start-limits small">
+            <summary>Known limits</summary>
+            <ul>
+              <li>Unofficial, not an IAI product.</li>
+              <li>STOP is a Modbus decelerate-stop, not a safety function.</li>
+              <li>A unit has no communication watchdog: a move in progress completes if the PC or cable fails.</li>
+              <li>Coordinated motion is experimental: one real axis with a simulated second VERIFIED, two real axes
+                together UNVERIFIED.</li>
+              <li>Several axes on one port: UNVERIFIED.</li>
+              <li>The GUI listens on 127.0.0.1 only.</li>
+            </ul>
+          </details>
+        </section>
+
+        <div class="axis-cards" id="axisCards" role="listbox" aria-label="Connected axes"></div>
+        <div class="empty card panel" id="emptyState">
+          <h2>No axis connected</h2>
+          <p id="emptyText">Tick one or more serial ports and press <b>Connect selected ports</b> (each port is scanned for axes),
+            or add a <b>simulator</b>, e.g. <i>Multi-axis line</i> for three axes on one port, or <i>Cell</i> for
+            three ports. Every range shown comes from the connected unit itself.</p>
+          <div class="buttons"><button type="button" class="primary" data-add-pair>Add two simulated axes</button></div>
+        </div>
+
+        <!-- ============================================================ Axis view -->
+        <div class="view" id="viewAxis" role="tabpanel" aria-labelledby="tabAxis">
+          <div class="card panel axis-head hidden" id="axisHead">
+            <div class="axis-title">
+              <h2 id="axName">-</h2>
+              <span class="small" id="axModel"></span>
+            </div>
+            <div class="travel" id="travel" title="Live position within the unit's own stroke">
+              <div class="travel-track"><div class="travel-target hidden" id="travelTarget"></div><div class="travel-car" id="travelCar"></div></div>
+              <div class="travel-scale"><span id="travelMin">0</span><span class="mono" id="travelPos">-</span><span id="travelMax">-</span></div>
+            </div>
+            <p class="stale-note hidden" id="axStale" role="status"></p>
+            <div class="lamps-row" id="axLamps"></div>
+            <div class="buttons" id="quickButtons">
+              <button type="button" data-quick="servo_on">Servo ON</button>
+              <button type="button" data-quick="servo_off">Servo OFF</button>
+              <button type="button" class="primary" data-quick="home">Home</button>
+              <button type="button" data-quick="reset_alarm" title="Clears a fault with the alarm-reset input (not a software reset)">Alarm reset</button>
+              <button type="button" data-quick="pause">Pause</button>
+              <button type="button" data-quick="resume">Resume</button>
+              <button type="button" data-quick="cancel_pause" title="Drop the remaining travel of a paused move and release the pause (VERIFIED on the EC-GRBP8M gripper)">Cancel pause</button>
+              <button type="button" class="fast-toggle" id="fastToggle" aria-pressed="false" title="Fast mode: a move is done on the first in-position sample, and the axis's status monitor gives the live status and watches the link. The baud rate is not changed.">Fast mode</button>
+              <span class="mode-toggle" id="modeToggle" role="group" aria-label="Control mode (PMSS)">
+                <button type="button" id="modePc" aria-pressed="false"
+                  title="PC: the unit takes its commands from this page over Modbus (PMSL on)">PC</button>
+                <button type="button" id="modePio" class="pio" aria-pressed="false"
+                  title="PIO: the unit follows its PIO inputs and runs its stored rows at their own speeds (PMSL off)">PIO</button>
+              </span>
+              <button type="button" class="stop-mini" data-quick="stop">STOP axis</button>
+            </div>
+            <p class="small hidden" id="axControl" role="status"></p>
+            <p class="error hidden" id="axError"></p>
+            <div class="fault-banner hidden" id="axFault" role="alert">
+              <div class="grow">
+                <b id="axFaultTitle">Link lost</b> <span id="axFaultText"></span>
+                <div class="small mono" id="axFaultMsg"></div>
+              </div>
+              <button type="button" class="primary" id="axRecover" title="Wait for the port / unit, re-sync it and report what changed. Never moves the axis.">Recover</button>
+            </div>
+            <div class="recovery-report hidden" id="axRecovery" aria-live="polite"></div>
+          </div>
+
+          <nav class="subtabs hidden" id="axisTabs" role="tablist" aria-label="Axis panels">
+            <button type="button" class="active" data-pane="paneOperate">Operate</button>
+            <button type="button" data-pane="panePositions">Stored positions</button>
+            <button type="button" data-pane="paneParams">Parameters</button>
+            <button type="button" data-pane="paneInfo">Unit info &amp; alarms</button>
+            <button type="button" class="mini toggle" id="apiToggle" aria-pressed="false" title="Show the Python call and the evidence notes">API</button>
+          </nav>
+
+          <div class="pane hidden" id="paneOperate">
+            <div class="op-grid" id="opForms"></div>
+          </div>
+
+          <div class="pane hidden" id="panePositions">
+            <div class="card panel">
+              <div class="pane-head">
+                <h2>Stored positions</h2>
+                <span class="small" id="posInfo"></span>
+                <span class="spacer"></span>
+                <button type="button" id="posReload">Reload from unit</button>
+              </div>
+              <p class="small">Every row the unit uses. <b>Run</b> moves to a row at its stored speed (optionally at a % of it).
+                <b>Write</b> changes the row in the unit's <b>non-volatile</b> memory (verified by read-back; back up the unit first).
+                Ranges come from the unit (stroke, MAXV, MAXA / MAXD, MXPP).</p>
+              <p class="small nv-note" id="posNvNote"></p>
+              <div class="table-wrap"><table class="grid-table" id="posTable"></table></div>
+            </div>
+          </div>
+
+          <div class="pane hidden" id="paneParams">
+            <div class="card panel">
+              <div class="pane-head">
+                <h2>Parameters</h2>
+                <input type="search" id="paramFilter" placeholder="Filter by number or name" aria-label="Filter parameters" />
+                <span class="spacer"></span>
+                <button type="button" id="paramReload">Reload from unit</button>
+              </div>
+              <p class="small">The unit's named parameters with their units and ranges. A write is verified by read-back,
+                saved to <b>non-volatile</b> memory and applies after a software reset or power cycle.
+                Parameters marked <span class="tag danger">dangerous</span> (home direction / offset, encoder / motor type,
+                lead / stroke, gains, axis number, baud) can make the axis move unexpectedly when set wrong: check
+                the value against the unit's manual.</p>
+              <p class="small nv-note" id="paramNvNote"></p>
+              <div class="table-wrap"><table class="grid-table" id="paramTable"></table></div>
+            </div>
+          </div>
+
+          <div class="pane hidden" id="paneInfo">
+            <div class="info-grid">
+              <div class="card panel">
+                <div class="pane-head"><h2>Unit</h2><span class="spacer"></span>
+                  <button type="button" id="selfCheckBtn">Self-test (read-only)</button>
+                  <button type="button" id="infoReload">Refresh</button></div>
+                <table class="kv" id="identityTable"></table>
+              </div>
+              <div class="card panel">
+                <h2>Monitor</h2>
+                <table class="kv" id="monitorTable"></table>
+              </div>
+              <div class="card panel hidden" id="selfCheckCard"><h2>Self-test</h2><table class="grid-table" id="selfCheckTable"></table></div>
+              <div class="card panel">
+                <h2>Current alarm</h2>
+                <div id="alarmNow" class="small">-</div>
+                <h2 class="section-gap">Alarm history</h2>
+                <div class="table-wrap"><table class="grid-table" id="historyTable"></table></div>
+              </div>
+              <div class="card panel">
+                <h2>Port &amp; unit settings</h2>
+                <form id="baudForm" class="fields">
+                  <label>Baud rate (whole port)
+                    <select id="baudRate"></select>
+                    <span class="range api-note">115200 / 230400 VERIFIED · 38400 depends on the unit · others UNVERIFIED</span>
+                  </label>
+                  <label>Method
+                    <select id="baudMethod"><option value="direct">direct</option><option value="break">break (line BREAK, then 9600)</option></select>
+                  </label>
+                  <button type="submit">Change baud…</button>
+                </form>
+                <p class="small">A baud change is a broadcast: <b>every unit on this port</b> switches (volatile: back to the
+                  power-up rate after a power cycle).</p>
+                <div class="buttons section-gap">
+                  <button type="button" id="swReset">Software reset…</button>
+                </div>
+                <p class="small">Restarts the unit's firmware (servo off first); the link is re-synced in place.
+                  Needed after a parameter write.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ Group view -->
+        <div class="view hidden" id="viewGroup" role="tabpanel" aria-labelledby="tabGroup">
+          <div class="card panel empty hidden" id="groupEmpty">
+            <h2>Group moves need two or more axes</h2>
+            <p>Connect two units, or add two simulated axes (two sliders on two ports).</p>
+            <div class="buttons"><button type="button" class="primary" data-add-pair>Add two simulated axes</button></div>
+          </div>
+          <div class="card panel" id="groupCard">
+            <div class="pane-head">
+              <h2>All axes</h2>
+              <span class="small">Each axis keeps its own units and ranges.</span>
+              <span class="spacer"></span>
+              <button type="button" class="mini toggle" data-api-toggle aria-pressed="false" title="Show the Python call and the evidence notes">API</button>
+              <button type="button" id="grpSelectAll">Select all</button>
+            </div>
+            <div class="table-wrap"><table class="grid-table" id="groupTable"></table></div>
+            <div class="buttons section-gap">
+              <button type="button" class="primary" id="grpMove">Move selected together</button>
+              <button type="button" id="grpHome">Home selected</button>
+              <button type="button" id="grpServoOn">Servo ON selected</button>
+              <button type="button" id="grpServoOff">Servo OFF selected</button>
+              <button type="button" class="stop-mini" id="grpStop">STOP ALL</button>
+              <label class="check small" title="Also send one broadcast STOP (address 0) on every daisy chain; never behind a gateway. Several units acting on one broadcast is UNVERIFIED on hardware.">
+                <input type="checkbox" id="grpBroadcast" /> also broadcast STOP (daisy chains)
+              </label>
+            </div>
+            <p class="small">Move together: every target is checked against its own unit's ranges and readiness before any axis
+              starts<span class="api-note"> (<span class="mono">Cell.move_all</span>)</span>; one bad value refuses the whole move, nothing is sent.
+              A start that fails stops the axes already started.</p>
+          </div>
+        </div>
+
+        <!-- ============================================================ Functions view -->
+        <div class="view hidden" id="viewFunctions" role="tabpanel" aria-labelledby="tabFunctions">
+          <div class="card panel">
+            <div class="pane-head">
+              <h2>Every driver function</h2>
+              <span class="small" id="fnAxis">Axis: -</span>
+              <span class="spacer"></span>
+              <input type="search" id="fnFilter" placeholder="Filter functions" aria-label="Filter functions" />
+            </div>
+            <p class="small">Each function runs on the selected axis (pick it in the cards above). Inputs show the
+              unit's own range and an example; <b>Run</b> calls the driver and shows its JSON result or its error text.</p>
+          </div>
+          <div class="fn-list" id="fnList"></div>
+        </div>
+
+        <!-- ============================================================ Coordinated view (filled by coord.js) -->
+        <div class="view hidden" id="viewCoord" role="tabpanel" aria-labelledby="tabCoord"></div>
+      </section>
+    </main>
+
+    <dialog id="confirmDlg">
+      <form method="dialog" class="dlg">
+        <h3 id="dlgTitle">Confirm</h3>
+        <p id="dlgText"></p>
+        <menu>
+          <button type="submit" value="cancel" id="dlgCancel">Cancel</button>
+          <button type="submit" value="ok" class="primary" id="dlgOk">OK</button>
+        </menu>
+      </form>
+    </dialog>
+    <dialog id="reportDlg" class="report-dlg" aria-labelledby="reportTitle">
+      <form method="dialog" class="dlg">
+        <h3 id="reportTitle">Test report</h3>
+        <p class="small">Run the Self-test on each unit first (Unit info &amp; alarms) for a fuller report. Paste the
+          text into a GitHub issue with the steps, what you expected and what happened.</p>
+        <p class="small" id="reportPrivacy">The report names this PC's operating system, Python and browser, the ports and
+          the units (model, firmware, serial number, state), the last errors and the event log. It never holds the
+          access key. Read it before you send it: a GitHub issue is public.</p>
+        <textarea id="reportText" readonly rows="16" spellcheck="false" aria-label="Test report text"></textarea>
+        <p class="small" id="reportMsg" role="status"></p>
+        <menu>
+          <button type="button" class="primary" id="reportCopy">Copy</button>
+          <button type="button" id="reportSave">Save as .txt</button>
+          <button type="submit" value="close" id="reportClose">Close</button>
+        </menu>
+      </form>
+    </dialog>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+    <script src="/token.js"></script>
+    <script src="/workbench.js"></script>
+    <script src="/coord.js"></script>
+    <script src="/about.js"></script>
+  </body>
+</html>

@@ -1,0 +1,19 @@
+# Editor settings for this repository (https://editorconfig.org).
+# Line endings follow .gitattributes: LF everywhere, CRLF for .bat, .cmd and .sln.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{py,toml}]
+indent_size = 4
+
+[*.{js,css,html,yml,yaml}]
+indent_size = 2
+
+[*.{bat,cmd,sln}]
+end_of_line = crlf

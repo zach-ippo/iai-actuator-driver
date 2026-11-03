@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <!-- The interop layer (Interop/) reads the fixed-size fields of the C ABI structs. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>IaiActuatorDriver</RootNamespace>
+    <AssemblyName>IaiActuatorDriver</AssemblyName>
+    <Version>1.1.0</Version>
+    <Description>UNOFFICIAL driver for IAI actuators (ELECYLINDER, RoboCylinder via CON controllers, ...) over serial Modbus RTU, with the native core (iai_actuator_driver, C ABI) under runtimes/&lt;rid&gt;/native. Not an IAI product.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- NuGet package; the release passes -p:Version=<NuGet version> (.github/release/check_version.py) -->
+    <PackageId>IaiActuatorDriver</PackageId>
+    <PackageTags>IAI;ELECYLINDER;RoboCylinder;PCON;Modbus;RTU;RS-485;actuator;driver</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Authors>Zachary Ippolito</Authors>
+    <Copyright>Copyright 2026 Zachary Ippolito</Copyright>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
+    <!-- the repository's LICENSE, licenses/NOTICE and licenses/NATIVE_THIRD_PARTY.txt (what is linked into the native
+         library) at the package root; dotnet pack stops when one is missing (NU5019) -->
+    <None Include="..\..\..\..\LICENSE" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\..\..\licenses\NOTICE" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="..\..\..\..\licenses\NATIVE_THIRD_PARTY.txt" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="IaiActuatorDriver.Tests" />
+  </ItemGroup>
+
+  <!--
+    The native core of the build host, copied next to every program that references this project (the CLI, the tests,
+    the examples). Default: the library 'python build.py shared' builds in core/build/; -p:NativeLibraryPath=<file>
+    takes another one (the release tests pass the release's win-x64 DLL). The managed classes run on the core (ModbusRtu
+    is the core's bus), so a missing file is a build error naming the command that builds it, unless the package's
+    native files are given (-p:IadNativeDir, the release) or -p:IadNativeOptional=true (the library then fails at run
+    time with a load error naming the places searched).
+  -->
+  <PropertyGroup>
+    <_IadCoreBuild>$(MSBuildThisFileDirectory)..\..\..\..\core\build\</_IadCoreBuild>
+    <NativeLibraryPath Condition="'$(NativeLibraryPath)' == '' and '$(OS)' == 'Windows_NT'">$(_IadCoreBuild)iai_actuator_driver.dll</NativeLibraryPath>
+    <NativeLibraryPath Condition="'$(NativeLibraryPath)' == '' and '$(OS)' != 'Windows_NT'">$(_IadCoreBuild)libiai_actuator_driver.so</NativeLibraryPath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('$(NativeLibraryPath)')">
+    <None Include="$(NativeLibraryPath)" Link="$([System.IO.Path]::GetFileName('$(NativeLibraryPath)'))"
+          CopyToOutputDirectory="PreserveNewest" Pack="false" Visible="false" />
+  </ItemGroup>
+
+  <Target Name="IadRequireNativeLibrary" BeforeTargets="BeforeBuild"
+          Condition="!Exists('$(NativeLibraryPath)') and '$(IadNativeOptional)' != 'true' and '$(IadNativeDir)' == ''">
+    <Error Text="The native core $(NativeLibraryPath) is missing: build it with 'python build.py shared' in core/ (or pass -p:NativeLibraryPath=&lt;file&gt;; -p:IadNativeOptional=true builds without it)." />
+  </Target>
+
+  <!-- Release: runtimes/<rid>/native and the .NET Framework copy targets (adds nothing unless IadNativeDir is given) -->
+  <Import Project="..\..\packaging\NativeRuntimes.targets" />
+
+</Project>

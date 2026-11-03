@@ -1,0 +1,51 @@
+<Project>
+  <!--
+    Release packaging of the native core in the NuGet package IaiActuatorDriver (the library P/Invokes
+    iai_actuator_driver through its internal interop layer). src/IaiActuatorDriver/IaiActuatorDriver.csproj imports
+    this file:
+
+      <Import Project="..\..\packaging\NativeRuntimes.targets" />
+
+    and is packed with
+
+      dotnet pack <project> -c Release -p:Version=<NuGet version> -p:IadNativeDir=<folder> -p:IadRequireNative=true
+
+    where <folder> holds win-x64/iai_actuator_driver.dll, linux-x64/libiai_actuator_driver.so and
+    linux-arm64/libiai_actuator_driver.so (the release workflow's native builds). The package then carries
+
+      runtimes/win-x64/native/iai_actuator_driver.dll
+      runtimes/linux-x64/native/libiai_actuator_driver.so
+      runtimes/linux-arm64/native/libiai_actuator_driver.so
+      build/<PackageId>.targets, buildTransitive/<PackageId>.targets   (.NET Framework: copy the x64 DLL)
+
+    .NET (Core) picks runtimes/<rid>/native by itself; DllImport("iai_actuator_driver") finds the DLL on Windows and
+    libiai_actuator_driver.so on Linux. Without IadNativeDir (a normal build or test run) this file adds nothing.
+  -->
+  <PropertyGroup>
+    <IadNativeDir Condition="'$(IadNativeDir)' != '' and !HasTrailingSlash('$(IadNativeDir)')">$(IadNativeDir)/</IadNativeDir>
+    <IadRequireNative Condition="'$(IadRequireNative)' == ''">false</IadRequireNative>
+    <_IadWinX64>$(IadNativeDir)win-x64/iai_actuator_driver.dll</_IadWinX64>
+    <_IadLinuxX64>$(IadNativeDir)linux-x64/libiai_actuator_driver.so</_IadLinuxX64>
+    <_IadLinuxArm64>$(IadNativeDir)linux-arm64/libiai_actuator_driver.so</_IadLinuxArm64>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IadNativeDir)' != ''">
+    <None Include="$(_IadWinX64)" Condition="Exists('$(_IadWinX64)')"
+          Pack="true" PackagePath="runtimes/win-x64/native/" Visible="false" />
+    <None Include="$(_IadLinuxX64)" Condition="Exists('$(_IadLinuxX64)')"
+          Pack="true" PackagePath="runtimes/linux-x64/native/" Visible="false" />
+    <None Include="$(_IadLinuxArm64)" Condition="Exists('$(_IadLinuxArm64)')"
+          Pack="true" PackagePath="runtimes/linux-arm64/native/" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)NetFramework.targets" Condition="Exists('$(_IadWinX64)')"
+          Pack="true" PackagePath="build/$(PackageId).targets;buildTransitive/$(PackageId).targets" Visible="false" />
+  </ItemGroup>
+
+  <!-- A release package never ships without its three libraries. -->
+  <Target Name="IadCheckNativeFiles" BeforeTargets="GenerateNuspec" Condition="'$(IadRequireNative)' == 'true'">
+    <Error Condition="'$(IadNativeDir)' == ''"
+           Text="IadRequireNative=true needs IadNativeDir: the folder holding win-x64/, linux-x64/ and linux-arm64/." />
+    <Error Condition="'$(IadNativeDir)' != '' and !Exists('$(_IadWinX64)')" Text="missing $(_IadWinX64)" />
+    <Error Condition="'$(IadNativeDir)' != '' and !Exists('$(_IadLinuxX64)')" Text="missing $(_IadLinuxX64)" />
+    <Error Condition="'$(IadNativeDir)' != '' and !Exists('$(_IadLinuxArm64)')" Text="missing $(_IadLinuxArm64)" />
+  </Target>
+</Project>

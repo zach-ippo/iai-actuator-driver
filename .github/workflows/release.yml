@@ -1,0 +1,505 @@
+# Release dry run: started by hand only (Actions, Release, Run workflow; workflow_dispatch). It builds every deliverable
+# from one commit and tests what each runner can run, and publishes nothing. Releases are built locally with
+# .github/release/local_release.py and published from there with gh; a pushed tag starts no run.
+#
+#   version      one version everywhere: the tag against pyproject.toml, version.hpp, CMakeLists.txt, the .csproj
+#   native       the core with zig (python -m ziglang c++ -target ..., .github/release/build_native.py), per target:
+#                  win-x64      windows-latest  x86_64-windows-gnu      C++ tests, C smoke test, SDK built with MSVC
+#                  linux-x64    ubuntu-latest   x86_64-linux-gnu.2.17   C++ tests, C smoke test, SDK built with gcc
+#                  linux-arm64  ARM64_RUNNER or ubuntu-latest (cross)    C++ tests and C smoke test (natively, or in an
+#                                                                        arm64 container under QEMU)
+#                then the exports / dependency check of the library and the C/C++ SDK zip of the target
+#   wheels       bindings/python as py3-none-<platform> wheels with the library in iai_actuator_driver/_native/<rid>/;
+#                installed and tested (x64: the whole Python suite; arm64: the binding tests)
+#   sdist        the sdist (source, needs the native library: none inside): checked, installed; its import is refused
+#                without a library, and its command line runs on the simulator with the linux-x64 one
+#   nuget        bindings/dotnet: C# tests against the win-x64 DLL, then the one package IaiActuatorDriver with
+#                runtimes/<rid>/native; nuget-smoke installs it in new net8.0 (Windows, Linux) and net48 programs
+#   gui          iai-gui.exe with PyInstaller (apps/gui/iai-gui.spec) over the win-x64 wheel, zipped; skipped while
+#                the spec does not exist (the version job says whether it does), and the release goes on without it
+#   release      dormant (it needs a tag push, which no longer starts this workflow; a manual run never publishes):
+#                assets, SHA256SUMS.txt and notes from CHANGELOG.md onto the GitHub release (the GUI zip only when the
+#                gui job ran)
+#
+# No job opens a serial port: every test runs on the simulator.
+name: Release
+
+# No push or tag trigger: the upload of the release job replaces the assets of an existing release (--clobber).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.12"
+  ZIGLANG_VERSION: "0.16.0"  # the pip package ziglang: the zig of the development PC (core/build.py)
+  DOTNET_VERSION: "8.0.x"
+  PYINSTALLER_VERSION: "6.22.3"
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      nuget_version: ${{ steps.v.outputs.nuget_version }}
+      cmake_version: ${{ steps.v.outputs.cmake_version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+      tag: ${{ steps.v.outputs.tag }}
+      gui: ${{ steps.gui.outputs.spec }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Check the tag against every version in the sources
+        id: v
+        env:
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: python .github/release/check_version.py --tag "$TAG"
+      # The gui job runs only when apps/gui/iai-gui.spec exists; without it the release carries no GUI zip.
+      - name: Is there a GUI spec (apps/gui/iai-gui.spec)?
+        id: gui
+        run: |
+          if [ -f apps/gui/iai-gui.spec ]; then
+            echo "spec=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "spec=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=GUI skipped::apps/gui/iai-gui.spec does not exist: no iai-gui.exe in this release"
+          fi
+
+  native:
+    name: Native core (${{ matrix.rid }})
+    needs: version
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+            lib: iai_actuator_driver.dll
+            exe: .exe
+            sdk_test: true
+          - rid: linux-x64
+            os: ubuntu-latest
+            lib: libiai_actuator_driver.so
+            exe: ""
+            sdk_test: true
+          - rid: linux-arm64
+            # an arm64 runner when the repository has one (variable ARM64_RUNNER, e.g. ubuntu-24.04-arm);
+            # else zig cross-compiles on x64 and the tests run in an arm64 container under QEMU
+            os: ${{ vars.ARM64_RUNNER || 'ubuntu-latest' }}
+            lib: libiai_actuator_driver.so
+            exe: ""
+            sdk_test: false
+    defaults:
+      run:
+        shell: bash
+    env:
+      OUT: build/native/${{ matrix.rid }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install zig (the ziglang package)
+        run: python -m pip install "ziglang==${ZIGLANG_VERSION}"
+
+      # The first compile for a target builds zig's libc++ for it (about a minute). --run runs ec_tests and c_smoke
+      # when the target runs on this runner, and says so when it does not.
+      - name: Build the library, the command line and the tests (zig), run the tests
+        run: python .github/release/build_native.py --target ${{ matrix.rid }} --core core --out "$OUT" --run
+
+      - name: Set up QEMU (arm64 tests on an x64 runner)
+        if: matrix.rid == 'linux-arm64' && runner.arch != 'ARM64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: C++ tests and C smoke test in an arm64 container (QEMU)
+        if: matrix.rid == 'linux-arm64' && runner.arch != 'ARM64'
+        run: |
+          docker run --rm --platform linux/arm64 -v "$GITHUB_WORKSPACE:/w" -w /w/core debian:bookworm-slim \
+            sh -ec "/w/$OUT/test/ec_tests --quiet && cd /w/$OUT/test && ./c_smoke"
+
+      - name: Check the library (target, exports, no C++ runtime, glibc 2.17)
+        run: |
+          python .github/release/check_package.py binary "$OUT/dist/${{ matrix.lib }}" --rid ${{ matrix.rid }} --library
+          python .github/release/check_package.py binary "$OUT/dist/iai-actuator-driver-cpp${{ matrix.exe }}" --rid ${{ matrix.rid }}
+
+      - name: C/C++ SDK zip
+        run: >
+          python .github/release/make_sdk.py --rid ${{ matrix.rid }} --version ${{ needs.version.outputs.version }}
+          --native "$OUT/dist" --out dist/sdk
+      - name: Build and run the C smoke test and the frozen ABI 1.0 program against the SDK (this runner's compiler, CMake find_package)
+        if: matrix.sdk_test
+        env:
+          SDK: iai_actuator_driver-sdk-${{ needs.version.outputs.version }}-${{ matrix.rid }}
+        run: |
+          mkdir -p build/sdk
+          cmake -E chdir build/sdk cmake -E tar xf "../../dist/sdk/$SDK.zip"
+          cmake -S .github/release/sdk_consumer -B build/sdk_consumer \
+            -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/build/sdk/$SDK" -DIAD_SMOKE_SOURCE="$GITHUB_WORKSPACE/core/tests/c_smoke.c" \
+            -DIAD_FROZEN_SMOKE_SOURCE="$GITHUB_WORKSPACE/core/abi/1.0/c_smoke.c"
+          cmake --build build/sdk_consumer --config Release
+          ctest --test-dir build/sdk_consumer -C Release --output-on-failure
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: ${{ env.OUT }}/dist/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdk-${{ matrix.rid }}
+          path: dist/sdk/*.zip
+          if-no-files-found: error
+
+  wheels:
+    name: Python wheel (${{ matrix.rid }})
+    needs: [version, native]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+            plat: win_amd64
+            lib: iai_actuator_driver.dll
+          - rid: linux-x64
+            os: ubuntu-latest
+            plat: manylinux_2_17_x86_64.manylinux2014_x86_64
+            lib: libiai_actuator_driver.so
+          - rid: linux-arm64
+            os: ${{ vars.ARM64_RUNNER || 'ubuntu-latest' }}
+            plat: manylinux_2_17_aarch64.manylinux2014_aarch64
+            lib: libiai_actuator_driver.so
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      NATIVE_DIR: bindings/python/iai_actuator_driver/_native/${{ matrix.rid }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-${{ matrix.rid }}
+          path: build/native/${{ matrix.rid }}
+
+      - name: Put the library into the package (this platform's only)
+        run: |
+          mkdir -p "$NATIVE_DIR"
+          cp "build/native/${{ matrix.rid }}/${{ matrix.lib }}" "$NATIVE_DIR/"
+      - name: Build the wheel (py3-none-${{ matrix.plat }})
+        env:
+          IAD_WHEEL_PLATFORM: ${{ matrix.plat }}
+        run: |
+          python -m pip install build
+          python -m build --wheel --outdir dist bindings/python
+      - name: Check the wheel
+        run: python .github/release/check_package.py wheel dist/*.whl --rid ${{ matrix.rid }} --version "$VERSION"
+      - name: manylinux check (auditwheel)
+        if: matrix.rid == 'linux-x64' || (matrix.rid == 'linux-arm64' && runner.arch == 'ARM64')
+        run: |
+          python -m pip install auditwheel
+          auditwheel show dist/*.whl
+
+      # The tests must import the installed wheel, not the source package next to them.
+      - name: Move the source package out of the way
+        run: mv bindings/python/iai_actuator_driver "$RUNNER_TEMP/source-package"
+
+      - name: Install the wheel and run the Python tests against it
+        if: matrix.rid != 'linux-arm64' || runner.arch == 'ARM64'
+        working-directory: bindings/python
+        run: |
+          python -m pip install ../../dist/*.whl
+          python ../../.github/release/check_package.py installed --rid ${{ matrix.rid }} --version "$VERSION"
+          if [ "${{ matrix.rid }}" = linux-arm64 ]; then
+            python -m unittest discover -s tests -p test_native_binding.py -v
+          else
+            python -m unittest discover -s tests -q
+          fi
+
+      - name: Set up QEMU (arm64 tests on an x64 runner)
+        if: matrix.rid == 'linux-arm64' && runner.arch != 'ARM64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: Install the wheel in an arm64 container (QEMU) and run the binding tests against it
+        if: matrix.rid == 'linux-arm64' && runner.arch != 'ARM64'
+        run: |
+          docker run --rm --platform linux/arm64 -e VERSION -v "$GITHUB_WORKSPACE:/w" -w /w/bindings/python \
+            python:${PYTHON_VERSION}-slim sh -ec '
+              pip install --quiet --root-user-action=ignore /w/dist/*.whl auditwheel
+              auditwheel show /w/dist/*.whl
+              python /w/.github/release/check_package.py installed --rid linux-arm64 --version "$VERSION"
+              python -m unittest discover -s tests -p test_native_binding.py -v'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.rid }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  sdist:
+    name: Python sdist (source, needs the native library)
+    needs: [version, native]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-linux-x64
+          path: build/native/linux-x64
+      # a clean checkout: _native/<rid>/ holds no library, so none can reach the sdist
+      - name: Build the sdist
+        run: |
+          python -m pip install build
+          python -m build --sdist --outdir dist bindings/python
+      - name: Check the sdist
+        run: python .github/release/check_package.py sdist dist/*.tar.gz --version "$VERSION"
+      # source, needs the native library: the import is refused without one, and runs with the linux-x64 library
+      - name: Install the sdist in a new environment and run its command line on the simulator
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -m venv venv
+          venv/bin/python -m pip install "$GITHUB_WORKSPACE"/dist/*.tar.gz
+          if venv/bin/python -c "import iai_actuator_driver" 2> import-error.txt; then
+            echo "the driver imported without its native library"; exit 1
+          fi
+          grep "needs its native library" import-error.txt
+          export IAI_ACTUATOR_DRIVER_NATIVE="$GITHUB_WORKSPACE/build/native/linux-x64/libiai_actuator_driver.so"
+          venv/bin/iai-actuator-driver --version
+          venv/bin/iai-actuator-driver --sim status
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  nuget:
+    name: NuGet packages
+    needs: [version, native]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      NUGET_VERSION: ${{ needs.version.outputs.nuget_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          path: build/native
+      - name: One folder per platform (build/native/<rid>)
+        run: for d in build/native/native-*; do mv "$d" "build/native/${d##*/native-}"; done; ls -R build/native
+
+      - name: C# tests (the native tests load the win-x64 DLL of this release)
+        run: >
+          dotnet test bindings/dotnet/IaiActuatorDriver.sln --configuration Release
+          "-p:NativeLibraryPath=$GITHUB_WORKSPACE/build/native/win-x64/iai_actuator_driver.dll"
+
+      - name: Pack (one package, IaiActuatorDriver, carrying runtimes/<rid>/native)
+        run: |
+          dotnet pack bindings/dotnet/src/IaiActuatorDriver/IaiActuatorDriver.csproj \
+            --configuration Release --output dist/nuget "-p:Version=$NUGET_VERSION" \
+            "-p:IadNativeDir=$GITHUB_WORKSPACE/build/native/" -p:IadRequireNative=true
+      - name: Check the package
+        run: |
+          python .github/release/check_package.py nupkg "dist/nuget/IaiActuatorDriver.$NUGET_VERSION.nupkg" \
+            --version "$NUGET_VERSION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget
+          path: dist/nuget/*.nupkg
+          if-no-files-found: error
+
+  nuget-smoke:
+    name: NuGet install (${{ matrix.os }}, ${{ matrix.tfm }})
+    needs: [version, nuget]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            tfm: net8.0
+          - os: windows-latest
+            tfm: net48
+          - os: ubuntu-latest
+            tfm: net8.0
+    defaults:
+      run:
+        shell: bash
+    env:
+      NUGET_VERSION: ${{ needs.version.outputs.nuget_version }}
+    steps:
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget
+          path: feed
+      - name: A new program that references IaiActuatorDriver loads the packaged library
+        run: |
+          mkdir consumer
+          cat > consumer/nuget.config <<EOF
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="release" value="$GITHUB_WORKSPACE/feed" />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+            </packageSources>
+          </configuration>
+          EOF
+          cat > consumer/Consumer.csproj <<EOF
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <OutputType>Exe</OutputType>
+              <TargetFramework>${{ matrix.tfm }}</TargetFramework>
+              <PlatformTarget Condition="'\$(TargetFramework)' == 'net48'">x64</PlatformTarget>
+            </PropertyGroup>
+            <ItemGroup>
+              <PackageReference Include="IaiActuatorDriver" Version="$NUGET_VERSION" />
+            </ItemGroup>
+          </Project>
+          EOF
+          cat > consumer/Program.cs <<'EOF'
+          using System;
+          using IaiActuatorDriver.Native;
+
+          internal static class Program
+          {
+              private static int Main()
+              {
+                  NativeDriver.EnsureLoaded();
+                  Console.WriteLine("iai_actuator_driver " + NativeDriver.LibraryVersion);
+                  return 0;
+              }
+          }
+          EOF
+          dotnet run --project consumer/Consumer.csproj --configuration Release
+
+  gui:
+    name: GUI (iai-gui.exe)
+    needs: [version, wheels]
+    # skipped, not failed, while the spec does not exist: the release job accepts a skipped gui job
+    if: needs.version.outputs.gui == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-win-x64
+          path: dist/wheel
+      - name: Install the win-x64 wheel (the driver with its DLL) and PyInstaller
+        run: python -m pip install dist/wheel/*.whl "pyinstaller==${PYINSTALLER_VERSION}"
+      - name: GUI tests
+        run: python -m unittest discover -s apps/gui -t apps -q
+      - name: Build iai-gui.exe
+        run: >
+          pyinstaller --noconfirm --clean --distpath dist/gui --workpath build/gui apps/gui/iai-gui.spec
+      - name: Check the exe carries the native library and starts
+        run: |
+          python - <<'EOF'
+          from PyInstaller.archive.readers import CArchiveReader
+          names = [n.replace("\\", "/") for n in CArchiveReader("dist/gui/iai-gui.exe").toc]
+          hits = [n for n in names if n.endswith("iai_actuator_driver/_native/win-x64/iai_actuator_driver.dll")]
+          print("\n".join(hits) or "no iai_actuator_driver.dll in the bundle")
+          raise SystemExit(0 if hits else "iai-gui.spec must bundle the DLL (native_library() in the spec takes it from the installed wheel)")
+          EOF
+          dist/gui/iai-gui.exe --version
+      - name: Zip (make_gui_zip.py)
+        run: python .github/release/make_gui_zip.py --exe dist/gui/iai-gui.exe --version "$VERSION" --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gui
+          path: dist/iai-gui-*.zip
+          if-no-files-found: error
+
+  release:
+    name: GitHub release
+    # Dormant while the workflow has no push trigger (a manual run never publishes). When it runs, every job must have
+    # passed; the gui job may also be skipped, but only because there is no spec.
+    if: >-
+      ${{ !cancelled() && github.event_name == 'push' && github.ref_type == 'tag'
+      && needs.version.result == 'success' && needs.native.result == 'success' && needs.wheels.result == 'success'
+      && needs.sdist.result == 'success' && needs.nuget.result == 'success' && needs.nuget-smoke.result == 'success'
+      && (needs.gui.result == 'success' || (needs.gui.result == 'skipped' && needs.version.outputs.gui == 'false')) }}
+    needs: [version, native, wheels, sdist, nuget, nuget-smoke, gui]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      TAG: ${{ needs.version.outputs.tag }}
+      PRERELEASE: ${{ needs.version.outputs.prerelease }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Assets, SHA256SUMS.txt and the notes
+        env:
+          GUI_SPEC: ${{ needs.version.outputs.gui }}
+        run: |
+          optional=()
+          if [ "$GUI_SPEC" != true ]; then optional=(--optional GUI); fi
+          python .github/release/collect_release.py --artifacts artifacts --out release --version "$VERSION" --tag "$TAG" \
+            "${optional[@]}"
+      # Created as a draft, filled, then published, so nobody sees a half-uploaded release. A re-run replaces the
+      # assets of the existing release of the tag.
+      - name: Publish the release
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/* --clobber
+            gh release edit "$TAG" --notes-file release-notes.md
+          else
+            gh release create "$TAG" --draft --verify-tag --title "IAI Actuator Driver $VERSION" \
+              --notes-file release-notes.md release/*
+          fi
+          gh release edit "$TAG" --draft=false "--prerelease=$PRERELEASE"

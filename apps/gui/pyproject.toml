@@ -1,0 +1,35 @@
+# The local web GUI (iai-gui) as its own small package; it needs the driver of the same version (bindings/python).
+#   pip install ./bindings/python ./apps/gui          (both in one command, from the repository root)
+[build-system]
+requires = ["setuptools>=77"]  # 77: the SPDX license expression and license-files
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iai-actuator-driver-gui"
+version = "1.1.0"
+description = "UNOFFICIAL: local web GUI (iai-gui) for the IAI Actuator Driver. Not an IAI product."
+readme = "README.md"
+license = "Apache-2.0"
+# copies of the repository's LICENSE and licenses/NOTICE; bindings/python/tests/test_packaging.py checks that they
+# equal them
+license-files = ["LICENSE", "NOTICE"]
+authors = [{name = "Zachary Ippolito"}]
+requires-python = ">=3.11"
+dependencies = ["iai-actuator-driver==1.1.0"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Manufacturing",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: OS Independent",
+]
+
+[project.scripts]
+iai-gui = "gui.server:main"
+
+[tool.setuptools]
+packages = ["gui"]
+package-dir = {gui = "."}  # this folder is the package
+
+[tool.setuptools.package-data]
+gui = ["*.html", "*.js", "*.css"]

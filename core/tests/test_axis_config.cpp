@@ -220,6 +220,17 @@ TEST(axis_config_con_pio_pattern_above_mxpt_is_refused) {
     CHECK_EQ(fc10_frames(sim->requests()), 0);
 }
 
+TEST(axis_config_con_pio_pattern_below_zero_is_refused) {
+    auto sim = make_sim(SimProfile::Pcon);
+    Axis ax = open_sim(sim);
+    ax.connect();
+    sim->clear_requests();
+    const std::string text = what_of([&] { ax.write_parameter(25, -1); });
+    CHECK(text.find("below the lowest pattern 0") != std::string::npos);
+    CHECK_THROWS(ax.write_parameter(25, -1), SoftLimitError);
+    CHECK_EQ(fc10_frames(sim->requests()), 0);
+}
+
 TEST(axis_config_con_inverted_soft_limits_are_refused) {
     auto sim = make_sim(SimProfile::Pcon);
     Axis ax = open_sim(sim);

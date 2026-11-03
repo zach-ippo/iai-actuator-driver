@@ -577,8 +577,11 @@ with Cell.open() as cell:              # every IAI adapter, every answering addr
     decelerating.
   - If the axis settles away from the target (stopped by someone else, command ignored, EC clamp),
     `MotionIncompleteError` is raised instead of waiting for the timeout.
-  - A `stop()` of the same axis from another thread ends the wait at once: `MotionIncompleteError` ("stopped from
-    outside this wait"), with no second STOP from the wait (ON-WIRE on a PCON-CB + RCP6). A newer move of the same
+  - A `stop()` of the same axis from another thread, or from another Axis object on the same line, ends the wait at
+    once: `MotionIncompleteError` ("stopped from outside this wait"), with no second STOP from the wait (ON-WIRE on a
+    PCON-CB + RCP6). A STOP of another program shows in the status alone: once the axis was seen moving and then rests
+    short of the target with the move cancelled (PEND on, MEND off, not paused) for `settle_s`, the wait ends the same
+    way (UNVERIFIED: simulator only). A newer move of the same
     axis (re-targeting, another thread's move, a push, a stored row, home) ends the older move's wait the same way
     ("superseded by a newer move of this axis") and sends no STOP, which would cut the newer move.
 - **Preconditions.** Moves require Modbus control, servo on, homed, no alarm or emergency stop, not paused and no home

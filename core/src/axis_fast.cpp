@@ -143,17 +143,45 @@ void Axis::Impl::note_move(double target, double band, double timeout_s, Complet
 // ============================================================================================ Impl: the wait
 
 bool Axis::Impl::stopped_from_outside(const MoveWatch& watch) const {
-    // a stop of this object (another thread's stop(), a group stop, another wait's decel stop) after the move's frame
-    return halts.load() != watch.halt && detail::stop_mark(*bus, slave) != watch.mark;
+    // a stop of this axis after the move's frame: another thread's stop(), another Axis object of the slave on this
+    // bus, a group stop, another wait's decel stop (the bus's halt count of the slave and its stop mark both moved on)
+    return detail::halt_count(*bus, slave) != watch.halt && detail::stop_mark(*bus, slave) != watch.mark;
 }
 
-void Axis::Impl::raise_stopped_from_outside(const Status& st, const std::string& what) {
+void Axis::Impl::raise_stopped_from_outside(const Status& st, const std::string& what, bool in_status) {
     // the wait ends now instead of at its settled-away check or its timeout, and sends no STOP (one is under way)
-    MotionIncompleteError error(what + " stopped from outside this wait: a stop of this axis (stop() from another "
-                                       "thread, a group stop) reached it at " +
-                                f2(st.position_mm) + " " + units_label() + "; this wait sent no STOP of its own");
+    const std::string u = units_label();
+    const std::string by = in_status ? "the unit shows the move cancelled (at rest, PEND on, MEND off: a STOP from "
+                                       "another program or master) at "
+                                     : "a stop of this axis (stop() from another thread or another Axis object on this "
+                                       "line, a group stop) reached it at ";
+    MotionIncompleteError error(what + " stopped from outside this wait: " + by + f2(st.position_mm) + " " + u +
+                                "; this wait sent no STOP of its own");
     error.set_stop_attempted();  // that stop is the decel stop: none from guard()
     throw error;
+}
+
+bool Axis::Impl::cancelled_in_status(CancelSeen& seen, const Status& st, double target, double band) {
+    // UNVERIFIED (simulator only): a STOP coil of another program or master cancels the move; the unit is taken to
+    // show it as PEND on with MEND off at rest short of the target (the simulator's model of the STOP coil)
+    if (st.moving) {
+        seen.moved = true;
+        seen.since.reset();
+        return false;
+    }
+    const bool cancelled = seen.moved && std::fabs(st.position_mm - target) > band + kPosEps && st.in_position &&
+                           !st.target_reached() && !st.paused() && !st.homing() &&
+                           st.velocity_mm_s.value_or(0.0) == 0.0;
+    if (!cancelled || (seen.since && std::fabs(st.position_mm - seen.at_mm) > kPosEps)) {
+        seen.since.reset();
+        if (!cancelled) return false;
+    }
+    const double now = now_s();
+    if (!seen.since) {
+        seen.since = now;
+        seen.at_mm = st.position_mm;
+    }
+    return now - *seen.since >= opts().settle_s;
 }
 
 void Axis::Impl::raise_superseded(const Status& st, const std::string& what) {
@@ -165,11 +193,14 @@ void Axis::Impl::raise_superseded(const Status& st, const std::string& what) {
 }
 
 bool Axis::Impl::ended_from_outside(const MoveWatch& watch, const Status& st, std::optional<double> target,
-                                    double band) {
+                                    double band, CancelSeen* seen) {
     const std::string u = units_label();
     const std::string what = target ? "move to " + f2(*target) + " " + u : std::string("move");
     if (superseded(watch)) raise_superseded(st, what);
-    if (!stopped_from_outside(watch)) return false;
+    if (!stopped_from_outside(watch)) {
+        if (seen && target && cancelled_in_status(*seen, st, *target, band)) raise_stopped_from_outside(st, what, true);
+        return false;
+    }
     const bool arrived = !target || std::fabs(st.position_mm - *target) <= band + kPosEps;
     if (arrived && st.in_position && !st.moving) {
         motion_pending = false;
@@ -185,6 +216,7 @@ Status Axis::Impl::wait_done(std::optional<double> target, std::optional<double>
     double deadline = start + timeout_s;
     std::optional<double> away_since;
     detail::Settle settle(opts().settle_s);
+    CancelSeen cancel;  // a STOP of another program or master, seen in the status (ended_from_outside)
     Feed feed = make_feed(mode == Completion::Fast, since.value_or(start));
     ScopedTimerResolution timer;
     return guard([&]() -> Status {
@@ -197,7 +229,7 @@ Status Axis::Impl::wait_done(std::optional<double> target, std::optional<double>
                 if (mode == Completion::Safe) note_settled(watch);  // move_by adds to the position again
                 return st;
             }
-            if (watch && ended_from_outside(*watch, st, target, b)) return st;
+            if (watch && ended_from_outside(*watch, st, target, b, &cancel)) return st;
             const double now = now_s();
             const std::string u = units_label();
             if (target && st.in_position && !arrived && !st.moving) {

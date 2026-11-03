@@ -288,6 +288,11 @@ struct StopMark {
 };
 /// The stop mark of `slave` (1..247) on `bus` now. No lock, no I/O. Private.
 StopMark stop_mark(const ModbusRtu& bus, int slave);
+/// The stops of `slave` (1..247) every Axis object on `bus` counted so far (stop(), begin_stop(), a group stop, a
+/// wait's decel stop; not a pause): a motion wait of any of them ends on one (Axis::Impl::HaltNote). Private.
+std::uint64_t halt_count(const ModbusRtu& bus, int slave);
+/// Count one stop of `slave` on `bus` (halt_count). Private.
+void count_halt(const ModbusRtu& bus, int slave);
 }  // namespace detail
 
 /// Thread-safe Modbus RTU master on one port. Owns (shares) its transport; close() closes it.
@@ -450,6 +455,8 @@ private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
     friend detail::StopMark detail::stop_mark(const ModbusRtu& bus, int slave);
+    friend std::uint64_t detail::halt_count(const ModbusRtu& bus, int slave);
+    friend void detail::count_halt(const ModbusRtu& bus, int slave);
 };
 
 /// "01 03 90 00 ..." (upper-case hex, space separated): frames in messages and logs.

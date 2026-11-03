@@ -256,6 +256,8 @@ struct ModbusRtu::Impl {
     // stop-class writes sent so far (detail::StopMark): [slave] for 1..247, [0] broadcasts; bumped under the bus lock
     std::array<std::atomic<std::uint64_t>, 248> stops{};
     std::atomic<std::uint64_t> stops_total{0};  // all of them, to every slave and broadcast (a broadcast write's gate)
+    // the stops of each slave every Axis object on this bus counted (detail::halt_count); [0] unused
+    std::array<std::atomic<std::uint64_t>, 248> halts{};
 
     detail::StopMark mark(int slave) const {
         detail::StopMark m;
@@ -904,6 +906,14 @@ std::function<void(const ModbusRtu&)>& close_hook() {
 }  // namespace
 
 detail::StopMark detail::stop_mark(const ModbusRtu& bus, int slave) { return bus.impl_->mark(slave); }
+
+std::uint64_t detail::halt_count(const ModbusRtu& bus, int slave) {
+    return slave >= 1 && slave <= 247 ? bus.impl_->halts[static_cast<std::size_t>(slave)].load() : 0;
+}
+
+void detail::count_halt(const ModbusRtu& bus, int slave) {
+    if (slave >= 1 && slave <= 247) bus.impl_->halts[static_cast<std::size_t>(slave)].fetch_add(1);
+}
 
 void detail::set_bus_close_hook(std::function<void(const ModbusRtu&)> hook) {
     std::lock_guard<std::mutex> lock(close_hook_mutex());

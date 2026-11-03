@@ -382,12 +382,13 @@ std::optional<Status> Axis::Impl::change_move(std::optional<double> speed, std::
 Status Axis::Impl::wait_band(double target, double band, double timeout_s, double since, const MoveWatch* watch) {
     const double deadline = now_s() + timeout_s;
     std::optional<double> away_since;
+    CancelSeen cancel;  // a STOP of another program or master, seen in the status (ended_from_outside)
     Feed feed = make_feed(true, since);  // the lean block, or the monitor's samples from `since` on
     for (;;) {
         const Status st = next_status(feed);
         check_during_motion(st);
         if (std::fabs(st.position_mm - target) <= band + kPosEps) return st;
-        if (watch && ended_from_outside(*watch, st, target, band)) return st;
+        if (watch && ended_from_outside(*watch, st, target, band, &cancel)) return st;
         const double now = now_s();
         const std::string u = units_label();
         if (st.in_position && !st.moving) {

@@ -36,6 +36,7 @@ struct MoveHandle::State {
     std::optional<Status> result;
     detail::Settle settle;  ///< the safe rule's window over done() calls
     detail::MoveWatch watch;  ///< a stop of the axis from outside ends the waits at once (ended_from_outside)
+    Axis::Impl::CancelSeen cancel;  ///< a STOP of another program or master, seen in the status (ended_from_outside)
     long seq = 0;           ///< (ABI 0.5, py-monitor) the last status monitor sample poll() took
     double sample_at = -1.0;  ///< (ABI 0.5, py-monitor) now_s() when poll() last took one (< 0: never)
 };
@@ -80,7 +81,7 @@ bool MoveHandle::done() {
         ax.motion_pending = false;
         return true;
     }
-    if (ax.ended_from_outside(s_->watch, st, s_->target, s_->band)) {
+    if (ax.ended_from_outside(s_->watch, st, s_->target, s_->band, &s_->cancel)) {
         s_->result = st;
         ax.motion_pending = false;
         return true;
@@ -150,7 +151,7 @@ bool MoveHandle::monitored(double until) {
     ax.check_during_motion(st);
     const bool done = ax.is_done(st, s_->target, s_->band, s_->completion, s_->settle);
     if (done && s_->completion == Completion::Safe) ax.note_settled(&s_->watch);  // move_by adds to the position again
-    if (done || ax.ended_from_outside(s_->watch, st, s_->target, s_->band)) {
+    if (done || ax.ended_from_outside(s_->watch, st, s_->target, s_->band, &s_->cancel)) {
         s_->result = st;
         ax.motion_pending = false;
     }

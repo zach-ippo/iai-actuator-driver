@@ -410,3 +410,48 @@ TEST(axis_outside_stop_relative_steps_count_from_the_position_after_a_safe_move_
     REQUIRE(st.has_value());
     CHECK_NEAR(st->position_mm, stopped.position_mm + 1.0, 0.15);
 }
+
+// ============================================================================================ stops of other masters
+
+TEST(axis_outside_stop_a_stop_of_another_axis_object_on_the_line_ends_the_wait_at_once) {
+    // another Axis object of the same slave on this bus (another part of the program): its STOP ends this wait too,
+    // and the wait sends no second STOP
+    Rig r;
+    Axis other(r.bus, 1);
+    Outcome out;
+    ec_test::Thread waiter([&] { record(out, [&] { r.ax->move_to(140.0, slow(20.0)); }); });
+    REQUIRE(wait_until([&] { return r.sim->moving() && r.sim->position_mm() > 2.0; }));
+    other.stop();
+    const double stop_returned = now_s();
+    CHECK(wait_until([&] { return out.ended.load(); }, 10.0));
+    waiter.join();
+    check_ended_on_the_stop(r, out, stop_returned);
+    CHECK(has(out.what, "another Axis object on this line"));
+}
+
+TEST(axis_outside_stop_a_stop_of_another_program_seen_in_the_status_ends_the_wait) {
+    // UNVERIFIED (simulator only): another program (another master: its own bus on the same unit) sends the STOP coil;
+    // this bus sees nothing of it, the status shows the move cancelled short of the target. The wait ends with the
+    // stopped-from-outside outcome before the settled-away check (0.5 s), and sends no STOP of its own.
+    Rig r;
+    auto other = std::make_shared<ModbusRtu>(r.sim);
+    Outcome out;
+    ec_test::Thread waiter([&] { record(out, [&] { r.ax->move_to(140.0, slow(20.0)); }); });
+    REQUIRE(wait_until([&] { return r.sim->moving() && r.sim->position_mm() > 2.0; }));
+    other->write_coil(1, reg::kCoilStop, true);
+    REQUIRE(wait_until([&] { return !r.sim->moving(); }));
+    const double stopped_at = now_s();
+    other->write_coil(1, reg::kCoilStop, false);
+    CHECK(wait_until([&] { return out.ended.load(); }, 10.0));
+    waiter.join();
+    CHECK_EQ(out.type, std::string("MotionIncompleteError"));
+    CHECK(has(out.what, "stopped from outside this wait"));
+    CHECK(has(out.what, "another program or master"));
+    CHECK(has(out.what, "sent no STOP"));
+    CHECK(out.stop_attempted);
+    CHECK(out.at.load() - stopped_at < 0.45);  // the settle window, not the settled-away check
+    CHECK_EQ(r.tx.stops_on(), 0);               // no STOP from this bus
+    sleep_s(0.6);
+    CHECK_EQ(r.tx.stops_on(), 0);
+    CHECK(r.sim->position_mm() < 139.0);
+}

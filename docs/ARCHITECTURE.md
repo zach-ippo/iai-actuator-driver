@@ -97,9 +97,11 @@ ends a home return and the STOP hold.
 
 - An axis that stands in position away from the target for 0.5 s raises `MotionIncompleteError` (the move was
   ignored or cut short) instead of waiting for the timeout.
-- A `stop()` of the same axis from another thread ends a move or push wait at once with `MotionIncompleteError`
-  ("stopped from outside this wait"); the wait sends no STOP of its own (ON-WIRE on a PCON-CB + RCP6). A pause does
-  not end it.
+- A `stop()` of the same axis from another thread, or from another Axis object on the same line (the bus counts the
+  stops of each slave), ends a move or push wait at once with `MotionIncompleteError` ("stopped from outside this
+  wait"); the wait sends no STOP of its own (ON-WIRE on a PCON-CB + RCP6). A STOP of another program is seen in the
+  status: a move wait whose axis moved and then rests short of the target with the move cancelled (PEND on, MEND off)
+  ends the same way (UNVERIFIED: simulator only). A pause does not end it.
 - The default timeout is twice the trapezoidal move time plus 2 s. On a timeout, an alarm or a lost link a decel stop
   is attempted before the error is raised.
 - A push outcome (contact or miss) must hold for `push_settle_s` (0.15 s) with the position unchanged: a push that

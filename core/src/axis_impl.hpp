@@ -189,12 +189,12 @@ struct StopHook {
     virtual void external_stop() = 0;
 };
 
-/// What a motion wait watches besides the position: the stops of its axis object that reach the unit after its move,
-/// and the newer moves of that object.
+/// What a motion wait watches besides the position: the stops of its axis that reach the unit after its move (from
+/// this or any other Axis object of the same slave on the bus), and the newer moves of its object.
 /// Taken right before the move's frame (Axis::Impl::watch_now): `mark` is the stop mark the frame goes out with (the
-/// STOP-first gate refuses it otherwise), `halt` the stops the object counted so far (Axis::Impl::halts). A stop counts
-/// for the move when both changed: a STOP of this object went to the wire after the move's frame (a pause, or a STOP
-/// of another master, changes the mark alone).
+/// STOP-first gate refuses it otherwise), `halt` the stops the bus counted so far for the slave (detail::halt_count). A
+/// stop counts for the move when both changed: a STOP of an Axis object on this bus went to the wire after the move's
+/// frame (a pause, or a STOP of another master, changes the mark alone; that one shows in the status: wait_done).
 struct MoveWatch {
     StopMark mark;
     std::uint64_t halt = 0;
@@ -310,11 +310,10 @@ struct Axis::Impl {
     }
 
     // the motion waits and the stops of other threads (axis_fast.cpp: ended_from_outside)
-    /// Stops of this object (stop(), begin_stop(), a group stop, the decel stop of a wait), counted right after their
-    /// first frame was tried: a motion wait whose move such a STOP reached ends at once and sends no STOP of its own.
-    std::atomic<std::uint64_t> halts{0};
-    /// Counts one stop in `halts` when note() runs (right after the first frame), or else when it ends (the frame
-    /// threw: the unit may have received it).
+    /// Counts one stop of this axis (stop(), begin_stop(), a group stop, the decel stop of a wait) in the bus's halt
+    /// count of the slave (detail::halt_count) when note() runs (right after the first frame), or else when it ends
+    /// (the frame threw: the unit may have received it). A motion wait of any Axis object of the slave on the bus whose
+    /// move such a STOP reached ends at once and sends no STOP of its own.
     class HaltNote {
     public:
         explicit HaltNote(Impl& a) : a_(a) {}
@@ -322,7 +321,7 @@ struct Axis::Impl {
         HaltNote(const HaltNote&) = delete;
         HaltNote& operator=(const HaltNote&) = delete;
         void note() {
-            if (!noted_) ++a_.halts;
+            if (!noted_) detail::count_halt(*a_.bus, a_.slave);
             noted_ = true;
         }
 
@@ -336,20 +335,35 @@ struct Axis::Impl {
     std::atomic<std::uint64_t> moves{0};
     using MoveWatch = detail::MoveWatch;
     /// The watch of a move whose frame goes out next (its number: the newest so far, until it is counted).
-    MoveWatch watch_now() const { return {decision_mark(), halts.load(), moves.load()}; }
+    MoveWatch watch_now() const { return {decision_mark(), detail::halt_count(*bus, slave), moves.load()}; }
+    struct CancelSeen;
     /// The end of a motion wait for the move `watch` when a newer move of this object superseded it, or a stop of this
-    /// object reached it from outside the wait: true when the sample `st` shows the axis at rest within `band` of
+    /// axis reached it from outside the wait: true when the sample `st` shows the axis at rest within `band` of
     /// `target` after such a stop (the move is done), else MotionIncompleteError with stop_attempted set (the wait
-    /// sends no STOP: that stop is under way, or it would cut the newer move). false when neither came.
-    bool ended_from_outside(const MoveWatch& watch, const Status& st, std::optional<double> target, double band);
-    /// A stop of this object reached the unit after the move `watch` was sent.
+    /// sends no STOP: that stop is under way, or it would cut the newer move). false when neither came. With `seen`
+    /// (the wait's own), a STOP of another program or master the status shows ends it too (cancelled_in_status).
+    bool ended_from_outside(const MoveWatch& watch, const Status& st, std::optional<double> target, double band,
+                            CancelSeen* seen = nullptr);
+    /// A stop of this axis (from any Axis object of the slave on this bus) reached the unit after the move `watch`.
     bool stopped_from_outside(const MoveWatch& watch) const;
     /// A newer move of this object was sent after the move `watch`.
     bool superseded(const MoveWatch& watch) const { return moves.load() != watch.move; }
     /// MotionIncompleteError "<what> superseded by a newer move of this axis ..." at `st`, stop_attempted set.
     [[noreturn]] void raise_superseded(const Status& st, const std::string& what);
-    /// MotionIncompleteError "<what> stopped from outside this wait ..." at `st`, stop_attempted set.
-    [[noreturn]] void raise_stopped_from_outside(const Status& st, const std::string& what);
+    /// MotionIncompleteError "<what> stopped from outside this wait ..." at `st`, stop_attempted set. `in_status`: the
+    /// stop was seen in the status alone (cancelled_in_status: another program or master).
+    [[noreturn]] void raise_stopped_from_outside(const Status& st, const std::string& what, bool in_status = false);
+    /// What a motion wait saw of its move's status, for cancelled_in_status.
+    struct CancelSeen {
+        bool moved = false;           ///< a sample showed the axis moving
+        std::optional<double> since;  ///< when the samples began to show the move cancelled
+        double at_mm = 0.0;           ///< the position they showed then
+    };
+    /// A STOP of another program or master (not seen on this bus) in the status: the axis was seen moving, then rests
+    /// outside `band` of `target` with the move cancelled - PEND on, MEND (target reached) off, not moving, not paused
+    /// (a pause does not end a wait), velocity 0 - at the same position for settle_s. UNVERIFIED (simulator only): the
+    /// wait ends with the stopped-from-outside outcome, without a STOP of its own, instead of the settled-away check.
+    bool cancelled_in_status(CancelSeen& seen, const Status& st, double target, double band);
 
     // non-volatile write guard
     std::shared_ptr<detail::NvWriteTracker> nv_tracker = std::make_shared<detail::NvWriteTracker>();  ///< (mutex)

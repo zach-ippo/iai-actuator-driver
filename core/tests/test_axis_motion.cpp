@@ -140,6 +140,25 @@ TEST(axis_motion_reset_alarm_leaves_a_servo_the_alarm_switched_off_off) {
     CHECK_EQ(coil_trace(sim->requests(), reg::kCoilSon), "");
 }
 
+TEST(axis_motion_check_move_in_pio_takes_no_control) {
+    // check_move is a pure check: with Modbus control off and auto_modbus_control it writes nothing (no PMSL); the
+    // status it returns shows modbus_enabled false, i.e. a move would take PC control first
+    auto sim = make_sim(SimProfile::Pcon, 20.0, false);  // PMSS = 0, as after a power-up
+    Axis ax = open_sim(sim);
+    MoveOptions mo;
+    mo.speed = 10.0;
+    sim->clear_requests();
+    const Status st = ax.check_move(80.0, mo);
+    CHECK(!st.modbus_enabled);
+    CHECK_EQ(write_frames(sim->requests()), 0);
+    CHECK(!sim->pmsl());
+    CHECK_THROWS(ax.check_move(1e6, mo), SoftLimitError);
+    CHECK_EQ(write_frames(sim->requests()), 0);
+    const auto done = ax.move_to(80.0, mo);  // the move itself still takes the control at rest
+    REQUIRE(done.has_value());
+    CHECK(sim->pmsl());
+}
+
 TEST(axis_motion_check_move_refusals_send_nothing) {
     auto sim = make_sim(SimProfile::Slider);
     Axis ax = open_sim(sim);

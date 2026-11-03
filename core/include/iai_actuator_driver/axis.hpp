@@ -278,7 +278,9 @@ public:
 
     // ---------------------------------------------------------------- motion
     /// Every check of move_to (target, speed, accel, band against limits(); the axis ready to move), nothing sent.
-    /// Returns the status read; throws what move_to would (SoftLimitError, EcNotReadyError, EcAlarmError).
+    /// Returns the status read; throws what move_to would (SoftLimitError, EcNotReadyError, EcAlarmError). A pure
+    /// check: it never writes (no PMSL, no coil). With Modbus control off and auto_modbus_control, the status returned
+    /// shows modbus_enabled false (and the log says so): a move would take PC control (PMSL) first.
     Status check_move(double position, const MoveOptions& options = {});
     /// Absolute move (0x9900). The final status when options.wait, else nullopt right after the command.
     std::optional<Status> move_to(double position, const MoveOptions& options = {});

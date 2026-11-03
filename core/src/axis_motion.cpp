@@ -96,6 +96,11 @@ Status Axis::Impl::require(Status st, bool servo_needed, bool homed_needed, bool
         // on a PCON-CB, 2026-11-03: a move refused for "servo is off" in PIO had switched PMSS 0 -> 1 first)
         check_control(st);
         refuse(st, true, false);
+        if (!wake_asof) {  // a check only (check_move): PC control is not taken; the status says a move would take it
+            log_info(kAxisLog, "check only: Modbus control is off (PMSS = 0); a move would take PC control (PMSL) "
+                               "first, at rest; nothing written");
+            return st;
+        }
     }
     st = require_control(st);
     // an automatic servo OFF (STAT ASOF) is not a refusal: the servo goes back on first (axis_strategy.cpp)
@@ -804,7 +809,8 @@ Status Axis::Impl::check_move(double position, const MoveOptions& options_) {
     else
         validate_motion(position, options_.speed, options_.accel_g, options_.band);
     accel_pattern_ctlf(options_.accel_pattern, options_.speed, options_.accel_g);
-    return require(status(), true, true, false, false);  // a check only: an automatic servo OFF is accepted, nothing sent
+    // a check only: an automatic servo OFF is accepted and PC control is not taken (no PMSL, no coil); nothing sent
+    return require(status(), true, true, false, false);
 }
 
 std::optional<Status> Axis::Impl::move_to(double position, const MoveOptions& o) {

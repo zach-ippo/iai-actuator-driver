@@ -319,11 +319,25 @@ def _link_check_from_json(data: Mapping[str, Any]) -> LinkCheck:
                      data.get("axis"))  # fmt: skip
 
 
+def _policy_of(policy: Any) -> RecoveryPolicy:
+    """A RecoveryPolicy from itself or from a mapping of its fields (as the native binding takes it); a TypeError for
+    anything else, or a field it does not have."""
+    if isinstance(policy, RecoveryPolicy):
+        return policy
+    if isinstance(policy, Mapping):
+        try:
+            return RecoveryPolicy(**policy)
+        except TypeError as exc:
+            raise TypeError(f"policy: not a field of RecoveryPolicy ({exc})") from None
+    raise TypeError(f"policy must be a RecoveryPolicy or a mapping of its fields, not {type(policy).__name__}")
+
+
 def _policy(
-    policy: RecoveryPolicy, require_session: bool
+    policy: RecoveryPolicy | Mapping[str, Any], require_session: bool
 ) -> tuple[_n.CRecoveryPolicy, str | None, str | None, str | None]:
     """iad_recovery_policy, the row list and the backup's JSON text of a policy, and the report's note when its backup
     could not be read (then none is compared)."""
+    policy = _policy_of(policy)
     c = _n._recovery_policy(_n.load(), policy)
     c.require_session = int(bool(require_session))
     rows = policy.check_rows

@@ -1223,6 +1223,7 @@ class Elecylinder:
         """Bring this axis back after a power or link loss (recovery::recover_axis: wait for the port, reopen it, find
         the baud rate, require the same unit, restore baud rate / PC control / safety speed, assess alarm, HEND and
         position). **Never starts motion.** Returns the :class:`~iai_actuator_driver.recovery.RecoveryReport`.
+        ``policy``: a :class:`~iai_actuator_driver.recovery.RecoveryPolicy` or a mapping of its fields.
 
         Without a :meth:`track` session the identity this axis read last (``identify()`` / ``connect()``) is the
         baseline (no I/O). The status monitor is held while the recovery runs (with every other running monitor on this

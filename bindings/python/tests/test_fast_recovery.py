@@ -74,6 +74,18 @@ class Events:
 
 
 class AxisRecoverTest(unittest.TestCase):
+    def test_policy_may_be_a_mapping_of_its_fields_and_anything_else_is_a_type_error(self) -> None:
+        sim = SimulatedEC(profile="rod", time_scale=50)
+        ax, _ = open_axis(sim)
+        self.addCleanup(ax.close)
+        sim.power_cycle()
+        report = ax.recover(timeout=5, policy={"poll_s": 0.02, "restore_control": False})
+        self.assertTrue(report.same_unit)
+        with self.assertRaisesRegex(TypeError, "policy"):
+            ax.recover(timeout=1, policy={"no_such_field": 1})
+        with self.assertRaisesRegex(TypeError, "policy"):
+            ax.recover(timeout=1, policy=3)
+
     def test_without_track_the_identity_read_at_connect_is_the_baseline(self) -> None:
         sim = SimulatedEC(profile="rod", time_scale=50)
         ax, _ = open_axis(sim)

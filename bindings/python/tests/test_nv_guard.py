@@ -87,6 +87,8 @@ class ParameterGuardTest(unittest.TestCase):
         with ec:
             result = ec.write_parameter(2, 0.10, force=True)
         self.assertEqual((result.skipped, result.committed, result.commit_confirmed), (False, True, True))
+        self.assertTrue(result.forced)  # the public result says it was forced (the field is last: positional use holds)
+        self.assertTrue(result.to_dict()["forced"])
         self.assertTrue(result.needs_reset)
         self.assertEqual((sim.parameter_commits, ec.nonvolatile_writes), (1, 1))
 

@@ -103,6 +103,7 @@ namespace IaiActuatorDriver.Tests
             {
                 var result = axis.WriteParameter(2, 0.10, force: true);
                 Assert.False(result.Skipped);
+                Assert.True(result.Forced);
                 Assert.True(result.Committed);
                 Assert.True(result.CommitConfirmed);
                 Assert.Equal(1, sim.ParameterCommits);

@@ -331,6 +331,7 @@ namespace IaiActuatorDriver.Interop
                 Note = w.String("note") ?? string.Empty,
                 CommitConfirmed = w.Bool("commit_confirmed") ?? false,
                 Skipped = w.Bool("skipped") ?? false,
+                Forced = w.Bool("forced") ?? false,
             };
         }
 

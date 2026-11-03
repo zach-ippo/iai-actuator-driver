@@ -751,6 +751,8 @@ class ParameterWriteResult:
     # The unit already held the value and no parameter this process wrote to the unit's RAM waits for a commit:
     # nothing written, nothing committed
     skipped: bool = False
+    # The unit already held the value, but ``force=True`` wrote / committed it anyway (one non-volatile write cycle)
+    forced: bool = False
 
     @property
     def saved(self) -> bool:

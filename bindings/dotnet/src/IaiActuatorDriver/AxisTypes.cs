@@ -544,6 +544,9 @@ namespace IaiActuatorDriver
         /// </summary>
         public bool Skipped { get; init; }
 
+        /// <summary>The unit already held the value, but <c>force: true</c> wrote or committed it anyway (one non-volatile write cycle).</summary>
+        public bool Forced { get; init; }
+
         /// <summary>
         /// The value is in non-volatile memory as far as the unit showed: committed and the commit was seen, or <see cref="Skipped"/>
         /// - the unit already held it and nothing this process wrote is uncommitted, ASSUMING no RAM-only write by another program

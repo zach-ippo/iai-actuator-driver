@@ -191,6 +191,7 @@ namespace IaiActuatorDriver.Interop
             Warnings = w.Warnings,
             Note = w.Note,
             Skipped = w.Skipped,
+            Forced = w.Forced,
         };
 
         /// <summary>The outcome of a software reset as the public <see cref="SoftwareResetResult"/>.</summary>

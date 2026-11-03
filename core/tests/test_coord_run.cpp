@@ -7,6 +7,8 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <limits>
 #include <map>
@@ -683,6 +685,16 @@ TEST(coord_run_a_frame_later_than_its_step_aborts) {
     REQUIRE(err.has_value());
     CHECK(contains(err->what(), "late"));
     CHECK(stood_still({rig.sx, rig.sy}));
+    // the message says how far the system clock moved against the steady clock over the step: about 0 here (the
+    // schedule slipped 300 ms, the clocks did not), so a late PC is told apart from a step of the system clock
+    const std::string what = err->what();
+    const std::string mark = "over the step the system clock moved ";
+    const std::size_t at = what.find(mark);
+    REQUIRE(at != std::string::npos);
+    CHECK(contains(what, " ms against the steady clock"));
+    const long drift_ms = std::stol(what.substr(at + mark.size()));
+    if (std::labs(drift_ms) >= 100) std::printf("  %s\n", what.c_str());
+    CHECK(std::labs(drift_ms) < 100);
 }
 
 TEST(coord_run_refused_plan_sends_nothing) {

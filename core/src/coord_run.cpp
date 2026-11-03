@@ -69,6 +69,26 @@ double median(std::vector<double> values) {
 
 std::string bracket(const std::vector<std::string>& names) { return "[" + util::join(names, ", ") + "]"; }
 
+/// The steady clock and the system clock read together, when a step of a stream began.
+struct ClockMark {
+    double steady = 0.0;
+    double wall = 0.0;
+};
+
+ClockMark clock_mark() {
+    using wall_clock = std::chrono::system_clock;
+    return {steady_now_s(), std::chrono::duration<double>(wall_clock::now().time_since_epoch()).count()};
+}
+
+/// The end of a LateFrame message: how far the system clock moved against the steady clock since `since` (wall
+/// delta - steady delta): about 0 for a late PC or line; about minus the lateness when a backward step of the system
+/// clock delayed the frame; positive after a forward jump (a suspend, a time sync ahead).
+std::string clock_drift(const ClockMark& since) {
+    const ClockMark now = clock_mark();
+    const long ms = std::lround(((now.wall - since.wall) - (now.steady - since.steady)) * 1000);
+    return util::format("; over the step the system clock moved %+ld ms against the steady clock", ms);
+}
+
 // ------------------------------------------------------------------------------------------ internal errors
 
 /// A stream frame reached the wire later than the abort threshold.
@@ -730,9 +750,10 @@ CellResults<Status> stop_after_failure(State& s, Run& run) {
 /// (its stop counter, and its bus's stop mark under the bus lock). A lost echo is sent again at once (the frame is
 /// idempotent). A frame that would reach the wire after `limit` is refused under the bus lock (a late frame, nothing
 /// sent; not a link fault), both attempts lost is a link fault. Returns how late the frame went out against `planned`
-/// (when the call began: this bus stamps no per-thread request time).
+/// (when the call began: this bus stamps no per-thread request time). A late frame's message ends with the clock drift
+/// since `since` (when the step began).
 double send_frame(State& s, Run& run, std::size_t port, int k, const std::string& name, std::int64_t target,
-                  double speed, double accel, double planned, std::optional<double> limit) {
+                  double speed, double accel, double planned, std::optional<double> limit, const ClockMark& since) {
     AxisImpl& a = s.im(name);
     DirectMove move;
     move.pcmd = static_cast<std::int32_t>(target);
@@ -747,7 +768,7 @@ double send_frame(State& s, Run& run, std::size_t port, int k, const std::string
     std::exception_ptr lost;
     const StopMark& expected = run.stop_marks.at(name);  // filled before the port threads start, never changed
     // the STOP-first gate's check (under the bus lock right before the wire, and while the frame waits for the bus)
-    auto check = [&run, &a, &name, &expected, &attempt, &lost, k, planned, limit] {
+    auto check = [&run, &a, &name, &expected, &attempt, &lost, &since, k, planned, limit] {
         if (run.aborted()) throw Aborted{};
         if (::iai_actuator_driver::detail::stop_mark(*a.bus, a.slave) != expected)
             throw StoppedFromOutside("axis " + name + ": a STOP went to this unit from outside the coordinated move (to "
@@ -758,10 +779,10 @@ double send_frame(State& s, Run& run, std::size_t port, int k, const std::string
         if (attempt == 0)
             throw LateFrame("the frame of step " + std::to_string(k) + " would reach the wire " + f(late * 1000, 0) +
                             " ms late (limit " + f(*limit * 1000, 0) +
-                            " ms): the PC or the line cannot keep this schedule; not sent");
+                            " ms): the PC or the line cannot keep this schedule; not sent" + clock_drift(since));
         throw LateFrame("the frame of step " + std::to_string(k) + " got no valid echo (" + describe(lost) +
                         "); sent again it would reach the wire " + f(late * 1000, 0) + " ms late (limit " +
-                        f(*limit * 1000, 0) + " ms); not sent again");
+                        f(*limit * 1000, 0) + " ms); not sent again" + clock_drift(since));
     };
     for (attempt = 0; attempt < 2; ++attempt) {
         if (run.aborted()) throw Aborted{};
@@ -920,6 +941,7 @@ void stream_port(State& s, Run& run, std::size_t port, const std::vector<std::st
     for (int k = 0; k < steps; ++k) {
         const std::size_t ku = static_cast<std::size_t>(k);
         const double planned = run.t0 + p.times[ku];
+        const ClockMark since = clock_mark();  // a late frame of this step says how far the system clock moved since
         sleep_until(planned, run);
         const double step_s = p.times[ku + 1] - p.times[ku];
         const double limit = run.late_abort_s.value_or(step_s);
@@ -931,14 +953,14 @@ void stream_port(State& s, Run& run, std::size_t port, const std::vector<std::st
                 continue;
             }
             const double late = send_frame(s, run, port, k, name, target, p.speeds[ku][idx[m]], p.accels[ku][idx[m]],
-                                           planned, limit);
+                                           planned, limit, since);
             sent[name] = target;
             if (late > limit)
                 throw Tagged{name, false,
                              std::make_exception_ptr(LateFrame(
                                  "the frame of step " + std::to_string(k) + " reached the wire " + f(late * 1000, 0) +
                                  " ms late (limit " + f(limit * 1000, 0) +
-                                 " ms): the PC or the line cannot keep this schedule"))};
+                                 " ms): the PC or the line cannot keep this schedule" + clock_drift(since)))};
         }
         if (k + 1 >= steps) break;
         const double next_at = run.t0 + p.times[ku + 1];
@@ -1047,7 +1069,7 @@ void sync_port(State& s, Run& run, std::size_t port, const std::vector<std::stri
                 continue;
             }
             send_frame(s, run, port, k, name, targets[name], p.speeds[ku][idx[m]], p.accels[ku][idx[m]], go,
-                       std::nullopt);
+                       std::nullopt, ClockMark{});  // no limit: never a late frame
             sent[name] = targets[name];
         }
         const bool last = k == p.steps() - 1;

@@ -2795,9 +2795,9 @@ IAD_API iad_result IAD_CALL iad_bus_set_transport(iad_bus* bus, iad_transport* t
 
 /** A session from an identity already read (recovery::session_from_info; no I/O): a recovery can then check the unit
  *  is the same one, with no PC-control / safety-speed / uptime baseline. `info_json`: a unit info's JSON
- *  (iad_axis_identity_json: serial_number, model_name, system_code, unit_code, firmware, product_family,
- *  soft_limits_mm, max_speed_mm_s, units); NULL = the identity the axis read last (IAD_ERR_NOT_READY when it read
- *  none). Registered unless the unit already has a session, which is then kept. */
+ *  (iad_axis_identity_json: "serial_number", "model_name", "system_code", "unit_code", "firmware", "product_family",
+ *  "soft_limits_mm", "max_speed_mm_s", "units"; other keys are not read); NULL = the identity the axis read last
+ *  (IAD_ERR_NOT_READY when it read none). Registered unless the unit already has a session, which is then kept. */
 IAD_API iad_result IAD_CALL iad_axis_session_from_info(iad_axis* axis, const char* info_json, const char* name);
 
 /** Write volatile fields of the unit's session (recovery::update_session; no I/O): a JSON object with any of "name",

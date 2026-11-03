@@ -450,16 +450,20 @@ class JsonKeysTest(unittest.TestCase):
 
 def update() -> int:
     outputs = sample()
-    old = json.loads(KEYS_FILE.read_text(encoding="utf-8"))["outputs"] if KEYS_FILE.is_file() else {}
+    committed = json.loads(KEYS_FILE.read_text(encoding="utf-8")) if KEYS_FILE.is_file() else {}
+    old = committed.get("outputs", {})
     for problem in differences(old, outputs):
         print(f"note: {problem}")
     document = {
         "about": "The fields of every JSON output of the stable C ABI (core/include/iai_actuator_driver.h), sampled on "
                  "the native simulator by bindings/python/tests/test_abi_json_keys.py; within an ABI major a field "
                  "is only added, never removed, renamed or retyped. Regenerate with: python "
-                 "tests/test_abi_json_keys.py --update (from bindings/python).",
+                 "tests/test_abi_json_keys.py --update (from bindings/python). \"requests\": the keys the parser "
+                 "of each JSON request of the header reads (a string: the output the document is), kept by hand and "
+                 "checked against the parsers by tests/test_abi_request_keys.py.",
         "abi": "{}.{}".format(*native.abi_version()),
         "outputs": outputs,
+        "requests": committed.get("requests", {}),  # kept by hand: --update leaves them as they are
     }
     KEYS_FILE.parent.mkdir(parents=True, exist_ok=True)
     KEYS_FILE.write_bytes((json.dumps(document, indent=1, sort_keys=False) + "\n").encode("utf-8"))

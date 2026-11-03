@@ -1,5 +1,5 @@
 {
- "about": "The fields of every JSON output of the stable C ABI (core/include/iai_actuator_driver.h), sampled on the native simulator by bindings/python/tests/test_abi_json_keys.py; within an ABI major a field is only added, never removed, renamed or retyped. Regenerate with: python tests/test_abi_json_keys.py --update (from bindings/python).",
+ "about": "The fields of every JSON output of the stable C ABI (core/include/iai_actuator_driver.h), sampled on the native simulator by bindings/python/tests/test_abi_json_keys.py; within an ABI major a field is only added, never removed, renamed or retyped. Regenerate with: python tests/test_abi_json_keys.py --update (from bindings/python). \"requests\": the keys the parser of each JSON request of the header reads (a string: the output the document is), kept by hand and checked against the parsers by tests/test_abi_request_keys.py.",
  "abi": "1.0",
  "outputs": {
   "iad_axis_backup_json": {
@@ -4799,5 +4799,533 @@
    "$.read_timeout_s": "float",
    "$.real_timeout": "bool"
   }
+ },
+ "requests": {
+  "iad_axis_info_call_json(backup)": [
+   "rows"
+  ],
+  "iad_axis_info_call_json(read_accl)": [
+   "records"
+  ],
+  "iad_axis_info_call_json(read_block)": [
+   "class_id",
+   "count",
+   "offset",
+   "records"
+  ],
+  "iad_axis_info_call_json(read_class)": [
+   "class_id",
+   "max_words",
+   "records"
+  ],
+  "iad_axis_info_call_json(read_directory)": [],
+  "iad_axis_info_call_json(read_support_words)": [
+   "records"
+  ],
+  "iad_axis_info_call_json(unit_info)": [
+   "sections"
+  ],
+  "iad_axis_recover": "iad_axis_backup_json",
+  "iad_axis_restart_signs": [
+   "baud_rate_found",
+   "boot_baud_rate",
+   "new_records",
+   "now_s"
+  ],
+  "iad_axis_session_from_backup": "iad_axis_backup_json",
+  "iad_axis_session_from_info": [
+   "firmware",
+   "max_speed_mm_s",
+   "model_name",
+   "product_family",
+   "serial_number",
+   "soft_limits_mm",
+   "system_code",
+   "unit_code",
+   "units"
+  ],
+  "iad_axis_session_update": [
+   "baudrate",
+   "homed",
+   "last_target_mm",
+   "modbus_control",
+   "name",
+   "recovering",
+   "safety_speed",
+   "servo_on",
+   "uptime_age_s",
+   "uptime_ms"
+  ],
+  "iad_axis_set_axis_limits_json": [
+   "actuator_kind",
+   "default_speed_mm_s",
+   "lead_mm",
+   "max_accel_g",
+   "max_decel_g",
+   "max_positions",
+   "max_push_pct",
+   "max_push_speed_mm_s",
+   "max_speed_mm_s",
+   "min_band",
+   "min_push_from_ec",
+   "min_push_pct",
+   "move_patterns",
+   "push_force_factor",
+   "push_force_offset",
+   "rotary_atyp",
+   "source",
+   "supports_push",
+   "supports_relative"
+  ],
+  "iad_axis_track": "iad_axis_backup_json",
+  "iad_bus_state_line_rules": [
+   "broadcast",
+   "coils",
+   "iai_commands",
+   "name",
+   "report_slave_id"
+  ],
+  "iad_call_json(alarms.absolute_encoder_from_support)": [
+   "support"
+  ],
+  "iad_call_json(alarms.alarm_family)": [
+   "family",
+   "system_code"
+  ],
+  "iad_call_json(alarms.alarm_group)": [
+   "code"
+  ],
+  "iad_call_json(alarms.alarm_history_slots)": [
+   "include_empty",
+   "words"
+  ],
+  "iad_call_json(alarms.alarm_info)": [
+   "absolute_encoder",
+   "address",
+   "code",
+   "detail",
+   "family",
+   "system_code"
+  ],
+  "iad_call_json(alarms.alarm_is_fault)": [
+   "alarm_bit",
+   "code",
+   "family",
+   "system_code",
+   "warning_bit"
+  ],
+  "iad_call_json(alarms.alarm_level)": [
+   "absolute_encoder",
+   "code",
+   "family",
+   "system_code"
+  ],
+  "iad_call_json(alarms.alarm_name)": [
+   "code"
+  ],
+  "iad_call_json(alarms.alarm_time)": [
+   "rtc_in_use",
+   "time_raw"
+  ],
+  "iad_call_json(alarms.describe_alarm_detail)": [
+   "address",
+   "code",
+   "detail"
+  ],
+  "iad_call_json(alarms.rtc_datetime)": [
+   "seconds"
+  ],
+  "iad_call_json(alarms.tables)": [],
+  "iad_call_json(con_params.audit)": [
+   "encoder_pulses",
+   "family",
+   "float",
+   "lead_mm",
+   "max_accel",
+   "max_push_speed",
+   "max_speed",
+   "min_band_mm",
+   "repr",
+   "rotary",
+   "unit",
+   "values"
+  ],
+  "iad_call_json(con_params.category)": [
+   "family",
+   "no"
+  ],
+  "iad_call_json(con_params.check_value)": [
+   "bits",
+   "choices",
+   "class_id",
+   "dangerous",
+   "encoder_pulses",
+   "entry",
+   "family",
+   "float",
+   "hi",
+   "item_id",
+   "kind",
+   "lead_mm",
+   "lo",
+   "max_accel",
+   "max_push_speed",
+   "max_speed",
+   "min_band_mm",
+   "name",
+   "no",
+   "p",
+   "repr",
+   "rotary",
+   "scale",
+   "signed",
+   "symbol",
+   "unit",
+   "value",
+   "writable"
+  ],
+  "iad_call_json(con_params.con_family)": [
+   "family"
+  ],
+  "iad_call_json(con_params.con_parameters)": [
+   "family"
+  ],
+  "iad_call_json(con_params.con_unit_limits)": [
+   "address",
+   "class_id",
+   "classes",
+   "entries",
+   "entry",
+   "id_map_address",
+   "index",
+   "item_id",
+   "items",
+   "member_size",
+   "raw",
+   "size",
+   "support",
+   "words"
+  ],
+  "iad_call_json(con_params.decode)": [
+   "bits",
+   "choices",
+   "class_id",
+   "dangerous",
+   "entry",
+   "hi",
+   "item_id",
+   "kind",
+   "lo",
+   "name",
+   "no",
+   "p",
+   "raw",
+   "scale",
+   "signed",
+   "symbol",
+   "unit",
+   "writable"
+  ],
+  "iad_call_json(con_params.encode)": [
+   "bits",
+   "choices",
+   "class_id",
+   "dangerous",
+   "entry",
+   "float",
+   "hi",
+   "item_id",
+   "kind",
+   "lo",
+   "name",
+   "no",
+   "p",
+   "raw",
+   "repr",
+   "scale",
+   "signed",
+   "symbol",
+   "unit",
+   "value",
+   "writable"
+  ],
+  "iad_call_json(con_params.factory_default)": [
+   "family",
+   "no"
+  ],
+  "iad_call_json(con_params.for_family)": [
+   "bits",
+   "choices",
+   "class_id",
+   "dangerous",
+   "entry",
+   "family",
+   "hi",
+   "item_id",
+   "kind",
+   "lo",
+   "name",
+   "no",
+   "p",
+   "scale",
+   "signed",
+   "symbol",
+   "unit",
+   "writable"
+  ],
+  "iad_call_json(con_params.min_positioning_band)": [
+   "encoder_pulses",
+   "family",
+   "lead_mm",
+   "mini_mm"
+  ],
+  "iad_call_json(con_params.parameter_table)": [
+   "family"
+  ],
+  "iad_call_json(con_params.parse)": [
+   "bits",
+   "choices",
+   "class_id",
+   "dangerous",
+   "entry",
+   "family",
+   "float",
+   "hi",
+   "item_id",
+   "kind",
+   "lo",
+   "name",
+   "no",
+   "p",
+   "repr",
+   "scale",
+   "signed",
+   "symbol",
+   "unit",
+   "value",
+   "writable"
+  ],
+  "iad_call_json(con_params.tables)": [],
+  "iad_call_json(con_params.text)": [
+   "bits",
+   "choices",
+   "class_id",
+   "dangerous",
+   "entry",
+   "float",
+   "hi",
+   "item_id",
+   "kind",
+   "lo",
+   "name",
+   "no",
+   "p",
+   "repr",
+   "scale",
+   "signed",
+   "symbol",
+   "unit",
+   "value",
+   "writable"
+  ],
+  "iad_call_json(functions)": [],
+  "iad_call_json(info.bit_tables)": [],
+  "iad_call_json(info.decode_alarm_history)": [
+   "absolute_encoder",
+   "c3",
+   "category_id",
+   "coil_base",
+   "current",
+   "data_address",
+   "dss1",
+   "id_list_address",
+   "list_count",
+   "member_count",
+   "member_size",
+   "model_code",
+   "record",
+   "rtc_in_use",
+   "system_code",
+   "words"
+  ],
+  "iad_call_json(info.decode_bits)": [
+   "active_low",
+   "bit",
+   "confirmed",
+   "evidence",
+   "meaning",
+   "name",
+   "table",
+   "width",
+   "word"
+  ],
+  "iad_call_json(info.decode_maintenance)": [
+   "address",
+   "block",
+   "class_id",
+   "entries",
+   "entry",
+   "family",
+   "id_map_address",
+   "index",
+   "item_id",
+   "items",
+   "member_size",
+   "raw",
+   "rtc",
+   "size",
+   "words"
+  ],
+  "iad_call_json(info.ec_parameter_table)": [],
+  "iad_call_json(info.input_ranges)": [
+   "family",
+   "line"
+  ],
+  "iad_call_json(info.io_bit_tables)": [
+   "code",
+   "layout",
+   "mode"
+  ],
+  "iad_call_json(info.position_mode)": [
+   "code",
+   "model"
+  ],
+  "iad_call_json(info.product_line)": [
+   "family",
+   "gateway"
+  ],
+  "iad_call_json(info.rtc_in_use)": [
+   "ssse"
+  ],
+  "iad_call_json(status.decode)": [
+   "words"
+  ],
+  "iad_cell_coord_plan_json": [
+   "accel_g",
+   "arc",
+   "axes",
+   "band",
+   "blend",
+   "ccw",
+   "center",
+   "chord_error",
+   "circle",
+   "corner",
+   "end",
+   "expect_start",
+   "height",
+   "late_abort_s",
+   "line",
+   "min_step_s",
+   "mode",
+   "path",
+   "plane",
+   "polyline",
+   "radius",
+   "segments",
+   "shape",
+   "sides",
+   "speed",
+   "start",
+   "start_deg",
+   "stream_accel_g",
+   "timeout_s",
+   "turns",
+   "width"
+  ],
+  "iad_cell_coord_run_json": [
+   "accel_g",
+   "arc",
+   "axes",
+   "band",
+   "blend",
+   "ccw",
+   "center",
+   "chord_error",
+   "circle",
+   "corner",
+   "end",
+   "expect_start",
+   "height",
+   "late_abort_s",
+   "line",
+   "min_step_s",
+   "mode",
+   "path",
+   "plane",
+   "polyline",
+   "radius",
+   "segments",
+   "shape",
+   "sides",
+   "speed",
+   "start",
+   "start_deg",
+   "stream_accel_g",
+   "timeout_s",
+   "turns",
+   "width"
+  ],
+  "iad_cell_open_buses": [],
+  "iad_sim_gateway_line_open": [
+   "emergency_stop",
+   "gateway_alarm",
+   "linked_only",
+   "manu",
+   "name",
+   "position_unit_mm",
+   "serials",
+   "silent_no_access"
+  ],
+  "iad_sim_open": [
+   "absolute",
+   "auto_servo_off_s",
+   "baud_rate",
+   "boot_baud_rate",
+   "broadcast",
+   "cold_boot",
+   "dopm",
+   "drop_reply_after_retarget",
+   "early_in_position",
+   "ec_first_son_s",
+   "firmware",
+   "function_codes",
+   "ignored_baud_codes",
+   "ls_range_mm",
+   "max_accel_g",
+   "max_speed_mm_s",
+   "move_bit_clears_in_decel",
+   "move_patterns",
+   "parw_busy_s",
+   "parw_dsse_busy",
+   "parw_latches",
+   "pmsl",
+   "port_name",
+   "position_mm",
+   "profile",
+   "push_blip_len_mm",
+   "push_blip_mm",
+   "recompute_position_checksum",
+   "reset_baud_rate",
+   "reset_s",
+   "rtc",
+   "safety_speed",
+   "serial_number",
+   "settle_speed_mm_s",
+   "settle_tail_mm",
+   "slave",
+   "slave_id_delay_s",
+   "soft_limits",
+   "stale_status_polls",
+   "step_s",
+   "stop_latches",
+   "stroke_mm",
+   "system_code",
+   "time_scale",
+   "unit_baud_rate",
+   "unit_code",
+   "unreadable",
+   "word_overrides"
+  ]
  }
 }

@@ -140,7 +140,7 @@ everything else. Production code never needs it. See [The testing header](#the-t
 **JSON outputs.** Within a major version a JSON field is only added, never removed, renamed or retyped (an integer stays
 an integer, a float a float). `null` means unknown. A caller ignores keys it does not know. This holds for every `_json`
 function of the stable header, for `iad_call_json` and for the error JSON. `core/abi/json_keys.json` lists the fields and
-types of every JSON output.
+types of every JSON output, and under "requests" the keys the parser of every JSON request of the stable header reads.
 
 **What checks it.**
 
@@ -153,6 +153,9 @@ types of every JSON output.
   the stable section differs from the baseline only once `IAD_ABI_VERSION_MINOR` is above 0.
 - `bindings/python/tests/test_abi_json_keys.py` samples every JSON output on the simulator and fails on a removed,
   renamed or retyped field.
+- `bindings/python/tests/test_abi_request_keys.py` reads the request parsers in `core/src` and fails when one reads a
+  key that `json_keys.json` "requests" or the function's header comment does not name, or the list names a key no
+  parser reads.
 - The core's `capi_` tests, `core/tests/c_smoke.c` (plain C99 against the DLL) and each binding's tests cover the
   behaviour.
 - After a deliberate change, `python build.py manifest --update` and `test_abi_json_keys.py --update` rewrite the

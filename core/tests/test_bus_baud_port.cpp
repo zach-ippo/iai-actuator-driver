@@ -409,6 +409,41 @@ TEST(bus_port_silent_line) {
     }
 }
 
+TEST(bus_port_scan_never_sends_to_slave_58) {
+    // slave 58 = 0x3A = ':', the Modbus ASCII start: a request to it raises alarm 0x05E on every IAI unit of the line
+    // (ON-WIRE on a PCON-CB, 2026-11-03). A 1-247 scan and the baud detection before it skip it, with one warning.
+    std::vector<std::string> warnings;
+    const LogHandler previous = set_log_handler([&warnings](LogLevel level, const std::string&, const std::string& m) {
+        if (level >= LogLevel::Warning) warnings.push_back(m);
+    });
+    std::vector<int> all;
+    for (int s = 1; s <= 247; ++s) all.push_back(s);
+    LineRig rig = line_rig({1, 57, 59, 200}, 38400, 38400);
+    Port port(rig.t, "", quick());
+    const std::vector<int> found = port.scan(all, 0.001);
+    // the baud detection over the list alone, at a rate where nothing answers: 58 skipped there too
+    LineRig away = line_rig({59}, 115200, 38400);
+    Port port2(away.t, "", quick());
+    CHECK_EQ(port2.ensure_baud_rate({57, 58, 59}).value_or(0), 38400);
+    set_log_handler(previous);
+    CHECK(found == (std::vector<int>{1, 57, 59, 200}));
+    for (const auto* t : {rig.t.get(), away.t.get()}) {
+        CHECK(!t->writes().empty());
+        for (const Bytes& w : t->writes()) CHECK(!w.empty() && w[0] != 0x3A);
+    }
+    int notes = 0;
+    for (const std::string& w : warnings)
+        if (w.find("slave 58 (0x3A) is never used") != std::string::npos) ++notes;
+    CHECK_EQ(notes, 2);  // one line per scan / detection
+    // asked for alone or directly: refused, nothing sent
+    rig.t->clear_writes();
+    CHECK_THROWS(port.scan({58}, 0.001), std::invalid_argument);
+    CHECK_THROWS(port.bus()->probe(58, 0.001), std::invalid_argument);
+    CHECK_THROWS(port.bus()->read_registers(58, reg::kPnow, 2), std::invalid_argument);
+    CHECK_THROWS(port.bus()->detect_baud_rate(58), std::invalid_argument);
+    CHECK(rig.t->writes().empty());
+}
+
 TEST(bus_port_set_baud_rate) {
     LineRig rig = line_rig({1, 2}, 115200, 115200);
     Port port(rig.t, "", quick());

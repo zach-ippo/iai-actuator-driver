@@ -48,9 +48,10 @@ std::string not_at_rest(ModbusRtu& bus, int slave) {
 /// Baud detection that also asks the gateway addresses (`extra`: (slave, register) pairs, after the axes at each
 /// rate), so a line where only a gateway answers (ROBONET gateway mode) is found too. One read per address and rate,
 /// no retries; the current rate first; the start rate restored when nothing answers (ModbusTimeout).
-int detect_rate_with_gateways(ModbusRtu& bus, const std::vector<int>& slaves,
+int detect_rate_with_gateways(ModbusRtu& bus, const std::vector<int>& listed,
                               const std::vector<std::pair<int, int>>& extra, const std::vector<int>& candidates) {
-    for (int s : slaves) check_slave(s);
+    for (int s : listed) check_slave(s);
+    const std::vector<int> slaves = detail::skip_ascii_start_slave(listed, kLogSource, "baud rate detection");
     const std::optional<int> start = bus.baud_rate();
     if (!start) throw std::logic_error(bus.name() + " has no baud rate to detect");
     std::vector<int> order{*start};
@@ -237,9 +238,11 @@ std::optional<int> Port::ensure_baud_rate(const std::vector<int>& slaves) {
     return baud_rate();
 }
 
-std::vector<int> Port::scan(const std::vector<int>& slaves, std::optional<double> timeout_s, int address,
+std::vector<int> Port::scan(const std::vector<int>& listed, std::optional<double> timeout_s, int address,
                             bool use_link_map) {
-    if (slaves.empty()) return {};
+    if (listed.empty()) return {};
+    // slave 58 (0x3A) would raise alarm 0x05E on every IAI unit of the line (modbus.hpp): never probed
+    const std::vector<int> slaves = detail::skip_ascii_start_slave(listed, kLogSource, impl_->name + ": scan");
     try {
         ensure_baud_rate(slaves);
     } catch (const ModbusTimeout& e) {
@@ -289,12 +292,14 @@ std::vector<int> Port::scan(const std::vector<int>& slaves, std::optional<double
 
 std::vector<ScanHit> Port::scan_units(const std::vector<int>& slaves, std::optional<double> timeout_s, bool identify,
                                      bool use_link_map) {
-    std::vector<int> addresses;
+    std::vector<int> unique;
     for (int s : slaves) {
         check_slave(s);
-        if (std::find(addresses.begin(), addresses.end(), s) == addresses.end()) addresses.push_back(s);
+        if (std::find(unique.begin(), unique.end(), s) == unique.end()) unique.push_back(s);
     }
-    if (addresses.empty()) return {};
+    if (unique.empty()) return {};
+    // slave 58 (0x3A) would raise alarm 0x05E on every IAI unit of the line (modbus.hpp): never probed
+    const std::vector<int> addresses = detail::skip_ascii_start_slave(unique, kLogSource, impl_->name + ": scan");
     try {
         ensure_baud_rate(addresses);
     } catch (const ModbusTimeout& e) {

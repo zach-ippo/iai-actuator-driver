@@ -285,6 +285,25 @@ TEST(axis_connect_open_detects_the_baud_rate_in_place) {
     ax.close();  // safe twice
 }
 
+TEST(axis_connect_slave_58_is_refused_before_anything_is_sent) {
+    // 0x3A = ':', the Modbus ASCII start: every IAI unit of the line would raise alarm 0x05E (ON-WIRE on a PCON-CB)
+    auto fake = std::make_shared<FakeTransport>(nullptr, 115200);
+    OpenOptions o;
+    o.slave = 58;
+    std::string text;
+    try {
+        Axis::open(fake, o);
+    } catch (const std::invalid_argument& e) {
+        text = e.what();
+    }
+    CHECK(text.find("slave 58 (0x3A) is never used") != std::string::npos);
+    CHECK(text.find("nothing sent") != std::string::npos);
+    CHECK(fake->writes().empty());
+    auto bus = std::make_shared<ModbusRtu>(fake);
+    CHECK_THROWS(Axis(bus, 58), std::invalid_argument);
+    CHECK(fake->writes().empty());
+}
+
 TEST(axis_connect_open_without_answer_raises_the_hint) {
     auto fake = std::make_shared<FakeTransport>(nullptr, 115200);
     bool threw = false;

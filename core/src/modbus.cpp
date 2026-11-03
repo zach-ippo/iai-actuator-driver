@@ -45,6 +45,7 @@ void check_slave(int slave) {
     if (slave < 1 || slave > 247)
         throw std::invalid_argument(
             util::format("slave address must be 1..247 (broadcast: use broadcast()), got %d", slave));
+    if (slave == kAsciiStartSlave) throw std::invalid_argument(std::string(kAsciiStartSlaveNote) + "; nothing sent");
 }
 
 /// PDU of FC03 / FC05 / FC06: function, two big-endian words.
@@ -200,6 +201,17 @@ StopWireStamp::~StopWireStamp() { stop_wire_stamps = previous_; }
 BusTestHooks& bus_test_hooks() {
     static BusTestHooks hooks;
     return hooks;
+}
+
+std::vector<int> skip_ascii_start_slave(const std::vector<int>& slaves, const std::string& log_source,
+                                        const std::string& where) {
+    std::vector<int> kept;
+    kept.reserve(slaves.size());
+    for (int s : slaves)
+        if (s != kAsciiStartSlave) kept.push_back(s);
+    if (kept.empty()) return slaves;  // 58 alone: refused by the request itself
+    if (kept.size() != slaves.size()) log_warning(log_source, where + ": " + kAsciiStartSlaveNote + ": skipped");
+    return kept;
 }
 
 }  // namespace detail
@@ -981,10 +993,17 @@ int ModbusRtu::detect_baud_rate(const std::vector<int>& slaves, const std::vecto
     return detect_baud_rate_targets(targets, candidates, probe_address, current_first, probe_timeout_s);
 }
 
-int ModbusRtu::detect_baud_rate_targets(const std::vector<BaudProbe>& targets, const std::vector<int>& candidates,
+int ModbusRtu::detect_baud_rate_targets(const std::vector<BaudProbe>& listed, const std::vector<int>& candidates,
                                         int probe_address, bool current_first,
                                         std::optional<double> probe_timeout_s) {
-    if (targets.empty()) throw std::invalid_argument("no slave address to probe");
+    if (listed.empty()) throw std::invalid_argument("no slave address to probe");
+    std::vector<BaudProbe> targets;  // slave 58 skipped (kAsciiStartSlave), unless it is the only one: refused below
+    for (const BaudProbe& t : listed)
+        if (t.slave != kAsciiStartSlave) targets.push_back(t);
+    if (targets.empty())
+        targets = listed;
+    else if (targets.size() != listed.size())
+        log_warning(kLogSource, std::string("baud rate detection: ") + kAsciiStartSlaveNote + ": skipped");
     check_u16("probe_address", probe_address);
     std::size_t plain = 0;
     for (const BaudProbe& t : targets) {

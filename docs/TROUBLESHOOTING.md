@@ -277,6 +277,7 @@ gateway rule are DOC and UNVERIFIED on hardware. The address is the axis number 
 | Symptom | Likely cause | What to do |
 |---|---|---|
 | `scan` finds fewer axes than are wired | Two units share an axis number, or an axis is outside the scanned addresses (default 1 to 16). | Give each unit its own axis number, or scan wider: `scan --ports COM5 --slaves 1-32`. |
+| Alarm 0x05E "Delimiter error" on every unit after a wide scan (an older driver) | A request to slave 58 (0x3A = ':') starts like a Modbus ASCII frame (ON-WIRE on a PCON-CB). | Reset the alarm. The driver now skips 58 in scans and refuses it; no IAI unit can use address 58. |
 | Commands reach the wrong axis | `--slave` is the address, `--axis` the axis number: `--axis 2` is `--slave 3`. | Use one consistently; `scan` lists `axis N` per address. |
 | A `Cell` opens without one of its ports; log `port COM4 skipped: ...` | With `slaves="scan"`, a port that fails or has no answer is skipped and kept in `cell.port_errors`. | Read `cell.port_errors`. List the slaves (`slaves={"COM4": [1]}`) to make it raise instead. |
 | `CellError: move_all (check; nothing started) failed on 1 axis/axes: ...` | A group move is checked on every axis before any starts. | Fix that axis's target. `.errors` and `.results` are keyed by axis name; `return_exceptions=True` returns per-axis results. When one axis fails during `move_all`, `home_all` or `wait_all`, the others are stopped. |

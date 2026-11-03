@@ -125,6 +125,7 @@ Axis::Impl::Impl(std::shared_ptr<ModbusRtu> bus_, int slave_, AxisOptions option
     : bus(std::move(bus_)), slave(slave_), owns_bus(owns), on_port(port), options(std::move(options_)) {
     if (!bus) throw std::invalid_argument("Axis: no bus");
     if (slave < 1 || slave > 247) throw std::invalid_argument("slave address must be 1..247, got " + std::to_string(slave));
+    if (slave == kAsciiStartSlave) throw std::invalid_argument(std::string(kAsciiStartSlaveNote) + "; nothing sent");
     validate_options(options);
     reader = bus->reader(slave);
     nv_tracker->set_label(bus->name() + " slave " + std::to_string(slave));
@@ -738,6 +739,8 @@ Axis Axis::open(std::shared_ptr<Transport> transport, const OpenOptions& options
     if (!transport) throw std::invalid_argument("Axis::open: no transport");
     if (options.slave < 1 || options.slave > 247)
         throw std::invalid_argument("slave address must be 1..247, got " + std::to_string(options.slave));
+    if (options.slave == kAsciiStartSlave)  // before the port is touched (modbus.hpp)
+        throw std::invalid_argument(std::string(kAsciiStartSlaveNote) + "; nothing sent");
     const bool has_rate = transport->baud_rate() != 0;
     if (options.baud_rate && has_rate && transport->baud_rate() != *options.baud_rate)
         transport->set_baud_rate(*options.baud_rate);
@@ -773,6 +776,8 @@ Axis Axis::open(std::shared_ptr<Transport> transport, const OpenOptions& options
 }
 
 Axis Axis::open(const std::string& port_name, const OpenOptions& options) {
+    if (options.slave == kAsciiStartSlave)  // refused before the port is opened (modbus.hpp)
+        throw std::invalid_argument(std::string(kAsciiStartSlaveNote) + "; nothing sent");
     auto transport = std::make_shared<SerialTransport>(port_name, options.baud_rate.value_or(kDefaultBaudRate),
                                                        options.read_timeout_s);
     return open(std::static_pointer_cast<Transport>(transport), options);

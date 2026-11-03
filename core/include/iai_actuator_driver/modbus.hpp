@@ -87,6 +87,21 @@ inline constexpr double kDefaultMinGapS = 0.005;
 inline constexpr double kSlaveIdTimeoutS = 0.65;
 /// probe() / scan wait per address (s): 16 addresses in about 1 s.
 inline constexpr double kScanTimeoutS = 0.05;
+/// Slave 58 = 0x3A = ':', the Modbus ASCII start character. IAI units tell RTU from ASCII frame by frame, so every unit
+/// on the line takes a request to slave 58 for an ASCII frame and raises alarm 0x05E "Delimiter error" (ON-WIRE on a
+/// PCON-CB, 2026-11-03: slaves 33 and 57 no alarm, 58 alarm 0x05E). No IAI unit can use it: the bus refuses a request
+/// to it (std::invalid_argument, nothing sent) and scans and baud detections skip it.
+inline constexpr int kAsciiStartSlave = 0x3A;
+/// Why kAsciiStartSlave is never sent to (the refusal and the scans' log line).
+inline constexpr const char* kAsciiStartSlaveNote =
+    "slave 58 (0x3A) is never used: a request to it starts with ':', the Modbus ASCII start, and every IAI unit on the "
+    "line takes it for an ASCII frame and raises alarm 0x05E 'Delimiter error' (no IAI unit can use address 58)";
+namespace detail {
+/// `slaves` without kAsciiStartSlave, with one warning line (`log_source`, `where`) when it was listed. A list of
+/// kAsciiStartSlave alone is returned as it is: the request to it is then refused with kAsciiStartSlaveNote.
+std::vector<int> skip_ascii_start_slave(const std::vector<int>& slaves, const std::string& log_source,
+                                        const std::string& where);
+}  // namespace detail
 /// Silence kept after a broadcast frame (driver choice, UNVERIFIED on a multi-drop line).
 inline constexpr double kBroadcastTurnaroundS = 0.02;
 /// After the broadcast baud change, before the port switches (ON-WIRE: IA-OS waited ~0.2 s).

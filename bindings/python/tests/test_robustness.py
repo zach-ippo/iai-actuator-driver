@@ -100,6 +100,7 @@ def random_request(
     ``rejection``: an IAI reply may carry a rejection code."""
     kind = rng.choice(REQUEST_KINDS) if kind is None else kind
     s = rng.randint(1, 247) if slave is None else slave
+    s = 59 if s == 58 else s  # the bus never sends to slave 58 (0x3A = ':', the Modbus ASCII start)
     if kind == "fc03":
         n = rng.randint(1, MAX_READ_REGISTERS)
         address = rng.randint(0, 0x10000 - n)

@@ -112,7 +112,8 @@ public:
     std::optional<int> ensure_baud_rate(const std::vector<int>& slaves = default_scan_slaves());
 
     /// The addresses that answer (one FC03 probe each, no retries, `timeout_s` default kScanTimeoutS). READ-ONLY.
-    /// On an RCON line only the axes the gateway reports as linked are probed unless `use_link_map` is false.
+    /// On an RCON line only the axes the gateway reports as linked are probed unless `use_link_map` is false. Slave 58
+    /// (kAsciiStartSlave) is never probed, here and in the baud detection: one warning line says so.
     std::vector<int> scan(const std::vector<int>& slaves = default_scan_slaves(),
                           std::optional<double> timeout_s = std::nullopt, int address = 0x9000,
                           bool use_link_map = true);

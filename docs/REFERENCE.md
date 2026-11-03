@@ -526,6 +526,10 @@ with Cell.open() as cell:              # every IAI adapter, every answering addr
   axis at rest and then checks that each answers (several units switching at once is UNVERIFIED).
 - **CLI.** `iai-actuator-driver ports [--json]`, `iai-actuator-driver scan [--ports COM3,COM4] [--slaves 1-16]
   [--baud N] [--scan-timeout S] [--json]`, and `--axis N` on every single-axis command and on `iai-check`.
+- **Slave 58 is never used.** 58 = 0x3A = ':', the Modbus ASCII start: every IAI unit on the line takes a request to
+  it for an ASCII frame and raises alarm 0x05E "Delimiter error" (ON-WIRE on a PCON-CB). Scans and baud detections
+  skip it (one warning line), and a request or an open of slave 58 is refused with nothing sent (`ValueError` /
+  `ArgumentException` / `std::invalid_argument`).
 
 ## Safety notes
 

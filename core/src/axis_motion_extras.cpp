@@ -363,10 +363,16 @@ std::optional<Status> Axis::Impl::change_move(std::optional<double> speed, std::
     require(st);
     return guard([&]() -> std::optional<Status> {
         const MoveWatch watch = send_direct(changed, false);  // the same move: its waits go on
+        // the estimated deadline of every wait for this move follows the change: the remaining distance at the new
+        // speed (before, a wait estimated for 100 mm/s timed out after a change to 10 mm/s; ON-WIRE on a PCON-CB)
+        const double estimate =
+            detail::default_move_timeout_s(std::fabs(target - st.position_mm), new_speed, new_accel);
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            retime = Retime{watch.move, now_s() + estimate};
+        }
         if (!wait) return std::nullopt;
-        const double timeout = timeout_s ? *timeout_s
-                                         : detail::default_move_timeout_s(std::fabs(target - st.position_mm), new_speed,
-                                                                          new_accel);
+        const double timeout = timeout_s ? *timeout_s : estimate;
         return wait_done(target, band, timeout, completion_mode(std::nullopt), std::nullopt, &watch);
     });
 }

@@ -3844,7 +3844,9 @@ class NativeAxis:
         self, speed_mm_s: float, *, wait: bool = False, timeout: float | None = None
     ) -> NativeStatus | None:
         """Change the speed of the move in progress (Axis::change_speed). Refused (nothing sent) without a move of this
-        axis running, while paused, or outside the limits. With ``wait`` waits for the move and returns the status."""
+        axis running, while paused, or outside the limits. With ``wait`` waits for the move and returns the status. A
+        wait for this move with the estimated timeout (also in another thread) gets the estimate of the remaining
+        distance at the new speed when that ends later; a ``timeout`` given to that wait stays."""
         out = _status_out()
         o = ChangeOptions(timeout_s=_num(timeout), wait=int(bool(wait)))
         self._call_waiting("iad_axis_change_speed", float(speed_mm_s), ctypes.byref(o), ctypes.byref(out))

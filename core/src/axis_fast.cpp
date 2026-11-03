@@ -182,7 +182,7 @@ Status Axis::Impl::wait_done(std::optional<double> target, std::optional<double>
                              Completion mode, std::optional<double> since, const MoveWatch* watch) {
     const double b = band.value_or(0.1);
     const double start = now_s();
-    const double deadline = start + timeout_s;
+    double deadline = start + timeout_s;
     std::optional<double> away_since;
     detail::Settle settle(opts().settle_s);
     Feed feed = make_feed(mode == Completion::Fast, since.value_or(start));
@@ -217,9 +217,10 @@ Status Axis::Impl::wait_done(std::optional<double> target, std::optional<double>
             } else {
                 away_since.reset();
             }
+            if (watch) deadline = retimed(*watch, deadline);  // a change_speed of this move moved it
             if (now >= deadline) {
                 const std::string where = target ? " (target " + f2(*target) + " " + u + ")" : std::string();
-                stop_and_raise(MotionTimeoutError(util::format("not done after %.1f s", timeout_s) + where +
+                stop_and_raise(MotionTimeoutError(util::format("not done after %.1f s", now - start) + where +
                                                   ": position " + f2(st.position_mm) + " " + u + ", moving=" +
                                                   tf(st.moving) + ", in_position=" + tf(st.in_position) +
                                                   ", paused=" + tf(st.paused())));

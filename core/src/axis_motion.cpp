@@ -815,7 +815,8 @@ std::optional<Status> Axis::Impl::move_to(double position, const MoveOptions& o)
     const double timeout =
         o.timeout_s ? *o.timeout_s : detail::default_move_timeout_s(std::fabs(target - st.position_mm), o.speed, o.accel_g);
     return guard([&]() -> std::optional<Status> {
-        const MoveWatch watch = send_direct(move);
+        MoveWatch watch = send_direct(move);
+        watch.estimated = !o.timeout_s;  // the estimate follows a change_speed of this move
         const double sent = now_s();
         note_move(target, o.band, timeout, mode, sent, watch);
         if (!o.wait) return std::nullopt;

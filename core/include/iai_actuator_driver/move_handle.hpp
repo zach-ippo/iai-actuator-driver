@@ -42,7 +42,8 @@ public:
     double timeout_s() const;
     Completion completion() const;
     double sent_at() const;          ///< now_s() right after the command was answered
-    double deadline() const;         ///< sent_at + timeout_s
+    double deadline() const;         ///< sent_at + timeout_s (later once a change_speed / change_accel of the move
+                                     ///< extends an estimated timeout)
     bool cancelled() const;
     /// The final status once known.
     std::optional<Status> result() const;

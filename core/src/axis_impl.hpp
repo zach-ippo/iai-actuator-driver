@@ -199,6 +199,8 @@ struct MoveWatch {
     StopMark mark;
     std::uint64_t halt = 0;
     std::uint64_t move = 0;  ///< the move's number (Axis::Impl::moves): a newer move of the object supersedes it
+    /// The wait's timeout is the driver's estimate: it follows a change_speed / change_accel of the move (retimed).
+    bool estimated = false;
 };
 
 }  // namespace detail
@@ -567,6 +569,19 @@ struct Axis::Impl {
         MoveWatch watch;                      ///< taken right before its frame
     };
     std::optional<StartedMove> started_move;  ///< (mutex) the last one
+    /// The estimate of a move after a change_speed / change_accel: the move's number and the new deadline (now_s()).
+    struct Retime {
+        std::uint64_t move = 0;
+        double deadline = 0.0;
+    };
+    std::optional<Retime> retime;  ///< (mutex) the last change
+    /// The deadline an estimated wait for the move `watch` follows now: `deadline`, or the later one a change of that
+    /// move set (the remaining distance at the new speed, as default_move_timeout_s).
+    double retimed(const MoveWatch& watch, double deadline) const {
+        if (!watch.estimated) return deadline;
+        std::lock_guard<std::mutex> lock(mutex);
+        return retime && retime->move == watch.move ? std::max(deadline, retime->deadline) : deadline;
+    }
     /// Where a wait loop takes its statuses from (next_status).
     struct Feed {
         bool lean = false;                    ///< the 8-word block (Completion::Fast), else the full status

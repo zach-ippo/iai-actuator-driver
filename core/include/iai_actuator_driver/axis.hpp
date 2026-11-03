@@ -325,7 +325,10 @@ public:
     Status cancel_paused_move(double timeout_s = 5.0);
     /// Change the speed of the 0x9900 move in progress by re-sending the full block this object sent last with the new
     /// VCMD (same target, band, CTLF). Refused (nothing sent) with no move of this object running, while paused, or
-    /// outside limits(). With wait, waits for the move (wait_idle).
+    /// outside limits(). With wait, waits for the move (wait_idle). A wait for this move with an estimated timeout (no
+    /// timeout_s given; also in another thread or a MoveHandle) gets the estimate of the remaining distance at the new
+    /// speed when that ends later (before, a wait estimated for 100 mm/s timed out after a change to 10 mm/s; ON-WIRE on
+    /// a PCON-CB + RCP6); a timeout the caller gave stays.
     std::optional<Status> change_speed(double speed, bool wait = false, std::optional<double> timeout_s = std::nullopt);
 
     // ---------------------------------------------------------------- motion extras (src/axis_motion_extras.cpp)

@@ -337,3 +337,43 @@ TEST(axis_outside_stop_a_speed_change_does_not_supersede_the_move) {
     CHECK_EQ(out.type, std::string("none"));
     CHECK_NEAR(r.sim->position_mm(), 60.0, 0.11);
 }
+
+// ================================================================================== change_speed and the deadline
+
+TEST(axis_outside_stop_a_slower_speed_from_another_thread_extends_the_estimated_timeout) {
+    // A's timeout was estimated for 100 mm/s; B slows the move to 5 mm/s: before, A timed out (and stopped the axis)
+    Rig r(20.0);
+    MoveOptions fast = slow(100.0);
+    Outcome out;
+    ec_test::Thread waiter([&] { record(out, [&] { r.ax->move_to(40.0, fast); }); });
+    REQUIRE(wait_until([&] { return r.sim->moving() && r.sim->position_mm() > 21.0; }));
+    r.ax->change_speed(5.0, false);
+    CHECK(wait_until([&] { return out.ended.load(); }, 15.0));
+    waiter.join();
+    CHECK_EQ(out.type, std::string("none"));
+    CHECK(out.what.empty());
+    CHECK_NEAR(r.sim->position_mm(), 40.0, 0.11);
+    CHECK_EQ(r.tx.stops_on(), 0);
+}
+
+TEST(axis_outside_stop_a_slower_speed_extends_a_handle_deadline_but_not_an_explicit_timeout) {
+    Rig r(20.0);
+    MoveHandle handle = r.ax->start_move_to(40.0, slow(100.0, false));
+    const double deadline = handle.deadline();
+    REQUIRE(wait_until([&] { return r.sim->moving() && r.sim->position_mm() > 21.0; }));
+    r.ax->change_speed(5.0, false);
+    Outcome out;
+    record(out, [&] {
+        while (!handle.poll(0.1)) {
+        }
+    });
+    CHECK_EQ(out.type, std::string("none"));
+    CHECK(handle.deadline() > deadline + 1.0);
+    CHECK_NEAR(r.sim->position_mm(), 40.0, 0.11);
+    CHECK_EQ(r.tx.stops_on(), 0);
+    // a timeout the caller passes stays the caller's
+    MoveHandle second = r.ax->start_move_to(60.0, slow(100.0, false));
+    REQUIRE(wait_until([&] { return r.sim->moving() && r.sim->position_mm() > 41.0; }));
+    r.ax->change_speed(5.0, false);
+    CHECK_THROWS(second.wait(0.5), MotionTimeoutError);
+}

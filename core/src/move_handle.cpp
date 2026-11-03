@@ -86,11 +86,14 @@ bool MoveHandle::done() {
 Status MoveHandle::wait(std::optional<double> timeout_s) {
     if (s_->result) return *s_->result;
     Axis::Impl& ax = axis_of<Axis::Impl>(s_->axis);
+    s_->deadline = ax.retimed(s_->watch, s_->deadline);  // a change_speed of the move moved its estimate
     // the time left of the estimate, but always long enough to confirm a move that already ended (a wait() called
     // late must not time out, and so stop the axis, on the settle window of a finished move)
     const double timeout =
         timeout_s ? *timeout_s : std::max(s_->deadline - now_s(), ax.opts().settle_s + kLateWaitS);
-    const Status st = ax.wait_done(s_->target, s_->band, timeout, s_->completion, s_->sent_at, &s_->watch);
+    detail::MoveWatch watch = s_->watch;
+    watch.estimated = watch.estimated && !timeout_s;  // the caller's own timeout stays
+    const Status st = ax.wait_done(s_->target, s_->band, timeout, s_->completion, s_->sent_at, &watch);
     s_->result = st;
     return st;
 }
@@ -106,6 +109,7 @@ bool MoveHandle::poll(double max_wait_s) {
             const bool fed = monitored(end);  // a monitor sample taken (or waited for), else done()'s own read
             if (fed ? s_->result.has_value() : done()) return true;
             const double now = now_s();
+            s_->deadline = ax.retimed(s_->watch, s_->deadline);  // a change_speed of the move moved its estimate
             if (now >= s_->deadline) {  // past the move's own deadline: the wait with its timeout rule
                 wait(std::nullopt);
                 return true;

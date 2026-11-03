@@ -648,7 +648,11 @@ ParameterWriteResult Axis::Impl::write_parameter(const ParameterKey& key, const 
         result.warnings.push_back("the unit applies a committed parameter after a software reset or a power cycle "
                                   "(VERIFIED on a PCON-CB)");
     // the Python edition's notes: skipped, else what was done with the value
-    result.note = skipped ? kNvUnchangedNote : o.commit ? kParamCommitNote : kParamRamOnlyNote;
+    // (a commit = false write of an unchanged value sent nothing: kRamUnchangedNote, not the RAM-only warning)
+    result.note = skipped ? kNvUnchangedNote
+                  : o.commit ? kParamCommitNote
+                  : changed  ? kParamRamOnlyNote
+                             : kRamUnchangedNote;
     return result;
 }
 

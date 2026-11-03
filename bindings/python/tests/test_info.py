@@ -687,7 +687,7 @@ class ParameterRowsTest(unittest.TestCase):
     def test_a_write_says_what_the_python_edition_says(self) -> None:
         ec, _ = open_ec("gripper")
         with ec:
-            ram = ec.write_parameter(5, 0, commit=False)
+            ram = ec.write_parameter(5, 1 - ec.read_parameter(5)["value"], commit=False)
             committed = ec.write_parameter(6, 1 - ec.read_parameter(6)["value"], commit=True)
             unlisted = ec.write_parameter(12, 1, commit=False, allow_unlisted=True)
         self.assertTrue(ram.note.startswith("RAM ONLY - NOT SAVED (commit=False): a parameter written over Modbus (FC10) "

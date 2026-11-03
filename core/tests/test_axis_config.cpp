@@ -180,6 +180,22 @@ TEST(axis_config_parameter_write_is_verified_and_committed) {
     CHECK_EQ(sim->parameter_commits(), 1);
 }
 
+TEST(axis_config_unchanged_ram_only_write_is_not_called_ram_only) {
+    auto sim = make_sim(SimProfile::Gripper);
+    Axis ax = open_sim(sim);
+    ax.connect();
+    ParameterWriteOptions o;
+    o.commit = false;
+    const ParameterWriteResult first = ax.write_parameter(2, 0.30, o);
+    CHECK(first.changed);
+    CHECK(first.note.rfind("RAM ONLY - NOT SAVED", 0) == 0);
+    sim->clear_requests();
+    const ParameterWriteResult again = ax.write_parameter(2, 0.30, o);  // the same value: nothing is written
+    CHECK(!again.changed);
+    CHECK_EQ(fc10_frames(sim->requests()), 0);
+    CHECK_EQ(again.note, std::string(kRamUnchangedNote));
+}
+
 TEST(axis_config_parameters_list_ec_and_con) {
     auto gripper = make_sim(SimProfile::Gripper);
     Axis ec = open_sim(gripper);

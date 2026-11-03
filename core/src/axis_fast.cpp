@@ -142,25 +142,30 @@ void Axis::Impl::note_move(double target, double band, double timeout_s, Complet
 
 // ============================================================================================ Impl: the wait
 
+bool Axis::Impl::stopped_from_outside(const MoveWatch& watch) const {
+    // a stop of this object (another thread's stop(), a group stop, another wait's decel stop) after the move's frame
+    return halts.load() != watch.halt && detail::stop_mark(*bus, slave) != watch.mark;
+}
+
+void Axis::Impl::raise_stopped_from_outside(const Status& st, const std::string& what) {
+    // the wait ends now instead of at its settled-away check or its timeout, and sends no STOP (one is under way)
+    MotionIncompleteError error(what + " stopped from outside this wait: a stop of this axis (stop() from another "
+                                       "thread, a group stop) reached it at " +
+                                f2(st.position_mm) + " " + units_label() + "; this wait sent no STOP of its own");
+    error.set_stop_attempted();  // that stop is the decel stop: none from guard()
+    throw error;
+}
+
 bool Axis::Impl::ended_from_outside(const MoveWatch& watch, const Status& st, std::optional<double> target,
                                     double band) {
-    // a stop of this object (another thread's stop(), a group stop, another wait's decel stop) after the move's frame:
-    // the wait ends now instead of at its settled-away check or its timeout, and sends no STOP (one is under way)
-    if (halts.load() == watch.halt || detail::stop_mark(*bus, slave) == watch.mark) return false;
+    if (!stopped_from_outside(watch)) return false;
     const bool arrived = !target || std::fabs(st.position_mm - *target) <= band + kPosEps;
     if (arrived && st.in_position && !st.moving) {
         motion_pending = false;
         return true;
     }
     const std::string u = units_label();
-    const std::string where = target ? ", " + f2(std::fabs(st.position_mm - *target)) + " " + u + " from the target " +
-                                           f2(*target) + " " + u
-                                     : std::string();
-    MotionIncompleteError error("stopped from outside this wait: a stop of this axis (stop() from another thread, a "
-                                "group stop) reached the move at " +
-                                f2(st.position_mm) + " " + u + where + "; this wait sent no STOP of its own");
-    error.set_stop_attempted();  // that stop is the decel stop: none from guard()
-    throw error;
+    raise_stopped_from_outside(st, target ? "move to " + f2(*target) + " " + u : std::string("move"));
 }
 
 Status Axis::Impl::wait_done(std::optional<double> target, std::optional<double> band, double timeout_s,

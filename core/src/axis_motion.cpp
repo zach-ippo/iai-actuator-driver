@@ -991,7 +991,7 @@ void Axis::Impl::wait_stored_start(int row, double start, double target) {
                                          "Monitor mode, or a firmware that does not run 0x9800"));
 }
 
-Status Axis::Impl::wait_push(double target, const Span& zone, double timeout_s) {
+Status Axis::Impl::wait_push(double target, const Span& zone, double timeout_s, const MoveWatch* watch) {
     const double start = now_s();
     bool seen_start = false;
     detail::Settle settle(opts().push_settle_s, kPushCreepMm);  // hardware test G5 (kPushSettleSDefault)
@@ -1012,6 +1012,11 @@ Status Axis::Impl::wait_push(double target, const Span& zone, double timeout_s) 
         if (settle.update(outcome != 0, st.position_mm, outcome)) {
             if (outcome == 1) motion_pending = false;  // contact: still pushing until the next command
             return st;
+        }
+        if (watch && stopped_from_outside(*watch)) {
+            const std::string u = units_label();
+            raise_stopped_from_outside(st, "push (approach " + f2(target) + " " + u + ", zone " +
+                                               detail::fmt_range(zone, u) + ")");
         }
         if (elapsed >= timeout_s) {
             const std::string u = units_label();
@@ -1084,6 +1089,7 @@ std::optional<Status> Axis::Impl::move_to_position(int row, const PositionMoveOp
     const bool needs_start = checked.zone || std::fabs(start - checked.target) > checked.band + kPosEps;
     return guard([&]() -> std::optional<Status> {
         release_stale_stop();
+        const MoveWatch watch = watch_now();  // right before the row's start frame
         motion_pending = true;
         {
             std::lock_guard<std::mutex> lock(mutex);
@@ -1104,8 +1110,8 @@ std::optional<Status> Axis::Impl::move_to_position(int row, const PositionMoveOp
         }
         if (needs_start) wait_stored_start(row, start, checked.target);
         if (!o.wait) return std::nullopt;
-        if (checked.zone) return wait_push(checked.target, *checked.zone, timeout);
-        return wait_idle(checked.target, checked.band, timeout);
+        if (checked.zone) return wait_push(checked.target, *checked.zone, timeout, &watch);
+        return wait_done(checked.target, checked.band, timeout, completion_mode(std::nullopt), std::nullopt, &watch);
     });
 }
 

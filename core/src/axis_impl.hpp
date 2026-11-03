@@ -326,6 +326,10 @@ struct Axis::Impl {
     /// MotionIncompleteError with stop_attempted set (the wait sends no STOP: that stop is under way). false when no
     /// such stop came.
     bool ended_from_outside(const MoveWatch& watch, const Status& st, std::optional<double> target, double band);
+    /// A stop of this object reached the unit after the move `watch` was sent.
+    bool stopped_from_outside(const MoveWatch& watch) const;
+    /// MotionIncompleteError "<what> stopped from outside this wait ..." at `st`, stop_attempted set.
+    [[noreturn]] void raise_stopped_from_outside(const Status& st, const std::string& what);
 
     // non-volatile write guard
     std::shared_ptr<detail::NvWriteTracker> nv_tracker = std::make_shared<detail::NvWriteTracker>();  ///< (mutex)
@@ -424,7 +428,8 @@ struct Axis::Impl {
     };
     StoredRow check_stored_row(int row, const PositionEntry& entry, bool allow_above_caps, double speed_scale);
     void wait_stored_start(int row, double start, double target);
-    Status wait_push(double target, const Span& zone, double timeout_s);
+    /// With the `watch` of the push, a stop of this object from outside the wait ends it at once.
+    Status wait_push(double target, const Span& zone, double timeout_s, const MoveWatch* watch = nullptr);
     Status wait_idle(std::optional<double> target, std::optional<double> band, double timeout_s);
     Status stop(bool wait, double timeout_s);
     void begin_stop();

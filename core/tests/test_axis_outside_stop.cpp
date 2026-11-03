@@ -1,7 +1,7 @@
 // Axis unit: a motion wait and what other threads do to its move (the hardware findings of 2026-11-03 on a PCON-CB +
 // RCP6, ON-WIRE): a stop() of the same axis from another thread ends a wait in move_to(wait) / MoveHandle::wait() /
-// MoveHandle::poll() at once, and the wait sends no STOP of its own. Simulator on real time (no COM port); every
-// timing is a generous upper bound for a busy PC.
+// MoveHandle::poll() / push(wait) at once, and the wait sends no STOP of its own. Simulator on real time (no COM
+// port); every timing is a generous upper bound for a busy PC.
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -68,9 +68,10 @@ struct Rig {
     TxLog tx;
     std::shared_ptr<ModbusRtu> bus;
     std::unique_ptr<Axis> ax;
-    Rig() {
+    explicit Rig(std::optional<double> position_mm = std::nullopt) {
         SimulatedUnitOptions so;
         so.time_scale = 1.0;
+        so.position_mm = position_mm;
         sim = std::make_shared<SimulatedUnit>(so);
         BusOptions bo;
         bo.frame_logger = tx.logger();
@@ -97,8 +98,10 @@ struct Outcome {
     bool stop_attempted = false;
 };
 
-/// Run `wait` in a thread, stop the axis from this one once it moves, and return when the waiter ended.
-void stop_from_another_thread(Rig& r, const std::function<void()>& wait, Outcome& out, double& stop_returned) {
+/// Run `wait` in a thread, stop the axis from this one once `ready` (default: it moves), and return when the waiter
+/// ended.
+void stop_from_another_thread(Rig& r, const std::function<void()>& wait, Outcome& out, double& stop_returned,
+                              std::function<bool()> ready = {}) {
     ec_test::Thread waiter([&] {
         try {
             wait();
@@ -114,7 +117,8 @@ void stop_from_another_thread(Rig& r, const std::function<void()>& wait, Outcome
         out.at = now_s();
         out.ended = true;
     });
-    REQUIRE(wait_until([&] { return r.sim->moving() && r.sim->position_mm() > 2.0; }));
+    if (!ready) ready = [&] { return r.sim->moving() && r.sim->position_mm() > 2.0; };
+    REQUIRE(wait_until(ready));
     r.ax->stop();
     stop_returned = now_s();
     CHECK(wait_until([&] { return out.ended.load(); }, 10.0));
@@ -173,6 +177,35 @@ TEST(axis_outside_stop_ends_a_move_handle_poll_at_once_without_a_second_stop) {
         },
         out, stop_returned);
     check_ended_on_the_stop(r, out, stop_returned);
+}
+
+PushOptions push_at(double speed) {
+    PushOptions o;
+    o.speed = speed;
+    o.accel_g = 0.3;
+    return o;
+}
+
+TEST(axis_outside_stop_ends_a_push_wait_in_its_approach_at_once) {
+    Rig r(10.0);
+    Outcome out;
+    double stop_returned = 0.0;
+    stop_from_another_thread(r, [&] { r.ax->push(60.0, 40.0, 30.0, push_at(20.0)); }, out, stop_returned,
+                             [&] { return r.sim->moving() && r.sim->position_mm() > 15.0; });
+    check_ended_on_the_stop(r, out, stop_returned);
+    CHECK(has(out.what, "push (approach 60.00 mm"));
+    CHECK(r.sim->position_mm() < 59.0);
+}
+
+TEST(axis_outside_stop_ends_a_push_wait_in_its_push_at_once) {
+    Rig r(50.0);
+    Outcome out;
+    double stop_returned = 0.0;
+    stop_from_another_thread(r, [&] { r.ax->push(55.0, 40.0, 30.0, push_at(20.0)); }, out, stop_returned,
+                             [&] { return r.sim->moving() && r.sim->position_mm() > 57.0; });
+    check_ended_on_the_stop(r, out, stop_returned);
+    CHECK(has(out.what, "push (approach 55.00 mm"));
+    CHECK(r.sim->position_mm() < 94.0);
 }
 
 TEST(axis_outside_stop_a_pause_does_not_end_the_wait) {

@@ -306,13 +306,13 @@ std::optional<PushResult> Axis::Impl::push(double target, double band, double fo
     for (const auto& w : auto_servo_off_push_warnings()) warnings.push_back(w);
     for (const auto& w : warnings) log_warning(kAxisLog, "push: " + w);
     return guard([&]() -> std::optional<PushResult> {
-        send_direct(move);
+        const MoveWatch watch = send_direct(move);
         {
             std::lock_guard<std::mutex> lock(mutex);
             last_target.reset();  // a push ends where it meets the work
         }
         if (!o.wait) return std::nullopt;
-        const Status done = wait_push(target, zone, timeout);
+        const Status done = wait_push(target, zone, timeout, &watch);
         PushResult result;
         result.outcome = done.push_missed() ? kPushMissed : kPushContact;
         result.position_mm = done.position_mm;

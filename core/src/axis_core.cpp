@@ -677,8 +677,12 @@ std::optional<Status> Axis::Impl::enable_control(bool verify) {
 }
 
 void Axis::Impl::disable_control() {
-    if (!status().idle())
+    const Status st = status();
+    if (!st.idle()) {
+        const std::string blocker = detail::pause_blocker(st, false);
+        if (!blocker.empty()) throw EcNotReadyError("PMSL is not switched while the axis is not at rest: " + blocker);
         throw EcNotReadyError("the axis is moving: PMSL is never switched during motion; wait or stop() first");
+    }
     send_modbus_control(*bus, slave, false);
     recovery::ControlChange change;  // deliberate: not a restart sign for the link check (recovery.hpp)
     change.modbus_control = false;

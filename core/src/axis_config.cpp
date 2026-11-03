@@ -682,9 +682,12 @@ SoftwareResetResult Axis::Impl::software_reset(const SoftwareResetOptions& o) {
     const BusSuspension quiet = suspend_bus(*bus);  // every status monitor of this port (monitor.hpp)
     const double started = now_s();
     Status st = status();
-    if (!st.idle() || st.pushing())
+    if (!st.idle() || st.pushing()) {
+        const std::string blocker = detail::pause_blocker(st, true);
+        if (!blocker.empty()) throw EcNotReadyError("software reset only at rest: " + blocker + "; nothing sent");
         throw EcNotReadyError("software reset only at rest (not moving, pushing, paused or homing): the reset switches "
                               "the servo off first. Wait for the move to finish or stop() it; nothing sent");
+    }
     std::lock_guard<std::recursive_mutex> sequence(bus->sequence_mutex());
     {
         std::lock_guard<std::mutex> lock(mutex);

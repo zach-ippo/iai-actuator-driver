@@ -288,6 +288,11 @@ Status Axis::Impl::set_action_mode(bool pc, std::optional<bool> safety, bool ver
     Status st = status();
     // taking PC control from PIO: a pause at a standstill with the servo off is no refusal (axis_impl.hpp); the other ways need idle()
     const bool at_rest = pc && !st.modbus_enabled ? detail::at_rest_for_control(st) : st.idle();
+    if (!at_rest || st.pushing()) {
+        const std::string blocker = detail::pause_blocker(st, pc);
+        if (!blocker.empty())
+            throw EcNotReadyError("the action mode is only switched at rest: " + blocker + "; nothing sent");
+    }
     if (!at_rest || st.pushing())
         throw EcNotReadyError(std::string("the action mode is only switched at rest (switching control mid-move stops "
                                           "the move); wait or stop() first (") +

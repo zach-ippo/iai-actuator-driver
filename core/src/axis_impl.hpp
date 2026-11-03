@@ -170,6 +170,18 @@ inline bool at_rest_for_control(const Status& st) {
            *st.raw.vnow == 0;
 }
 
+/// Why a paused axis standing still is not at rest for a command, with the way out; "" when it is moving, pushing,
+/// homing or not paused (the callers keep their own text). In PIO mode (PMSS 0) the pause is the PIO's: a PCON with
+/// nothing on its PIO connector shows STP at rest (VERIFIED on a PCON-CB, 2026-11-03); resume() would not help there.
+/// pc_helps: taking PC control is a way out too (only with the servo off, as at_rest_for_control).
+inline std::string pause_blocker(const Status& st, bool pc_helps) {
+    if (!st.paused() || st.moving || st.homing() || st.pushing()) return std::string();
+    if (st.modbus_enabled) return "the axis is paused (DSS1 STP on): resume() or stop() it first";
+    return std::string("the unit is in PIO mode (PMSS 0) and the PIO holds the pause (DSS1 STP on): ") +
+           (pc_helps && !st.servo_on ? "take PC control first (set_action_mode) or release *STP on the PIO connector"
+                                     : "release *STP on the PIO connector first");
+}
+
 /// The hook a coordinated run sets on each of its axes (coord.hpp, src/coord_run.cpp): called by Axis::Impl::note_stop
 /// before a STOP, pause or servo OFF goes to the axis, so that none of the run's frames follows it.
 struct StopHook {

@@ -333,6 +333,8 @@ std::optional<Status> Axis::Impl::change_move(std::optional<double> speed, std::
         move = last_move;
     }
     const Status st = status();
+    if (st.paused() && !st.moving && !st.homing() && !st.pushing())  // a pause at a standstill: name it, not the missing move
+        throw EcNotReadyError(detail::pause_blocker(st, false) + "; nothing sent");
     if (!move || !st.moving || !motion_pending.load())
         throw EcNotReadyError("no 0x9900 move of this object is in progress (a push, a stored-row or a command-profile "
                               "move cannot be changed this way); nothing sent");

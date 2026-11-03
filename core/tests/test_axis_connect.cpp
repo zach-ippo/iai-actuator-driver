@@ -176,6 +176,49 @@ TEST(axis_connect_pcon_pc_control_is_taken_back_while_paused_at_rest_in_pio_mode
     CHECK(st.idle());
 }
 
+namespace {
+template <class F>
+std::string refusal_of(F&& f) {
+    try {
+        f();
+    } catch (const EcNotReadyError& e) {
+        return e.what();
+    }
+    return std::string();
+}
+bool has(const std::string& text, const std::string& part) { return text.find(part) != std::string::npos; }
+}  // namespace
+
+TEST(axis_connect_pcon_refusals_name_the_pio_mode_or_the_pause_not_a_move) {
+    auto sim = make_sim(SimProfile::Pcon);
+    Axis ax = open_sim(sim);
+    ax.set_action_mode(false);  // PIO mode, nothing on the PIO connector: paused at rest, servo off
+    sim->clear_requests();
+    for (const std::string& text : {refusal_of([&] { ax.disable_modbus_control(); }),
+                                    refusal_of([&] { ax.set_action_mode(false); }),
+                                    refusal_of([&] { ax.software_reset(); })}) {
+        CHECK(has(text, "PIO mode (PMSS 0)"));
+        CHECK(has(text, "*STP"));
+        CHECK(!has(text, "is moving"));
+        CHECK(!has(text, "stop() it"));
+    }
+    CHECK(has(refusal_of([&] { ax.software_reset(); }), "take PC control"));
+    // paused by the driver in PC mode: the pause is named, with resume()
+    ax.set_action_mode(true);
+    ax.pause();
+    for (const std::string& text : {refusal_of([&] { ax.disable_modbus_control(); }),
+                                    refusal_of([&] { ax.set_action_mode(false); }),
+                                    refusal_of([&] { ax.software_reset(); })}) {
+        CHECK(has(text, "paused (DSS1 STP on)"));
+        CHECK(has(text, "resume()"));
+        CHECK(!has(text, "is moving"));
+    }
+    const std::string changed = refusal_of([&] { ax.change_speed(20.0); });  // not "no move is in progress"
+    CHECK(has(changed, "paused (DSS1 STP on)"));
+    CHECK(has(changed, "nothing sent"));
+    ax.resume();
+}
+
 TEST(axis_connect_pcon_servo_on_after_taking_pc_control_with_the_action_mode) {
     // On the PCON-CB every 0x45 cmd 0x0C with op1 = 1 cleared DSSE b12, and servo ON was then ignored (no alarm, no cause
     // shown) until a PMSL coil OFF (VERIFIED, 2026-11-02; the simulator's PCON models it). set_action_mode(PC) takes

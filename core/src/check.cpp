@@ -608,7 +608,9 @@ private:
             return;
         }
         if (st.paused()) {
-            add("motion", kCheckFail, "axis is paused (STP on); resume it first");
+            add("motion", kCheckFail, st.modbus_enabled ? "axis is paused (STP on); resume it first"
+                                                        : "unit is in PIO mode (PMSS 0): the PIO holds the pause (STP on); "
+                                                          "take PC control or release *STP on the PIO connector first");
             return;
         }
         const Span eff = *effective_stroke();

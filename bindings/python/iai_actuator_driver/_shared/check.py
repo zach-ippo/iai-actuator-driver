@@ -450,7 +450,11 @@ def _check_motion(
         add("motion", FAIL, "axis has an alarm" if st.alarm else "axis is not homed; run 'home' first")
         return
     if st.paused:
-        add("motion", FAIL, "axis is paused (STP on); resume it first")
+        if st.modbus_enabled:
+            add("motion", FAIL, "axis is paused (STP on); resume it first")
+        else:
+            add("motion", FAIL, "unit is in PIO mode (PMSS 0): the PIO holds the pause (STP on); "
+                                "take PC control or release *STP on the PIO connector first")
         return
     eff = ec.effective_stroke
     assert eff is not None

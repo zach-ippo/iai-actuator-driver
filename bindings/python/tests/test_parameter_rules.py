@@ -16,7 +16,7 @@ from iai_actuator_driver import alarms as A
 from iai_actuator_driver import con_params as C
 from iai_actuator_driver import info as I
 from iai_actuator_driver import registers as R
-from iai_actuator_driver.check import PASS, WARN, run_check
+from iai_actuator_driver.check import FAIL, PASS, WARN, run_check
 from iai_actuator_driver.ec import IndexCategory
 from iai_actuator_driver.errors import SoftLimitError
 from iai_actuator_driver.modbus import ModbusRTU
@@ -274,6 +274,16 @@ class ConGuardTest(unittest.TestCase):
         with ec:
             data = ec.unit_info(sections=["identity", "parameters"])
         self.assertEqual(data["parameters"]["range_check"]["findings"], [])
+
+    def test_check_motion_in_pio_mode_names_the_pio_not_a_pause_to_resume(self) -> None:
+        ec, _, _ = open_axis("pcon")
+        with ec:
+            ec.set_action_mode(False)  # PIO mode, nothing on the PIO connector: the unit shows STP at rest
+            report = run_check(ec, motion=True, port_label="sim")
+        item = {i.name: i for i in report.items}["motion"]
+        self.assertEqual(item.result, FAIL)
+        self.assertIn("PIO mode (PMSS 0)", item.detail)
+        self.assertNotIn("resume it first", item.detail)
 
     def test_ec_check_warns_on_a_band_below_the_minimum(self) -> None:
         ec, _, _ = open_axis("pcon")

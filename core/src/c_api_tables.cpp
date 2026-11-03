@@ -814,6 +814,33 @@ const std::map<std::string, Function>& functions() {
                      findings.push_back(f);
                  }
              }
+             // the soft limits must not be inverted: + (No.3) below - (No.4)
+             const PyValue* plus = nullptr;
+             const PyValue* minus = nullptr;
+             for (const auto& kv : values) {
+                 if (kv.second.kind == PyValue::Kind::None) continue;
+                 if (kv.first == 3) plus = &kv.second;
+                 if (kv.first == 4) minus = &kv.second;
+             }
+             if (plus != nullptr && minus != nullptr) {
+                 try {
+                     const ConParam* p3 = con_parameter(3);
+                     const ConParam* p4 = con_parameter(4);
+                     const ParamValue v3 = con_detail::parse(con_detail::for_family(*p3, fam.value_or("")), param_value(*plus));
+                     const ParamValue v4 =
+                         con_detail::parse(con_detail::for_family(*p4, fam.value_or("")), param_value(*minus));
+                     const std::string problem = v3.number && v4.number
+                                                     ? con_detail::inverted_soft_limits(*v3.number, *v4.number)
+                                                     : std::string();
+                     if (!problem.empty()) {
+                         Json f = Json::object();
+                         f.set("number", 3);
+                         f.set("problem", problem);
+                         findings.push_back(f);
+                     }
+                 } catch (const std::invalid_argument&) {  // an unparsable value is a finding of its own, above
+                 }
+             }
              return findings;
          }},
         {"con_params.parameter_table",

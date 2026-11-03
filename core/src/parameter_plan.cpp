@@ -497,6 +497,22 @@ ParameterWritePlan plan_con(const ParameterContext& ctx, int no, const ParamValu
     const std::string widen =
         widens_soft_limit(p.class_id, p.item_id, item->signed_value(), static_cast<std::int32_t>(new_raw));
     if (!widen.empty()) warnings.push_back(widen);
+    if (p.no == 3 || p.no == 4) {
+        // the soft limits: + (No.3) must not fall below - (No.4); the other one is read from the unit (ON-WIRE, PCON-CB)
+        const bool plus = p.no == 3;
+        const ClassItem* other = find_item(ctx.classes, reg::kLimitParamsCategory,
+                                           plus ? reg::kAxisItemLiml : reg::kAxisItemLimm);
+        const std::int32_t mine = static_cast<std::int32_t>(new_raw);
+        const std::string unit_text = " " + con_unit(p, ctx.units);
+        if (other != nullptr && (plus ? mine < other->signed_value() : mine > other->signed_value())) {
+            throw SoftLimitError(util::format(
+                "No.%d: the soft limit %s %s%s would lie %s the soft limit %s (No.%d, %s%s): the limits would be inverted; "
+                "write No.%d first; nothing written",
+                p.no, plus ? "+" : "-", util::fixed(mine * 0.01, 2).c_str(), unit_text.c_str(),
+                plus ? "below" : "above", plus ? "-" : "+", plus ? 4 : 3,
+                util::fixed(other->signed_value() * 0.01, 2).c_str(), unit_text.c_str(), plus ? 4 : 3));
+        }
+    }
     // the reset warning is the Axis's: added only to a write that is not skipped (axis_config.cpp)
 
     const ParamValue before_value = con_detail::decode(p, item->raw);

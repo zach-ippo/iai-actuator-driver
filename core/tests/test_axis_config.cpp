@@ -220,6 +220,19 @@ TEST(axis_config_con_pio_pattern_above_mxpt_is_refused) {
     CHECK_EQ(fc10_frames(sim->requests()), 0);
 }
 
+TEST(axis_config_con_inverted_soft_limits_are_refused) {
+    auto sim = make_sim(SimProfile::Pcon);
+    Axis ax = open_sim(sim);
+    ax.connect();
+    const double minus = *ax.read_parameter(4).value.number;
+    sim->clear_requests();
+    CHECK_THROWS(ax.write_parameter(3, minus - 1.0), SoftLimitError);   // No.3 below No.4
+    CHECK_THROWS(ax.write_parameter(4, 100000.0), SoftLimitError);
+    const std::string text = what_of([&] { ax.write_parameter(3, minus - 1.0); });
+    CHECK(text.find("inverted") != std::string::npos);
+    CHECK_EQ(fc10_frames(sim->requests()), 0);
+}
+
 TEST(axis_config_parameters_list_ec_and_con) {
     auto gripper = make_sim(SimProfile::Gripper);
     Axis ec = open_sim(gripper);

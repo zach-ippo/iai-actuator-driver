@@ -1166,6 +1166,19 @@ Json con_range_check(const std::vector<ParameterInfo>& numbered, const std::stri
             findings.push_back(f);
         }
     }
+    // the soft limits must not be inverted: + (No.3) below - (No.4)
+    const auto plus = values.find(3);
+    const auto minus = values.find(4);
+    if (plus != values.end() && minus != values.end() && plus->second.number && minus->second.number) {
+        const std::string problem = con_detail::inverted_soft_limits(*plus->second.number, *minus->second.number);
+        if (!problem.empty()) {
+            Json f = Json::object();
+            f.set("number", 3);
+            f.set("value", to_json(plus->second));
+            f.set("problem", problem);
+            findings.push_back(f);
+        }
+    }
     Json out = Json::object();
     out.set("family", fam);
     out.set("unit_limits", unit);

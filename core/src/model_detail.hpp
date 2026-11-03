@@ -98,6 +98,8 @@ UnitLimits unit_limits(const std::map<int, ClassBlock>& classes,
                        const std::optional<std::map<std::string, std::uint32_t>>& support);
 Check check_value(const ConParam& p, const ParamValue& value, const std::string& family, const UnitLimits& unit);
 std::string note_of(int no);
+/// The audit's finding when the soft limit + (No.3) lies below the soft limit - (No.4), else "" (no unit read).
+std::string inverted_soft_limits(double plus, double minus);
 std::pair<int, int> baud_range();
 
 /// A number with its Python type: `decimal` = a float in the Python edition's table (1.00, 0.0), else an int.

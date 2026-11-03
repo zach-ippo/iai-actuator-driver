@@ -675,6 +675,12 @@ Check check_value(const ConParam& p, const ParamValue& value, const std::string&
     return out;
 }
 
+std::string inverted_soft_limits(double plus, double minus) {
+    if (!(plus < minus - 1e-9)) return std::string();
+    return util::format("No.3: the soft limit + %s lies below the soft limit - (No.4, %s): the limits are inverted",
+                        util::fixed(plus, 2).c_str(), util::fixed(minus, 2).c_str());
+}
+
 // ------------------------------------------------------------------------------------------ the tables (bindings)
 
 std::vector<std::pair<int, int>> baud_codes() {

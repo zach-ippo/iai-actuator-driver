@@ -264,6 +264,17 @@ class ConGuardTest(unittest.TestCase):
         self.assertEqual((numbered[10]["category"], numbered[10]["family_min"]), ("B", 0.01))
         self.assertEqual((numbered[88]["category"], numbered[88]["dangerous"]), ("D", True))
 
+    def test_audit_finds_inverted_soft_limits(self) -> None:
+        findings = C.audit({3: 3.0, 4: 5.0}, family="PCON", unit=C.ConUnitLimits())
+        self.assertEqual([(f["number"], f["value"]) for f in findings], [(3, 3.0)])
+        self.assertIn("inverted", findings[0]["problem"])
+        self.assertEqual(C.audit({3: 5.0, 4: 3.0}, family="PCON", unit=C.ConUnitLimits()), [])
+        self.assertEqual(C.audit({3: 3.0}, family="PCON", unit=C.ConUnitLimits()), [])
+        ec, _, _ = open_axis("pcon")
+        with ec:
+            data = ec.unit_info(sections=["identity", "parameters"])
+        self.assertEqual(data["parameters"]["range_check"]["findings"], [])
+
     def test_ec_check_warns_on_a_band_below_the_minimum(self) -> None:
         ec, _, _ = open_axis("pcon")
         with ec:

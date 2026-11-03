@@ -48,7 +48,7 @@ library you built (`python build.py shared` in `core/`).
 | `--src DIR` / `--native DIR` / `--backend` | Test a source tree instead of the installed package / the native core library to load / `auto` or `native` (both the core: the pure-Python fallback was removed after 1.0.x). |
 | `--yes` | Do not wait for Enter. A run on a real port needs this or a terminal; with neither it ends before the port is opened. |
 | `--sim-profile`, `--sim-baud`, `--sim-time-scale` | `--sim` only: the simulated unit (`gripper` by default; `slider`, `rod`, `pcon`, `rotary`), its baud rate, its speed. The rod, rotary and unknown profiles start at 0, outside the default band: add `--stroke-band 0:10000`. |
-| `--sim-scenario NAME` | `--sim` only, to rehearse the safety paths: `alarm`, `warning`, `cold`, `outside`, `pio-input`, `obstacle`, `fault`, `interrupt`. |
+| `--sim-scenario NAME` | `--sim` only, to rehearse the safety paths: `alarm`, `warning`, `other-warning`, `cold`, `outside`, `pio-input`, `obstacle`, `fault`, `interrupt`. |
 
 On a rotary unit read mm as degrees everywhere.
 
@@ -83,7 +83,11 @@ axis into the band by hand.
   is sent. The unit is put back at its start position.
 - PC mode is taken back on every exit path. The unit is not handed to PIO while any PIO input is on, or when the input
   word cannot be read.
-- The harness never clears an alarm and never starts with one.
+- The harness never clears an alarm and never starts with one, except the message-level alarm 0x069 (the calendar
+  clock stopped) that a unit with its calendar on shows after a power-up (VERIFIED on the PCON-CB): that one is the
+  unit's normal state; it is recorded and the end is compared against it (gone at the end, cleared by an alarm reset
+  such as recover() sends, is as found with a note: CHECK). Any other start alarm, also of the message level, is
+  refused.
 - A run on a real port with no terminal and no `--yes` ends before the port is opened. No option skips the backup, the
   band or the end sequence.
 

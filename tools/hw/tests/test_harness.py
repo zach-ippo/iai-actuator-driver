@@ -25,6 +25,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from tools.hw import cli_edition, common, main as harness, pio_watch, python_edition, session  # noqa: E402
+from tools.hw import power_cycle, report  # noqa: E402
 
 SRC = ROOT / "bindings" / "python"
 SRC_ARGS = ["--src", str(SRC)] if (SRC / "iai_actuator_driver").is_dir() else []
@@ -121,8 +122,74 @@ class AlarmAtEndTest(unittest.TestCase):
         self.assertEqual(common.alarm_at_end(0, 0, set(), False), (True, None))
         self.assertEqual(common.alarm_at_end(0, 0x069, set(), True), (False, None))  # a new alarm
         self.assertEqual(common.alarm_at_end(0x069, 0x06A, {0x069}, True), (False, None))  # another code at the end
-        self.assertEqual(common.alarm_at_end(0x069, 0, set(), True), (False, None))  # gone, but recover() did not reset it
         self.assertEqual(common.alarm_at_end(0x0A1, 0, {0x0A1}, False), (False, None))  # a fault-level alarm
+        self.assertEqual(common.alarm_at_end(0x04E, 0, {0x04E}, True), (False, None))  # only 0x069 may be gone
+        self.assertEqual(common.alarm_at_end(0x069, 0, set(), False), (False, None))  # 0x069 not at message level
+
+    def test_the_power_up_alarm_cleared_another_way_is_as_found(self) -> None:
+        ok, note = common.alarm_at_end(0x069, 0, set(), True)  # e.g. an alarm reset edge of the driver during the run
+        self.assertTrue(ok)
+        self.assertIn("alarm 0x069, the unit's normal message-level state at the start, was cleared during the run",
+                      note)
+
+    def test_only_0x069_is_a_normal_start_alarm(self) -> None:
+        self.assertIsNone(common.start_alarm_problem(False, 0))
+        self.assertIsNone(common.start_alarm_problem(False, 0x069))
+        self.assertIn("0x04E, a message-level alarm other than 0x069", common.start_alarm_problem(False, 0x04E))
+        self.assertEqual(common.start_alarm_problem(True, 0x069), "alarm 0x069")  # a fault: refused whatever the code
+        self.assertEqual(common.start_alarm_problem(True, 0x0A1), "alarm 0x0A1")
+
+
+class StartAlarmTest(unittest.TestCase):
+    """pio-watch, power-cycle and the command-line edition apply the same start rule: 0x069 at message level goes on,
+    another message-level alarm (0x04E) is refused before anything is sent."""
+
+    @staticmethod
+    def status(code: int) -> SimpleNamespace:
+        return SimpleNamespace(position_mm=5.0, servo_on=True, homed=True, in_position=True, moving=False, alarm=False,
+                               alarm_code=code, modbus_enabled=True, safety_speed=False)
+
+    def check(self, start: Any, refused_text: str) -> None:
+        self.assertEqual(start(0x069)[0], report.PASS)
+        with self.assertRaises(report.Abort) as refused:
+            start(0x04E)
+        self.assertIn("alarm 0x04E, a message-level alarm other than 0x069", str(refused.exception))
+        self.assertIn(refused_text, str(refused.exception))
+
+    def test_pio_watch(self) -> None:
+        def start(code: int) -> Any:
+            watch = pio_watch.PioWatch.__new__(pio_watch.PioWatch)
+            watch.raw = mock.Mock(baudrate=38400, status=lambda: self.status(code))
+            watch.remember = lambda where, st: None  # type: ignore[method-assign]
+            return watch._state()
+
+        self.check(start, "the harness never clears an alarm")
+
+    def test_power_cycle(self) -> None:
+        def start(code: int) -> Any:
+            cycle = power_cycle.PowerCycle.__new__(power_cycle.PowerCycle)
+            cycle.args = SimpleNamespace(stroke_band=("pct", 60, 60), speed_cap=10.0)
+            cycle.raw = mock.Mock(baudrate=session.POWER_UP_BAUD, status=lambda: self.status(code),
+                                  ec_stroke=(0.0, 10.0), effective_stroke=(2.0, 8.0), speed_cap_mm_s=10.0,
+                                  accel_cap_g=0.1)
+            cycle.remember = lambda where, st: None  # type: ignore[method-assign]
+            return cycle._preflight()
+
+        self.check(start, "the start state is not what this test needs")
+
+    def test_the_command_line_edition(self) -> None:
+        limits = json.dumps({"position": {"min": 0.0, "max": 10.0}, "speed": {"max": 10.0}, "accel": {"max": 0.1}})
+
+        def start(code: int) -> Any:
+            edition = cli_edition.CliEdition.__new__(cli_edition.CliEdition)
+            edition.args = SimpleNamespace(stroke_band=("pct", 60, 60), speed_cap=10.0)
+            edition.selected, edition.caps, edition.geo, edition.motion_ok = ["status"], [], None, False
+            edition.status = lambda: {**vars(self.status(code)), "raw": {"DIPM": 0}}  # type: ignore[method-assign]
+            edition.cli = lambda *words, **kw: cli_edition.Result(  # type: ignore[method-assign]
+                0, limits, "", 0.1, list(words))
+            return edition._preflight()
+
+        self.check(start, "not touching the unit")
 
 
 class SafetyRulesTest(unittest.TestCase):
@@ -257,6 +324,42 @@ class PythonEditionTest(unittest.TestCase):
             self.assertIn("reset by recover()", end["detail"])
             self.assertEqual(summary["start_state"]["alarm_code"], 0x069)
             self.assertEqual(summary["end_state"]["alarm_reset_by_recover"], 0x069)
+
+    def test_a_start_alarm_0x069_cleared_during_the_run_is_the_units_normal_state(self) -> None:
+        # after a power-up the unit shows 0x069; an alarm reset in the run (not recover()) clears it: as found, CHECK
+        status = python_edition.PythonEdition.s_status
+
+        def status_then_cleared(edition: Any) -> Any:
+            result = status(edition)
+            edition.raw.reset_alarm()  # the unit's alarm is cleared in the middle of the run (test only)
+            return result
+
+        patch = mock.patch.object(python_edition.PythonEdition, "s_status", status_then_cleared)
+        with tempfile.TemporaryDirectory() as tmp, patch:
+            code, text, summary = run("--sim", "--sim-scenario", "warning", "--steps", "status,move_to", results=tmp)
+            v = verdicts(summary)
+            self.assertEqual((code, v["preflight"], v["status"], v["move_to"], v["end"]),
+                             (0, "PASS", "PASS", "PASS", "CHECK"), text[-3000:])
+            rows = {r["key"]: r["detail"] for r in summary["steps"]}
+            self.assertIn("alarm 0x069 at message level: the unit's normal state after a power-up", rows["preflight"])
+            self.assertIn("was cleared during the run", rows["end"])
+            self.assertNotIn("NOT AS FOUND", rows["end"])
+            self.assertEqual(summary["start_state"]["alarm_code"], 0x069)
+            self.assertEqual(summary["end_state"]["start_alarm_cleared"], 0x069)
+            self.assertNotIn("alarm_reset_by_recover", summary["end_state"])
+            self.assertEqual(summary["end_state"]["nonvolatile_writes"], 0)
+
+    def test_another_message_level_start_alarm_is_refused(self) -> None:
+        # strict: only 0x069 is a normal start state; the maintenance warning 0x04E keeps the unit untouched
+        with tempfile.TemporaryDirectory() as tmp:
+            code, text, summary = run("--sim", "--sim-scenario", "other-warning", "--steps", "status,move_to",
+                                      results=tmp)
+            self.assertEqual(code, 2, text[-2000:])
+            v = verdicts(summary)
+            self.assertEqual(v["backup"], "PASS")
+            self.assertNotIn("move_to", v)
+            self.assertNotIn("prepare", v)
+            self.assertIn("alarm 0x04E, a message-level alarm other than 0x069", text)
 
     def test_a_warning_left_alone_is_as_found(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

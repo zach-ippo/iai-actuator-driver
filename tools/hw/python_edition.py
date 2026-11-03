@@ -21,7 +21,8 @@ from types import SimpleNamespace
 from typing import Any
 
 from . import report
-from .common import TOL_MM, Geometry, StepDef, alarm_at_end, band_from_stroke, compare_backups, near, servo_across_toggle
+from .common import (NORMAL_START_ALARM, TOL_MM, Geometry, StepDef, alarm_at_end, band_from_stroke, compare_backups,
+                     near, servo_across_toggle, start_alarm_problem)
 from .report import CHECK, FAIL, PASS, Abort, Check, Skip, jsonable, pos_str
 from .session import ACCEL_G, EXIT_FAIL, EXIT_INTERRUPTED, EXIT_OK, EXIT_REFUSED, GuardedAxis, SetupError, confirm, open_axis
 from .summary import finish
@@ -194,6 +195,8 @@ class PythonEdition:
             self.sim.trigger_alarm(0x0A1)
         elif scenario == "warning":  # a message-level alarm (0x069, as on a PCON whose clock is not set): the unit still runs
             self.sim.trigger_alarm(0x069)
+        elif scenario == "other-warning":  # a message-level alarm other than 0x069 (maintenance warning 0x04E): refused
+            self.sim.trigger_alarm(0x04E)
         elif scenario == "pio-input":
             from iai_actuator_driver import registers
 
@@ -218,8 +221,10 @@ class PythonEdition:
                       "safety_speed": bool(getattr(st, "safety_speed", False)), "baudrate": raw.baudrate,
                       "alarm_code": st.alarm_code}
         problems = []
-        if st.alarm:
-            problems.append(f"alarm 0x{st.alarm_code:03X} (the harness never clears an alarm: clear it with the IAI PC software, then run again)")
+        why = start_alarm_problem(st.alarm, st.alarm_code)
+        if why:
+            problems.append(f"{why} (the harness never clears an alarm: clear it with the IAI PC software, then run "
+                            "again)")
         if st.emergency_stop:
             problems.append("an emergency stop is active")
         if st.moving:
@@ -245,6 +250,9 @@ class PythonEdition:
             else:
                 self.motion_ok = True
         text = pos_str(st) + f" baud {raw.baudrate}; " + (self.geo.describe() if self.geo else "no test band")
+        if not problems and st.alarm_code == NORMAL_START_ALARM:
+            text += (f"; alarm 0x{NORMAL_START_ALARM:03X} at message level: the unit's normal state after a power-up, "
+                     "recorded (the end is compared against it)")
         if problems:
             raise Abort("not touching the unit: " + "; ".join(problems) + " | " + text)
         if selected_motion and not self.motion_ok:
@@ -802,7 +810,9 @@ class PythonEdition:
                                             drv_alarms.alarm_name(code) if code else None)
         if alarm_note:
             self.notes.append(alarm_note)
-            self.end_info["alarm_reset_by_recover"] = code
+            self.end_info["start_alarm_cleared"] = code
+            if code in self.recover_cleared:
+                self.end_info["alarm_reset_by_recover"] = code
         checks = {"PC mode" if self.changed else "mode as found": st.modbus_enabled == (True if self.changed else start["pc_mode"]),
                   alarm_label: alarm_ok,
                   f"baud {start['baudrate']}": raw.baudrate == start["baudrate"],

@@ -41,6 +41,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from . import report
+from .common import start_alarm_problem
 from .interactive import Interactive
 from .python_edition import restore_pc_mode
 from .report import PASS, Abort, jsonable, pos_str
@@ -299,8 +300,9 @@ class PioWatch(Interactive):
         problems = []
         if st.moving:
             problems.append("the axis is moving")
-        if st.alarm:
-            problems.append(f"fault alarm 0x{st.alarm_code:03X} (the harness never clears an alarm)")
+        why = start_alarm_problem(st.alarm, st.alarm_code)
+        if why:
+            problems.append(f"{why} (the harness never clears an alarm)")
         if problems:
             raise Abort("; ".join(problems) + " | " + pos_str(st))
         note = "" if st.modbus_enabled else " | NOTE: PC control was already off (PIO mode) at the start; PC mode is still restored at the end"

@@ -32,7 +32,7 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Any
 
-from .common import Geometry, band_from_stroke, near
+from .common import Geometry, band_from_stroke, near, start_alarm_problem
 from .interactive import Interactive
 from .report import CHECK, FAIL, PASS, Abort, Check, Skip, pos_str
 from .session import (ACCEL_G, EXIT_END, EXIT_INTERRUPTED, EXIT_NO_BACK, EXIT_NO_LOSS, EXIT_RECOVER, EXIT_REFUSED, POWER_UP_BAUD, SetupError,
@@ -221,8 +221,9 @@ class PowerCycle(Interactive):
         st = raw.status()
         self.remember("preflight", st)
         problems = []
-        for ok, text in ((st.servo_on, "servo is off"), (st.homed, "not homed"), (st.modbus_enabled, "not in PC mode"), (not st.alarm, f"alarm 0x{st.alarm_code:03X}"),
-                         (not st.moving, "the axis is moving")):
+        why = start_alarm_problem(st.alarm, st.alarm_code)
+        for ok, text in ((st.servo_on, "servo is off"), (st.homed, "not homed"), (st.modbus_enabled, "not in PC mode"),
+                         (not why, why), (not st.moving, "the axis is moving")):
             if not ok:
                 problems.append(text)
         if raw.baudrate != POWER_UP_BAUD:

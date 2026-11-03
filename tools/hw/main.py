@@ -42,13 +42,17 @@ def build_run_parser() -> argparse.ArgumentParser:
                              "'default,recover' adds one. See --list-steps")
     parser.add_argument("--skip", default="", metavar="LIST", help="comma list of steps to leave out")
     parser.add_argument("--list-steps", action="store_true", help="print the steps of the edition and what each checks, then exit")
-    parser.add_argument("--sim-scenario", choices=("normal", "alarm", "warning", "cold", "outside", "pio-input", "obstacle", "fault", "interrupt"),
+    parser.add_argument("--sim-scenario", choices=("normal", "alarm", "warning", "other-warning", "cold", "outside",
+                                                   "pio-input", "obstacle", "fault", "interrupt"),
                         default="normal", metavar="NAME",
-                        help="--sim only, to rehearse the safety paths: alarm (the unit starts with an alarm: refused), warning (it starts "
-                             "with the message-level alarm 0x069, which the recover step resets: the end is CHECK), cold (servo off, "
-                             "PIO mode), outside (starts outside the band), pio-input (a PIO input is on), obstacle (something is in the "
-                             "push path: contact), fault (the unit stops answering in the middle: a step fails and the unit is put back), interrupt "
-                             "(Ctrl+C in the middle of the run)")
+                        help="--sim only, to rehearse the safety paths: alarm (the unit starts with an alarm: "
+                             "refused), warning (it starts with the message-level alarm 0x069, the unit's normal state "
+                             "after a power-up; when a step such as recover resets it the end is CHECK), "
+                             "other-warning (it starts with another message-level alarm, 0x04E: refused), cold (servo "
+                             "off, PIO mode), outside (starts outside the band), pio-input (a PIO input is on), "
+                             "obstacle (something is in the push path: contact), fault (the unit stops answering in "
+                             "the middle: a step fails and the unit is put back), interrupt (Ctrl+C in the middle of "
+                             "the run)")
     parser.add_argument("--cli-exe", metavar="PATH",
                         help="the command-line program for --edition cli / csharp (default: looked for next to the native core, in the "
                              "build folders and on PATH); a .dll is run with dotnet")

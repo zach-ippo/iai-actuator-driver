@@ -24,7 +24,8 @@ from types import SimpleNamespace
 from typing import Any
 
 from . import report
-from .common import TOL_MM, Geometry, StepDef, alarm_at_end, band_from_stroke, compare_backups, near, servo_across_toggle
+from .common import (NORMAL_START_ALARM, TOL_MM, Geometry, StepDef, alarm_at_end, band_from_stroke, compare_backups,
+                     near, servo_across_toggle, start_alarm_problem)
 from .report import CHECK, FAIL, PASS, Abort, Check, Skip
 from .session import ACCEL_G, EXIT_FAIL, EXIT_INTERRUPTED, EXIT_OK, EXIT_REFUSED, SetupError, confirm
 from .summary import finish
@@ -310,8 +311,9 @@ class CliEdition:
         self.start = {"position_mm": st["position_mm"], "servo_on": st["servo_on"], "homed": st["homed"], "pc_mode": st["modbus_enabled"],
                       "alarm_code": st["alarm_code"], "dipm": (st.get("raw") or {}).get("DIPM")}
         problems = []
-        if st["alarm"]:
-            problems.append(f"alarm 0x{st['alarm_code']:03X} (the harness never clears an alarm)")
+        why = start_alarm_problem(st["alarm"], st["alarm_code"])
+        if why:
+            problems.append(f"{why} (the harness never clears an alarm)")
         if st.get("emergency_stop"):
             problems.append("an emergency stop is active")
         if st["moving"]:
@@ -345,6 +347,9 @@ class CliEdition:
                 self.motion_ok = True
         text = (f"pos {st['position_mm']:.2f} servo {int(st['servo_on'])} homed {int(st['homed'])} alarm 0x{st['alarm_code']:03X} pc "
                 f"{int(st['modbus_enabled'])}; " + (self.geo.describe() if self.geo else "no test band"))
+        if not problems and st["alarm_code"] == NORMAL_START_ALARM:
+            text += (f"; alarm 0x{NORMAL_START_ALARM:03X} at message level: the unit's normal state after a power-up, "
+                     "recorded (the end is compared against it)")
         if problems:
             raise Abort("not touching the unit: " + "; ".join(problems) + " | " + text)
         if any(s.needs for s in STEPS if s.key in self.selected) and not self.motion_ok:
@@ -602,8 +607,10 @@ class CliEdition:
             self.notes.append(note)
             return PASS, note
         st = self.status()
-        # recover() resets only message-level alarms, so a code in its alarms_cleared is a warning
+        # a start alarm passed the preflight only as the message-level 0x069 (start_alarm_problem)
         alarm_ok, alarm_note = alarm_at_end(start["alarm_code"], st["alarm_code"], self.recover_cleared, True)
+        if alarm_note:
+            self.end_info["start_alarm_cleared"] = start["alarm_code"]
         checks = {"PC mode" if self.changed else "mode as found": st["modbus_enabled"] == (True if self.changed else start["pc_mode"]),
                   "alarm as found": alarm_ok,
                   "servo as found": st["servo_on"] == start["servo_on"]}

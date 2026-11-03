@@ -10,6 +10,10 @@ from typing import Any, Sequence
 from .session import ACCEL_G
 
 TOL_MM = 0.1  # a move counts as arrived when the unit is within this of the target (the move's own in-position band)
+# the one start alarm taken as the unit's normal state: the message-level alarm 0x069 (the calendar clock stopped) that a
+# unit with its calendar (RTC) on raises at power-up (VERIFIED on the PCON-CB, 2026-11-03: one alarm reset clears it).
+# Any other start alarm is refused (start_alarm_problem).
+NORMAL_START_ALARM = 0x069
 LIVE_CLASSES = (3, 4)  # the backup's live monitor classes (position, status words, counters): they change by themselves and are left out of the comparison
 
 
@@ -149,16 +153,30 @@ def compare_backups(start: dict[str, Any], end: dict[str, Any]) -> dict[str, Any
             "live_items_changed": sum(1 for k in differs if _is_live(k[0])), "rows_checked": len(rb), "rows_changed": rows_changed, "alarm_history_same": alarms_same}
 
 
+def start_alarm_problem(fault: bool, code: int) -> str | None:
+    """The alarm rule of the start state: ``None`` when the run may go on, else why the unit is not touched. No alarm
+    code, or the message-level alarm 0x069 alone (:data:`NORMAL_START_ALARM`, the unit's normal state after a power-up:
+    it is recorded and the end is compared against it), is fine. A fault, or any other alarm code, also of the message
+    level, is refused."""
+    if fault:
+        return f"alarm 0x{code:03X}"
+    if code and code != NORMAL_START_ALARM:
+        return (f"alarm 0x{code:03X}, a message-level alarm other than 0x{NORMAL_START_ALARM:03X} (the one start alarm "
+                "taken as normal)")
+    return None
+
+
 def alarm_at_end(start_code: int, end_code: int, reset_by_recover: Any, message_level: bool,
                  name: str | None = None) -> tuple[bool, str | None]:
-    """The alarm of the end check: ``(as found, note)``. The same code as at the start is as found. A message-level alarm
-    (a warning) that was present at the start and that recover() reset (it is in the report's ``alarms_cleared``; recover()
-    resets only message-level ones) is not a failure, but a person should look: the note names it (the step is CHECK).
+    """The alarm of the end check: ``(as found, note)``. The same code as at the start is as found. The message-level
+    alarm 0x069 present at the start (the unit's normal state after a power-up) and gone at the end is as found too:
+    one alarm reset clears it, and steps such as recover() may send one. The note names it (the step is CHECK).
     Anything else, a new alarm, another code or a fault-level one, is not as found (FAIL)."""
     if end_code == start_code:
         return True, None
-    if start_code and not end_code and message_level and start_code in set(reset_by_recover or ()):
+    if start_code == NORMAL_START_ALARM and not end_code and message_level:
         what = f"alarm 0x{start_code:03X}" + (f" ({name})" if name else "")
-        return True, (f"{what}, a message-level warning present at the start, was reset by recover(): the unit no longer "
+        how = "was reset by recover()" if start_code in set(reset_by_recover or ()) else "was cleared during the run"
+        return True, (f"{what}, the unit's normal message-level state at the start, {how}: the unit no longer "
                       "reports it")
     return False, None

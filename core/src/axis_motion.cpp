@@ -34,6 +34,7 @@ constexpr int kRejectHomingIai = reg::kRejectHoming;
 constexpr int kRejectHomingFc48 = 0x1006;
 constexpr std::uint32_t kEcSmoothAccelBit = 1u << 6;  ///< EC 8.14 b6 = P5 smooth acceleration (VERIFIED item mapping)
 constexpr int kConPhspItem = 1;                       ///< CON 9.1 PHSP: No.29 b0-15 (ms), No.30 b17-18
+constexpr std::uint16_t kConDsseB12 = 1u << 12;  ///< CON DSSE b12 (unnamed): 0 = servo ON ignored (VERIFIED, PCON-CB)
 
 std::string f2(double v) { return util::fixed(v, 2); }
 std::string gs(double v) { return util::g(v); }
@@ -365,6 +366,13 @@ std::vector<std::string> Axis::Impl::servo_blockers(const Status& st, bool after
     if (!st.excitation_done())
         reasons.push_back("the excitation detection of a first servo ON is still running (DSSE PSNS = 0; DOC PCON "
                           "p.4-24)");
+    // CON: b12 cleared by an action-mode PC frame (0x45 cmd 0x0C op1 = 1, e.g. from driver 1.0.0 or another program)
+    // with PMSS left at 1; only a PMSL coil OFF sets it again (VERIFIED on the PCON-CB; axis_strategy.cpp). Not read
+    // on the EC, nor behind RCON (b12 undefined there; DOC ME0413 p.5-15).
+    if (reasons.empty() && !st.servo_on && st.modbus_enabled && !(st.raw.dsse & kConDsseB12) && !st.line && !is_ec())
+        reasons.push_back("DSSE b12 reads 0 with Modbus control already on (PMSS = 1): the unit ignores servo ON until "
+                          "the PMSL coil goes OFF; switch Modbus control off then on at rest (PMSL OFF, then ON; "
+                          "VERIFIED on the PCON-CB)");
     return reasons;
 }
 

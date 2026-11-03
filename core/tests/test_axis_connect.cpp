@@ -249,7 +249,18 @@ TEST(axis_connect_pcon_servo_on_after_taking_pc_control_with_the_action_mode) {
     ax.servo(false);
     // the model itself: the action mode PC by its frame blocks servo ON until a PMSL coil OFF
     send_action_mode(*ax.bus(), 1, true, false);
-    CHECK_THROWS(ax.servo(true, true, 1.0), EcDriverError);
+    bool threw = false;
+    try {
+        ax.servo(true, true, 1.0);
+    } catch (const ServoBlockedError& e) {  // PMSS 1 and b12 0: the cause and the remedy, not "no known cause"
+        threw = true;
+        const std::string what = e.what();
+        CHECK(what.find("DSSE b12 reads 0") != std::string::npos);
+        CHECK(what.find("PMSL OFF, then ON") != std::string::npos);
+        CHECK(what.find("no known cause") == std::string::npos);
+        REQUIRE(e.reasons().size() == 1u);
+    }
+    CHECK(threw);
     CHECK(!sim->servo_on());
     send_modbus_control(*ax.bus(), 1, false);
     send_modbus_control(*ax.bus(), 1, true);

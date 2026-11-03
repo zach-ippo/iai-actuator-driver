@@ -55,7 +55,8 @@ struct LineOptions {
     /// one), "direct" (no probe), "rcon", "robonet" (SIO through mode, which cannot be probed) or "robonet-gateway".
     std::string kind = "auto";
     /// The position unit of every axis on an RCON line (No.207: 0.01 or 0.001 mm). Without it mm-based motion on an
-    /// RCON line is refused (Line::require_motion); see Port::set_position_unit.
+    /// RCON line is refused (Line::require_motion); see Port::set_position_unit. A direct line (stated or detected)
+    /// refuses any unit but 0.01 (std::invalid_argument; Line::set_position_unit).
     std::optional<double> position_unit_mm;
 };
 

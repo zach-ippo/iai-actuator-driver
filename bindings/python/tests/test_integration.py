@@ -110,6 +110,16 @@ class CliNewCommandsTest(unittest.TestCase):
         code, _, err = run_cli("--sim", "--sim-profile", "pcon", "goto", "64")
         self.assertEqual(code, 2)
 
+    def test_position_unit_0_001_is_refused_on_a_direct_line(self) -> None:
+        # ON-WIRE on a PCON-CB: a stated 0.001 on a direct line read 94.99 as 9.499 (and targets would go x 10)
+        for line in ("auto", "direct"):
+            code, out, err = run_cli("--sim", "--sim-profile", "pcon", "--line", line, "--position-unit", "0.001",
+                                     "status")  # fmt: skip
+            self.assertEqual(code, 2, out)
+            self.assertIn("position unit 0.001 mm refused on a direct line", err)
+        code, _, err = run_cli("--sim", "--sim-profile", "pcon", "--position-unit", "0.01", "status")
+        self.assertEqual(code, 0, err)
+
     def test_goto_notes_a_rounded_speed_override(self) -> None:
         # the unit runs (code + 1) / 256 of the row's speed (ON-WIRE on the PCON-CB): 0.1 % runs as code 1 = 0.78 %
         code, _, err = run_cli("--sim", "--sim-profile", "pcon", "--unit-max", "--sim-time-scale", "50", "goto", "1",

@@ -196,6 +196,9 @@ inline constexpr const char* kUnitStated = "stated";   ///< by the caller
 inline constexpr const char* kUnitRead = "read";       ///< the axis read No.207 itself
 inline constexpr const char* kUnitDefault = "default"; ///< the CON / EC unit 0.01 (direct and ROBONET lines)
 
+/// `unit_mm` if it is one of kPositionUnitsMm (0.01, 0.001), else std::invalid_argument. Nothing is recorded.
+double check_position_unit(double unit_mm);
+
 /// (0.5) What a caller states the axes on a line may send, over the kind's rules (the Python edition's duck-typed
 /// bus.line_rules). Each field that is set replaces the kind's answer in Line::allows / Line::require, which the axis
 /// asks; the bus's request guard (Line::check_request) keeps the kind's rules. `name` is the line's name for the axis
@@ -213,7 +216,8 @@ class Line {
 public:
     /// A line of `kind`. `gateway`: the gateway object found by detect_line (null when none answered). `detected`:
     /// a probe found the gateway (false when the kind was stated or is the default). `position_unit_mm`: the position
-    /// unit of every axis on the line (RCON: 0.01 or 0.001), if stated (std::invalid_argument otherwise).
+    /// unit of every axis on the line (RCON: 0.01 or 0.001), if stated (std::invalid_argument otherwise, and for 0.001
+    /// on a direct line: set_position_unit).
     explicit Line(LineKind kind = LineKind::Direct, std::shared_ptr<Gateway> gateway = nullptr, bool detected = false,
                   std::optional<double> position_unit_mm = std::nullopt);
     ~Line();
@@ -259,7 +263,9 @@ public:
     /// Where position_unit_mm comes from: "stated", "read", "default" or nullopt (unknown).
     std::optional<std::string> position_unit_source(std::optional<int> slave = std::nullopt) const;
     /// Record the position unit (0.01 or 0.001 mm) of `slave` (nullopt = every axis on the line). `source` is
-    /// "stated" or "read". std::invalid_argument for another unit, source or a slave outside 1..247.
+    /// "stated" or "read". std::invalid_argument for another unit, source or a slave outside 1..247, and on a direct
+    /// line for any unit but the unit's own 0.01 (a unit on a direct line counts in 0.01 mm: ON-WIRE on a PCON-CB,
+    /// where a stated 0.001 read P0 94.99 as 9.499 and would have sent targets x 10).
     void set_position_unit(double unit_mm, std::optional<int> slave = std::nullopt,
                            const std::string& source = kUnitStated);
     /// The position unit of `slave`; PositionUnitError on RCON when it is not known (nothing sent).

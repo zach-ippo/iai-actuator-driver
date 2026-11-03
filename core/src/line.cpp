@@ -362,18 +362,22 @@ std::optional<std::string> Line::position_unit_source(std::optional<int> slave) 
     return std::string(kUnitDefault);
 }
 
+double check_position_unit(double unit_mm) {
+    for (double u : kPositionUnitsMm)
+        if (std::fabs(unit_mm - u) < 1e-12) return u;
+    throw std::invalid_argument("position unit must be one of (0.01, 0.001) mm, got " + util::g(unit_mm));
+}
+
 void Line::set_position_unit(double unit_mm, std::optional<int> slave, const std::string& source) {
-    double unit = 0.0;
-    bool known = false;
-    for (double u : kPositionUnitsMm) {
-        if (std::fabs(unit_mm - u) < 1e-12) {
-            unit = u;
-            known = true;
-        }
-    }
-    if (!known)
-        throw std::invalid_argument("position unit must be one of (0.01, 0.001) mm, got " + util::g(unit_mm));
+    const double unit = check_position_unit(unit_mm);
     if (source != kUnitStated && source != kUnitRead) throw std::invalid_argument("source must be 'stated' or 'read'");
+    // a direct line: the unit's own 0.01 (ON-WIRE on a PCON-CB: a stated 0.001 read 94.99 as 9.499, targets x 10)
+    if (kind() == LineKind::Direct && unit != reg::kPositionScale)
+        throw std::invalid_argument(
+            "position unit " + util::g(unit) +
+            " mm refused on a direct line: a unit on a direct line counts positions in its own unit, 0.01 mm; the "
+            "position unit is stated only for RCON driver units (No.207, DOC ME0384 p.8-56). Drop it (or state "
+            "the line 'rcon'); nothing sent");
     if (slave && (*slave < 1 || *slave > 247))
         throw std::invalid_argument(util::format("slave address must be 1..247, got %d", *slave));
     std::lock_guard<std::mutex> lock(mutex_);

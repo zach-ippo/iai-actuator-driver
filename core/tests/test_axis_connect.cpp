@@ -8,6 +8,8 @@
 #include "iai_actuator_driver/commands.hpp"
 #include "iai_actuator_driver/crc.hpp"
 #include "iai_actuator_driver/fake_transport.hpp"
+#include "iai_actuator_driver/line.hpp"
+#include "iai_actuator_driver/port.hpp"
 #include "iai_actuator_driver/sim.hpp"
 #include "harness.hpp"
 #include "util.hpp"
@@ -302,6 +304,44 @@ TEST(axis_connect_slave_58_is_refused_before_anything_is_sent) {
     auto bus = std::make_shared<ModbusRtu>(fake);
     CHECK_THROWS(Axis(bus, 58), std::invalid_argument);
     CHECK(fake->writes().empty());
+}
+
+TEST(axis_connect_a_direct_line_refuses_another_position_unit) {
+    // ON-WIRE on a PCON-CB: a stated 0.001 on a direct line read P0 94.99 as 9.499 (and targets would go x 10)
+    CHECK_THROWS(Line(LineKind::Direct, nullptr, false, 0.001), std::invalid_argument);
+    Line direct(LineKind::Direct);
+    CHECK_THROWS(direct.set_position_unit(0.001), std::invalid_argument);
+    CHECK_THROWS(direct.set_position_unit(0.001, 1, kUnitRead), std::invalid_argument);
+    direct.set_position_unit(0.01);  // the unit's own: accepted
+    CHECK_EQ(direct.require_motion(1), 0.01);
+    LineOptions stated;
+    stated.kind = "direct";
+    stated.position_unit_mm = 0.001;
+    auto fake = std::make_shared<FakeTransport>(nullptr, 115200);
+    CHECK_THROWS(Port(fake, "P", BusOptions{}, stated), std::invalid_argument);
+    CHECK(fake->writes().empty());
+    // detected: the line probe finds no gateway, so the line is direct and the open is refused before any write
+    for (const char* kind : {"auto", "direct"}) {
+        auto sim = make_sim(SimProfile::Pcon);
+        OpenOptions o;
+        o.slave = sim->slave();
+        o.line.kind = kind;
+        o.line.position_unit_mm = 0.001;
+        std::string text;
+        try {
+            Axis::open(sim, o);
+        } catch (const std::invalid_argument& e) {
+            text = e.what();
+        }
+        CHECK(text.find("position unit 0.001 mm refused on a direct line") != std::string::npos);
+        for (const auto& f : sim->requests()) CHECK(f.size() > 1 && (f[1] == 0x03 || f[1] == 0x11));  // reads only
+    }
+    auto sim = make_sim(SimProfile::Pcon);
+    OpenOptions o;
+    o.slave = sim->slave();
+    o.line.position_unit_mm = 0.01;
+    Axis ax = Axis::open(sim, o);
+    CHECK_NEAR(ax.status().position_mm, sim->position_mm(), 0.01);
 }
 
 TEST(axis_connect_open_without_answer_raises_the_hint) {

@@ -571,7 +571,8 @@ class Line:
     def set_position_unit(self, unit_mm: float, slave: int | None = None, *, source: str = "stated") -> None:
         """Record the position unit (0.01 or 0.001 mm) of ``slave`` (``None`` = every axis on the line).
 
-        ``source`` is ``"stated"`` (by the caller) or ``"read"`` (the axis read No.207 itself).
+        ``source`` is ``"stated"`` (by the caller) or ``"read"`` (the axis read No.207 itself). A direct line refuses
+        any unit but the unit's own 0.01 (``ValueError``; ON-WIRE on a PCON-CB, a stated 0.001 read 94.99 mm as 9.499).
         """
         _n._check(self._lib, "iad_line_set_position_unit", self._handle, float(unit_mm),
                   0 if slave is None else int(slave), _n._utf8(source))  # fmt: skip

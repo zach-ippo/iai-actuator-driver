@@ -130,7 +130,7 @@ Port::Port(std::shared_ptr<Transport> transport, std::string name, BusOptions op
         impl_->bus->set_line(std::make_shared<Line>(*kind, nullptr, false, line.position_unit_mm));
         impl_->line_detected = true;
     } else if (line.position_unit_mm) {
-        impl_->bus->line()->set_position_unit(*line.position_unit_mm);  // validated now; carried over at detection
+        check_position_unit(*line.position_unit_mm);  // validated now; set at detection (a direct line refuses 0.001)
     }
 }
 
@@ -151,7 +151,7 @@ Port::Port(std::shared_ptr<ModbusRtu> bus, std::string name, LineOptions line, b
         impl_->bus->set_line(std::make_shared<Line>(*impl_->line_kind, nullptr, false, line.position_unit_mm));
         impl_->line_detected = true;
     } else if (line.position_unit_mm) {
-        impl_->bus->line()->set_position_unit(*line.position_unit_mm);  // validated now; carried over at detection
+        check_position_unit(*line.position_unit_mm);  // validated now; set at detection (a direct line refuses 0.001)
     }
 }
 

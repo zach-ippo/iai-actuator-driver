@@ -137,7 +137,8 @@ Connection and safety options:
   --line auto|direct|rcon|robonet
                                the line the unit sits on (default auto: probed once, read-only; robonet = SIO
                                through mode, which cannot be probed). Behind a gateway its rules apply
-  --position-unit 0.01|0.001   RCON only: the unit's position unit (No.207), needed before mm-based motion
+  --position-unit 0.01|0.001   RCON only: the unit's position unit (No.207), needed before mm-based motion;
+                               a direct line uses the unit's own 0.01 (0.001 is refused there)
   --strategy coil|iai|iai2|register
                                servo / home / alarm reset path (default: coil, or register behind an RCON
                                gateway; register = FC06 DRG1 without coils; iai and iai2 are EXPERIMENTAL)

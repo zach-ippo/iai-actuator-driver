@@ -150,7 +150,7 @@ rate), 9600, 230400, 57600, 19200. The rate is changed in place: the port is nev
 | `--baud N` | a fixed rate (default: auto-detect) |
 | `--retries N` | default 3, the manufacturer's recommendation |
 | `--line auto\|direct\|rcon\|robonet` | the line the unit sits on (default: probed once, read-only) |
-| `--position-unit 0.01\|0.001` | an RCON unit's parameter No.207, needed before mm-based motion there |
+| `--position-unit 0.01\|0.001` | an RCON unit's parameter No.207, needed before mm-based motion there; a direct line uses the unit's own 0.01 and refuses 0.001 (nothing sent) |
 | `--strategy coil\|iai\|iai2\|register` | `iai` = IAI function 0x45, `iai2` = 0x48 (experimental), `register` = FC06 DRG1 without coils; default `coil`, `register` behind an RCON gateway |
 | `--stroke MIN MAX` | default: the unit's own soft limits; can only narrow them |
 | `--max-speed` / `--max-accel` / `--max-push` | CLI defaults: a conservative 100 mm/s (deg/s), 0.3 G and 70 %, each lowered to the unit's own MAXV 7.4 / MAXA 7.5 and MAXD 7.6 / MXPP 7.9 |

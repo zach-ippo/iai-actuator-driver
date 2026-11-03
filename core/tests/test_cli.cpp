@@ -69,6 +69,17 @@ TEST(cli_goto_notes_a_rounded_speed_override) {
     CHECK(!exact.says("note: --speed-pct"));  // 25 % runs as code 63 = 25.00 %
 }
 
+TEST(cli_position_unit_0_001_is_refused_on_a_direct_line) {
+    // ON-WIRE on a PCON-CB: a stated 0.001 on a direct line read 94.99 as 9.499 (and targets would go x 10)
+    for (const char* line : {"auto", "direct"}) {
+        const CliRun r =
+            cli_run({"--sim", "--sim-profile", "pcon", "--line", line, "--position-unit", "0.001", "status"});
+        CHECK_EQ(r.code, 2);
+        CHECK(r.says("position unit 0.001 mm refused on a direct line"));
+    }
+    CHECK_EQ(cli_run({"--sim", "--sim-profile", "pcon", "--position-unit", "0.01", "status"}).code, 0);
+}
+
 TEST(cli_unit_without_a_family_name_is_reported_without_a_label) {
     // the simulator's "unknown" unit (system 0x99, unit 0x7E): reported as what it says it is, and driven
     const CliRun ident = cli_run({"--sim", "--sim-profile", "unknown", "identify"});

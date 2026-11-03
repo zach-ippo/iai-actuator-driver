@@ -161,7 +161,7 @@ def _add_connection_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--position-unit", type=float, choices=(0.01, 0.001), default=None, metavar="MM",
         help="RCON only: the unit's position unit, parameter No.207 (0.01 or 0.001 mm), which the line cannot read; "
-        "needed before any mm-based motion command there",
+        "needed before any mm-based motion command there (a direct line uses the unit's own 0.01: 0.001 is refused)",
     )  # fmt: skip
     parser.add_argument(
         "--stroke", type=float, nargs=2, default=None, metavar=("MIN", "MAX"),

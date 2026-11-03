@@ -332,7 +332,7 @@ class Port:
             if line in (LINE_DIRECT, LINE_ROBONET):  # nothing to probe
                 self.bus.line = Line(line, position_unit_mm=position_unit_mm)
             elif position_unit_mm is not None:
-                self.bus.line.set_position_unit(position_unit_mm)  # validated now; carried over at detection
+                Line(LINE_RCON, position_unit_mm=position_unit_mm)  # validated now; set at detection (direct: 0.01)
             _LINE_OWNERS[self._line_key] = weakref.ref(self)
             weakref.finalize(self, _LINE_OWNERS.pop, self._line_key, None)
             self._port_handle = 0

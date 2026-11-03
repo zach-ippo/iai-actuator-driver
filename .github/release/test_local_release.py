@@ -533,6 +533,62 @@ class GuiStep(unittest.TestCase):
         server.server_close()
 
 
+class LoadSensitiveRetry(unittest.TestCase):
+    """The wheel, linux-wheel and gui test runs go through the runners of tools/test.py (run_backend.py,
+    unittest_jobs.py), so a load-sensitive test of tools/load_sensitive.txt that failed runs once more, and the summary
+    names it."""
+
+    # fails the first time in its folder, passes once its mark is there
+    FLAKY = ("import unittest\nfrom pathlib import Path\nMARK = Path(__file__).with_name('ran-once')\n"
+             "class T(unittest.TestCase):\n    def test_a(self):\n        first = not MARK.exists()\n"
+             "        MARK.touch()\n        self.assertFalse(first, 'the first run fails')\n")  # fmt: skip
+    OK = "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        pass\n"
+
+    def test_the_steps_run_the_runners_of_tools_test(self) -> None:
+        source = (HERE / "local_release.py").read_text(encoding="utf-8")
+        self.assertIn('[py, "tests/run_backend.py", "--backend", "native"]', source)  # wheel
+        self.assertIn('"tools/unittest_jobs.py", "-s", "apps/gui", "-t", "apps"', source)  # gui (--gui-tests)
+        self.assertIn('"--load-sensitive", "gui"', source)
+        wsl = (ROOT / local_release.WSL_SCRIPT).read_text(encoding="utf-8")
+        self.assertIn('"$venv/bin/python" tests/run_backend.py --backend native', wsl)  # linux-wheel
+        self.assertNotIn("unittest discover", wsl)
+        for runner in ("tools/unittest_jobs.py", "bindings/python/tests/run_backend.py", "tools/load_sensitive.txt"):
+            self.assertTrue((ROOT / runner).is_file(), runner)
+
+    def test_the_summary_is_read_as_tools_test_reads_it(self) -> None:
+        text = ("backend native (auto: iai_actuator_driver.dll (C ABI 1.1))\n"
+                "ran 512 tests in 301.4 s: 509 passed, 3 skipped, 0 expected failures, 0 unexpected successes, "
+                "0 failures, 0 errors\nslowest: test_x.T.test_a 9.0 s\n"
+                "passed on its retry (load-sensitive): test_cell.ScanTest.test_scan\nOK on the native backend\n")
+        self.assertEqual(local_release.suite_summary("python", text),
+                         "512 tests, 509 passed, 3 skipped, 0 failed in 301 s; passed only on its retry "
+                         "(load-sensitive): test_cell.ScanTest.test_scan")  # fmt: skip
+        clean = text.replace("passed on its retry (load-sensitive): test_cell.ScanTest.test_scan\n", "")
+        self.assertEqual(local_release.suite_summary("python", clean),
+                         "512 tests, 509 passed, 3 skipped, 0 failed in 301 s")
+        self.assertEqual(local_release.suite_summary("gui", "no summary\n"), "ran")
+
+    def test_a_load_sensitive_gui_test_that_fails_once_is_named_in_the_summary(self) -> None:
+        """unittest_jobs.py as the gui step runs it, on scratch tests with a list of their own: the flaky test passes on
+        its retry, the run passes, and the step's summary names the test."""
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "suite"
+            folder.mkdir()
+            (folder / "test_flaky.py").write_text(self.FLAKY, encoding="utf-8")
+            (folder / "test_ok.py").write_text(self.OK, encoding="utf-8")
+            listed = Path(tmp) / "load_sensitive.txt"
+            listed.write_text("gui test_flaky.T.test_a  measures a time\n", encoding="utf-8")
+            env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+            proc = subprocess.run([sys.executable, str(ROOT / "tools" / "unittest_jobs.py"), "-s", str(folder), "-t",
+                                   str(folder), "--jobs", "2", "--load-sensitive", "gui", "--load-sensitive-file",
+                                   str(listed)], cwd=tmp, env=env, capture_output=True, text=True)  # fmt: skip
+        text = proc.stderr + proc.stdout
+        self.assertEqual(proc.returncode, 0, text)
+        summary = local_release.suite_summary("gui", text)
+        self.assertTrue(summary.startswith("2 tests, 2 passed, 0 skipped, 0 failed in "), summary)
+        self.assertTrue(summary.endswith("; passed only on its retry (load-sensitive): test_flaky.T.test_a"), text)
+
+
 class DefaultTargets(unittest.TestCase):
     def test_both_platforms_when_wsl_is_there(self) -> None:
         """The NuGet package carries both runtimes only when linux-x64 is built: that is what a bare run does with WSL."""

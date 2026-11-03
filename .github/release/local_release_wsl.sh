@@ -8,7 +8,8 @@
 #   local_release_wsl.sh sdk-smoke     the SDK zip unpacked: CMake find_package (the C smoke test and the frozen ABI 1.0
 #                                      program), and the compile line of its README.txt
 #   local_release_wsl.sh wheel         the manylinux wheel built, checked (check_package.py, auditwheel), installed in
-#                                      a new venv, and the Python suite run against it with the source package moved
+#                                      a new venv, and the Python suite run against it (tests/run_backend.py) with the
+#                                      source package moved
 #   local_release_wsl.sh nuget-smoke   a new net8.0 program references the package from a local feed and loads the
 #                                      packaged libiai_actuator_driver.so
 #
@@ -153,7 +154,9 @@ step_wheel() {
     mv "$pkg/iai_actuator_driver" "$parked"
     trap "mv '$parked' '$pkg/iai_actuator_driver'" EXIT   # expanded now: the variables are local to this function
     (cd "$pkg" && "$venv/bin/python" "$SRC/.github/release/check_package.py" installed --rid "$RID" --version "$VERSION")
-    (cd "$pkg" && "$venv/bin/python" -m unittest discover -s tests -q)
+    # the runner of tools/test.py: the load-sensitive tests of tools/load_sensitive.txt after the others, a failed one
+    # once more (local_release.py reads its summary as tools/test.py does)
+    (cd "$pkg" && "$venv/bin/python" tests/run_backend.py --backend native)
     mv "$parked" "$pkg/iai_actuator_driver"
     trap - EXIT
 

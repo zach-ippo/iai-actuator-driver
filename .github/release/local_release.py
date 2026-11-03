@@ -30,9 +30,11 @@ stops at the first failure:
     sdist         the sdist (source, needs the native library: none inside), checked, installed in a new environment;
                   without a library its import is refused, and with the DLL its command line runs on the simulator
     wheel         the py3-none-win_amd64 wheel with the DLL inside, checked, installed in a new environment, the whole
-                  Python suite run against it with the source package moved out of the way
+                  Python suite run against it with the source package moved out of the way (tests/run_backend.py, the
+                  runner of tools/test.py: see the load-sensitive tests below)
     linux-wheel   in WSL: the py3-none-manylinux_2_17_x86_64 wheel with the .so inside, checked, auditwheel show, installed
                   in a new venv, the whole Python suite run against it with the source package moved out of the way
+                  (tests/run_backend.py too)
     nuget         the C# tests against the DLL, then the NuGet package IaiActuatorDriver with runtimes/win-x64/native
                   and runtimes/linux-x64/native (the arm64 runtime is not built here), checked
     nuget-smoke   new net8.0 and net48 programs reference the package from a local feed and load the packaged library
@@ -44,14 +46,19 @@ stops at the first failure:
                   iai-gui.exe, README.txt and the licence files) in <out>/work/dist/gui. The exe embeds the Python its
                   environment is made from: --gui-python, else --python, else the one that runs this script, not
                   release.yml's PYTHON_VERSION (3.12): the summary says which. The GUI tests of release.yml's gui job
-                  run only with --gui-tests (about 6 minutes; a few of them are timing-sensitive and fail on a busy
-                  PC). Skipped with a note when this is not Windows or apps/gui/iai-gui.spec does not exist
-                  (release.yml skips the job then too)
+                  run only with --gui-tests (about 6 minutes; tools/unittest_jobs.py, the runner of tools/test.py; a
+                  few of them are timing-sensitive and fail on a busy PC). Skipped with a note when this is not Windows
+                  or apps/gui/iai-gui.spec does not exist (release.yml skips the job then too)
     collect       collect_release.py: the assets and SHA256SUMS.txt in <out>/release, the notes (the CHANGELOG.md
                   section of the version and an asset table) in <out>/release-notes.md
 
 Then it prints the gh release create command that would publish them. It never runs gh, never pushes and never tags.
 No step opens a serial port: every test runs on the simulator.
+
+The Python and GUI suites run through the runners tools/test.py uses, so they honour tools/load_sensitive.txt as it
+does: a listed test (throughput or real-time latency is its subject) runs after the others, alone, and once more when it
+failed; its second outcome counts, and the summary names a test that passed only on that retry (tools/test.py reads the
+runners' output). release.yml runs them with python -m unittest discover, without that retry.
 
 --targets win-x64,linux-x64 chooses what is built (default: both when WSL is available, else win-x64 and a note says
 why). The steps of a target that is not chosen are left out. The linux-x64 library is cross-built with zig on Windows
@@ -83,6 +90,8 @@ access for pip and NuGet packages; for linux-x64 also WSL 2 with the distro and 
 from __future__ import annotations
 
 import argparse
+import functools
+import importlib.util
 import io
 import json
 import os
@@ -110,6 +119,8 @@ import build_native  # noqa: E402  (same folder)
 import check_package  # noqa: E402
 import collect_release  # noqa: E402
 import make_gui_zip  # noqa: E402
+
+TOOLS_TEST = REPO / "tools" / "test.py"  # parse_counts and retried_tests read what the test runners print
 
 RID = "win-x64"
 WHEEL_PLATFORM = "win_amd64"
@@ -311,6 +322,30 @@ def run(ctx: Ctx, label: str, cmd: list[str], cwd: Path, env: dict[str, str] | N
         why = f"timed out after {timeout} s" if timed_out else f"exit {code}"
         raise Failure(f"{label} failed ({why}): {quote(cmd)}\n{tail}\n(full output: {log})")
     return text
+
+
+@functools.cache
+def tools_test():
+    """tools/test.py, loaded by path (``test`` is the name of the standard library's own package)."""
+    spec = importlib.util.spec_from_file_location("iad_tools_test", TOOLS_TEST)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module  # dataclasses look the module up by name
+    spec.loader.exec_module(module)
+    return module
+
+
+def suite_summary(suite: str, text: str) -> str:
+    """What the output of a test runner of tools/test.py (``suite``: python, gui) says, as tools/test.py reads it: the
+    counts, the seconds, and the load-sensitive tests that passed only on their retry."""
+    tool = tools_test()
+    summary = tool.parse_counts(suite, text) or "ran"
+    took = last(text, r"^ran \d+ tests in ([\d.]+) s:", re.M)
+    if took:
+        summary += f" in {float(took.group(1)):.0f} s"
+    retried = tool.retried_tests(text)
+    if retried:
+        summary += "; passed only on its retry (load-sensitive): " + ", ".join(retried)
+    return summary
 
 
 def rmtree(path: Path) -> None:
@@ -856,13 +891,11 @@ def step_wheel(ctx: Ctx) -> str:
     try:
         run(ctx, "wheel-installed-check", [py, str(ctx.src / ".github" / "release" / "check_package.py"), "installed",
                                            "--rid", RID, "--version", ctx.version], pkg_dir)
-        text = run(ctx, "wheel-tests", [py, "-m", "unittest", "discover", "-s", "tests", "-q"], pkg_dir, timeout=1800)
+        # the runner of tools/test.py: the load-sensitive tests after the others, a failed one once more
+        text = run(ctx, "wheel-tests", [py, "tests/run_backend.py", "--backend", "native"], pkg_dir, timeout=1800)
     finally:
         shutil.move(str(parked), str(source_pkg))
-    ran = last(text, r"Ran (\d+) tests? in ([\d.]+)s")
-    result = last(text, r"^(OK.*|FAILED.*)$", re.M)
-    summary = f"{ran.group(1)} tests in {float(ran.group(2)):.0f} s, {result.group(1) if result else '?'}" if ran else "ran"
-    ctx.fact("Python suite against the installed wheel (source package out of the way)", summary)
+    ctx.fact("Python suite against the installed wheel (source package out of the way)", suite_summary("python", text))
     return f"{wheel.name} {size(wheel)}"
 
 
@@ -880,10 +913,8 @@ def step_linux_wheel(ctx: Ctx) -> str:
         raise Failure(f"unexpected wheel name {wheel.name}")
     audit = last(text, r"^AUDITWHEEL: (.*)$", re.M)
     ctx.fact("manylinux check of the wheel (auditwheel show)", audit.group(1) if audit else "?")
-    ran = last(text, r"Ran (\d+) tests? in ([\d.]+)s")
-    result = last(text, r"^(OK.*|FAILED.*)$", re.M)
-    summary = f"{ran.group(1)} tests in {float(ran.group(2)):.0f} s, {result.group(1) if result else '?'}" if ran else "ran"
-    ctx.fact("Python suite in WSL against the installed linux-x64 wheel (source package out of the way)", summary)
+    ctx.fact("Python suite in WSL against the installed linux-x64 wheel (source package out of the way)",
+             suite_summary("python", text))
     return f"{wheel.name} {size(wheel)}"
 
 
@@ -1150,18 +1181,16 @@ def step_gui(ctx: Ctx) -> str:
         say(f"      note: iai-gui.exe embeds Python {python_version} ({chosen}; release.yml: {ctx.release_python})")
 
     if ctx.args.gui_tests:
-        # the GUI source of the exported tree against the installed wheel (the source package is not on the path here)
+        # the GUI source of the exported tree against the installed wheel (the source package is not on the path here),
+        # through the runner of tools/test.py: the load-sensitive tests after the others, a failed one once more
         try:
-            text = run(ctx, "gui-tests", [py, "-m", "unittest", "discover", "-s", "apps/gui", "-t", "apps", "-q"],
-                       ctx.src, timeout=1800)
+            cmd = [py, "tools/unittest_jobs.py", "-s", "apps/gui", "-t", "apps", "--expect-backend", "native",
+                   "--load-sensitive", "gui"]
+            text = run(ctx, "gui-tests", cmd, ctx.src, timeout=1800)
         except Failure as exc:
             raise Failure(f"{exc}\n(the GUI tests ran on Python {python_version}, the one iai-gui.exe would embed; some "
                           "of them are timing-sensitive and fail on a busy PC: run the step again)") from None
-        ran = last(text, r"Ran (\d+) tests? in ([\d.]+)s")
-        result = last(text, r"^(OK.*|FAILED.*)$", re.M)
-        ctx.fact("GUI tests (apps/gui) against the installed wheel",
-                 f"{ran.group(1)} tests in {float(ran.group(2)):.0f} s, {result.group(1) if result else '?'}" if ran
-                 else "ran")
+        ctx.fact("GUI tests (apps/gui) against the installed wheel", suite_summary("gui", text))
     else:
         ctx.fact("GUI tests (apps/gui)", "not run (--gui-tests runs them, as the gui job of release.yml does)")
 

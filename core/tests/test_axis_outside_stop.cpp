@@ -232,3 +232,108 @@ TEST(axis_outside_stop_a_pause_does_not_end_the_wait) {
     CHECK_EQ(out.type, std::string("none"));
     CHECK_NEAR(r.sim->position_mm(), 20.0, 0.11);
 }
+
+// ============================================================================================ superseded moves
+
+namespace {
+
+/// Run `body` and record how it ended.
+void record(Outcome& out, const std::function<void()>& body) {
+    try {
+        body();
+        out.type = "none";
+    } catch (const MotionIncompleteError& e) {
+        out.type = "MotionIncompleteError";
+        out.what = e.what();
+        out.stop_attempted = e.stop_attempted();
+    } catch (const EcDriverError& e) {
+        out.type = "other";
+        out.what = e.what();
+    }
+    out.at = now_s();
+    out.ended = true;
+}
+
+void check_superseded(const Outcome& out) {
+    CHECK_EQ(out.type, std::string("MotionIncompleteError"));
+    CHECK(has(out.what, "superseded by a newer move of this axis"));
+    CHECK(!has(out.what, "decel stop sent"));
+    CHECK(out.stop_attempted);
+}
+
+}  // namespace
+
+TEST(axis_outside_stop_a_superseded_handle_ends_at_once_without_a_stop) {
+    // a handle whose move a newer move_to re-targeted: wait() ended only at its own timeout, then sent a STOP that
+    // would cut the newer move
+    Rig r(20.0);
+    MoveHandle first = r.ax->start_move_to(130.0, slow(50.0, false));
+    REQUIRE(wait_until([&] { return r.sim->moving(); }));
+    MoveHandle second = r.ax->start_move_to(30.0, slow(50.0, false));
+    Outcome out;
+    const double t0 = now_s();
+    record(out, [&] { first.wait(1.0); });
+    check_superseded(out);
+    CHECK(out.at.load() - t0 < 0.3);
+    CHECK(r.sim->moving() || std::fabs(r.sim->position_mm() - 30.0) < 0.2);  // the newer move runs on
+    const Status st = second.wait();
+    CHECK_NEAR(st.position_mm, 30.0, 0.11);
+    CHECK_EQ(r.tx.stops_on(), 0);
+    // poll() and done() end the same way
+    Outcome polled;
+    record(polled, [&] {
+        while (!first.poll(0.1)) {
+        }
+    });
+    check_superseded(polled);
+    CHECK_EQ(r.tx.stops_on(), 0);
+}
+
+TEST(axis_outside_stop_a_move_from_another_thread_ends_a_move_to_wait_at_once) {
+    Rig r(20.0);
+    Outcome out;
+    ec_test::Thread waiter([&] { record(out, [&] { r.ax->move_to(140.0, slow(20.0)); }); });
+    REQUIRE(wait_until([&] { return r.sim->moving() && r.sim->position_mm() > 22.0; }));
+    const double t0 = now_s();
+    Outcome newer;
+    ec_test::Thread mover([&] { record(newer, [&] { r.ax->move_to(15.0, slow(20.0)); }); });
+    CHECK(wait_until([&] { return out.ended.load(); }, 10.0));
+    waiter.join();
+    check_superseded(out);
+    CHECK(out.at.load() - t0 < 0.3);
+    mover.join();
+    CHECK_EQ(newer.type, std::string("none"));
+    CHECK_NEAR(r.sim->position_mm(), 15.0, 0.11);
+    CHECK_EQ(r.tx.stops_on(), 0);
+}
+
+TEST(axis_outside_stop_a_move_from_another_thread_ends_a_push_wait_at_once) {
+    Rig r(10.0);
+    Outcome out;
+    ec_test::Thread waiter([&] { record(out, [&] { r.ax->push(60.0, 40.0, 30.0, push_at(20.0)); }); });
+    REQUIRE(wait_until([&] { return r.sim->moving() && r.sim->position_mm() > 15.0; }));
+    const double t0 = now_s();
+    Outcome newer;
+    ec_test::Thread mover([&] { record(newer, [&] { r.ax->move_to(12.0, slow(20.0)); }); });
+    CHECK(wait_until([&] { return out.ended.load(); }, 10.0));
+    waiter.join();
+    check_superseded(out);
+    CHECK(has(out.what, "push (approach 60.00 mm"));
+    CHECK(out.at.load() - t0 < 0.3);
+    mover.join();
+    CHECK_EQ(newer.type, std::string("none"));
+    CHECK_NEAR(r.sim->position_mm(), 12.0, 0.11);
+    CHECK_EQ(r.tx.stops_on(), 0);
+}
+
+TEST(axis_outside_stop_a_speed_change_does_not_supersede_the_move) {
+    Rig r(20.0);
+    Outcome out;
+    ec_test::Thread waiter([&] { record(out, [&] { r.ax->move_to(60.0, slow(20.0)); }); });
+    REQUIRE(wait_until([&] { return r.sim->moving() && r.sim->position_mm() > 22.0; }));
+    r.ax->change_speed(40.0, false);
+    CHECK(wait_until([&] { return out.ended.load(); }, 10.0));
+    waiter.join();
+    CHECK_EQ(out.type, std::string("none"));
+    CHECK_NEAR(r.sim->position_mm(), 60.0, 0.11);
+}

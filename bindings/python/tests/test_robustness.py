@@ -1101,6 +1101,9 @@ class SequenceRun:
             st = handle.wait()
         except WAIT_ERRORS as exc:  # the wait stops the axis before it raises
             self.expect(getattr(exc, "stop_attempted", False), f"{exc!r} raised without a stop")
+            if "superseded by a newer move" in str(exc):  # a later command (home, a stored row) owns the axis: no STOP
+                self.counts["wait: superseded"] += 1
+                return
             self.stopped(f"{type(exc).__name__} from MoveHandle.wait()")
             self.counts[f"wait: {type(exc).__name__}"] += 1
             return

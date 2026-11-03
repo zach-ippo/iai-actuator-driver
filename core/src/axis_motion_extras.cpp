@@ -172,8 +172,14 @@ Axis::Impl::MoveWatch Axis::Impl::send_profile(const ProfileMove& p, std::uint16
         last_target = ppow ? std::nullopt : std::optional<double>(reg::from_counts(p.move.pcmd));
     }
     bus->read_write_registers(slave, reg::kMonitorBase, reg::kProfileMonitorWords, p.address, words);
-    const MoveWatch watch = watch_now();  // the PCRF edge starts the move
-    bus->write_coil(slave, reg::kCoilPcrf, true);  // self-clearing: no OFF is sent
+    MoveWatch watch = watch_now();  // the PCRF edge starts the move
+    try {
+        bus->write_coil(slave, reg::kCoilPcrf, true);  // self-clearing: no OFF is sent
+    } catch (...) {
+        ++moves;  // it may have reached the unit
+        throw;
+    }
+    watch.move = ++moves;  // the waits of older moves end (superseded)
     return watch;
 }
 
@@ -356,12 +362,12 @@ std::optional<Status> Axis::Impl::change_move(std::optional<double> speed, std::
     for (const auto& w : warnings) log_warning(kAxisLog, "change of the running move: " + w);
     require(st);
     return guard([&]() -> std::optional<Status> {
-        send_direct(changed);
+        const MoveWatch watch = send_direct(changed, false);  // the same move: its waits go on
         if (!wait) return std::nullopt;
         const double timeout = timeout_s ? *timeout_s
                                          : detail::default_move_timeout_s(std::fabs(target - st.position_mm), new_speed,
                                                                           new_accel);
-        return wait_idle(target, band, timeout);
+        return wait_done(target, band, timeout, completion_mode(std::nullopt), std::nullopt, &watch);
     });
 }
 

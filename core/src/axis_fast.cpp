@@ -156,16 +156,26 @@ void Axis::Impl::raise_stopped_from_outside(const Status& st, const std::string&
     throw error;
 }
 
+void Axis::Impl::raise_superseded(const Status& st, const std::string& what) {
+    // the newer move owns the axis now: the wait ends without a STOP, which would cut that move
+    MotionIncompleteError error(what + " superseded by a newer move of this axis at " + f2(st.position_mm) + " " +
+                                units_label() + "; this wait sent no STOP (the newer move runs on)");
+    error.set_stop_attempted();  // no decel stop from guard()
+    throw error;
+}
+
 bool Axis::Impl::ended_from_outside(const MoveWatch& watch, const Status& st, std::optional<double> target,
                                     double band) {
+    const std::string u = units_label();
+    const std::string what = target ? "move to " + f2(*target) + " " + u : std::string("move");
+    if (superseded(watch)) raise_superseded(st, what);
     if (!stopped_from_outside(watch)) return false;
     const bool arrived = !target || std::fabs(st.position_mm - *target) <= band + kPosEps;
     if (arrived && st.in_position && !st.moving) {
         motion_pending = false;
         return true;
     }
-    const std::string u = units_label();
-    raise_stopped_from_outside(st, target ? "move to " + f2(*target) + " " + u : std::string("move"));
+    raise_stopped_from_outside(st, what);
 }
 
 Status Axis::Impl::wait_done(std::optional<double> target, std::optional<double> band, double timeout_s,

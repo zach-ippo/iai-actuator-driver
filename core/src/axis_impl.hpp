@@ -189,7 +189,8 @@ struct StopHook {
     virtual void external_stop() = 0;
 };
 
-/// What a motion wait watches besides the position: the stops of its axis object that reach the unit after its move.
+/// What a motion wait watches besides the position: the stops of its axis object that reach the unit after its move,
+/// and the newer moves of that object.
 /// Taken right before the move's frame (Axis::Impl::watch_now): `mark` is the stop mark the frame goes out with (the
 /// STOP-first gate refuses it otherwise), `halt` the stops the object counted so far (Axis::Impl::halts). A stop counts
 /// for the move when both changed: a STOP of this object went to the wire after the move's frame (a pause, or a STOP
@@ -197,6 +198,7 @@ struct StopHook {
 struct MoveWatch {
     StopMark mark;
     std::uint64_t halt = 0;
+    std::uint64_t move = 0;  ///< the move's number (Axis::Impl::moves): a newer move of the object supersedes it
 };
 
 }  // namespace detail
@@ -318,16 +320,24 @@ struct Axis::Impl {
         Impl& a_;
         bool noted_ = false;
     };
+    /// Moves of this object (0x9900 blocks other than a mid-move change, command-profile and stored-row starts, home
+    /// starts), counted once their frame went past the STOP-first gate: a wait whose move is not the newest one ends
+    /// at once (superseded) and sends no STOP (that would cut the newer move).
+    std::atomic<std::uint64_t> moves{0};
     using MoveWatch = detail::MoveWatch;
-    /// The watch of a move whose frame goes out next.
-    MoveWatch watch_now() const { return {decision_mark(), halts.load()}; }
-    /// The end of a motion wait for the move `watch` when a stop of this object reached it from outside the wait:
-    /// true when the sample `st` shows the axis at rest within `band` of `target` (the move is done), else
-    /// MotionIncompleteError with stop_attempted set (the wait sends no STOP: that stop is under way). false when no
-    /// such stop came.
+    /// The watch of a move whose frame goes out next (its number: the newest so far, until it is counted).
+    MoveWatch watch_now() const { return {decision_mark(), halts.load(), moves.load()}; }
+    /// The end of a motion wait for the move `watch` when a newer move of this object superseded it, or a stop of this
+    /// object reached it from outside the wait: true when the sample `st` shows the axis at rest within `band` of
+    /// `target` after such a stop (the move is done), else MotionIncompleteError with stop_attempted set (the wait
+    /// sends no STOP: that stop is under way, or it would cut the newer move). false when neither came.
     bool ended_from_outside(const MoveWatch& watch, const Status& st, std::optional<double> target, double band);
     /// A stop of this object reached the unit after the move `watch` was sent.
     bool stopped_from_outside(const MoveWatch& watch) const;
+    /// A newer move of this object was sent after the move `watch`.
+    bool superseded(const MoveWatch& watch) const { return moves.load() != watch.move; }
+    /// MotionIncompleteError "<what> superseded by a newer move of this axis ..." at `st`, stop_attempted set.
+    [[noreturn]] void raise_superseded(const Status& st, const std::string& what);
     /// MotionIncompleteError "<what> stopped from outside this wait ..." at `st`, stop_attempted set.
     [[noreturn]] void raise_stopped_from_outside(const Status& st, const std::string& what);
 
@@ -405,8 +415,9 @@ struct Axis::Impl {
                                bool accel_only = false);
     void check_unit_speed(double speed);
     void check_unit_accel(double accel, const std::string& what, bool decel);
-    /// Send a 0x9900 block; returns the watch of its move (taken right before the frame).
-    MoveWatch send_direct(const DirectMove& move);
+    /// Send a 0x9900 block; returns the watch of its move (taken right before the frame). `new_move` false: a change
+    /// of the running move (change_speed), which supersedes nothing.
+    MoveWatch send_direct(const DirectMove& move, bool new_move = true);
     std::vector<std::string> change_warnings(double speed, double accel);
     std::optional<Status> servo(bool on, bool wait, std::optional<double> timeout_s);
     std::vector<std::string> servo_blockers(const Status& st, bool after);
@@ -428,7 +439,7 @@ struct Axis::Impl {
     };
     StoredRow check_stored_row(int row, const PositionEntry& entry, bool allow_above_caps, double speed_scale);
     void wait_stored_start(int row, double start, double target);
-    /// With the `watch` of the push, a stop of this object from outside the wait ends it at once.
+    /// With the `watch` of the push, a newer move or a stop of this object from outside the wait ends it at once.
     Status wait_push(double target, const Span& zone, double timeout_s, const MoveWatch* watch = nullptr);
     Status wait_idle(std::optional<double> target, std::optional<double> band, double timeout_s);
     Status stop(bool wait, double timeout_s);

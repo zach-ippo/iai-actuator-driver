@@ -525,6 +525,7 @@ std::optional<Status> Axis::Impl::home(bool wait, std::optional<double> timeout_
         timeout = 2.0 * span / 20.0 + 10.0;
     }
     release_stale_stop();
+    ++moves;  // a home return supersedes the waits of older moves
     motion_pending = true;
     {
         std::lock_guard<std::mutex> lock(mutex);
@@ -753,7 +754,7 @@ DirectMove Axis::Impl::validate_motion(double position, double speed, double acc
     return move;
 }
 
-Axis::Impl::MoveWatch Axis::Impl::send_direct(const DirectMove& move) {
+Axis::Impl::MoveWatch Axis::Impl::send_direct(const DirectMove& move, bool new_move) {
     // the caller's SendGate (taken before its checks) refuses the frame after a STOP from elsewhere; this one covers
     // a caller without one from here on
     const detail::SendGate decided(*bus, slave, decision_mark());
@@ -763,9 +764,11 @@ Axis::Impl::MoveWatch Axis::Impl::send_direct(const DirectMove& move) {
     const int factor = bus->line()->wire_factor(slave);
     wire.pcmd *= factor;
     wire.inp *= static_cast<std::uint32_t>(factor);
+    MoveWatch watch;
     // recorded once the frame went past the STOP-first gate (also when its answer was lost: it may have arrived), never
     // for a frame that was refused: no target that was never sent
     auto record = [&] {
+        if (new_move) watch.move = ++moves;  // the waits of older moves end (superseded)
         motion_pending = true;
         {
             std::lock_guard<std::mutex> lock(mutex);
@@ -777,7 +780,7 @@ Axis::Impl::MoveWatch Axis::Impl::send_direct(const DirectMove& move) {
                                      move.ppow ? std::nullopt : std::optional<double>(reg::from_counts(move.pcmd)));
     };
     const detail::SendGate sent(*bus, slave, decision_mark());  // only tells whether the frame went past the gate
-    const MoveWatch watch = watch_now();
+    watch = watch_now();
     try {
         write_direct_move(*bus, slave, wire);
     } catch (...) {
@@ -1013,10 +1016,12 @@ Status Axis::Impl::wait_push(double target, const Span& zone, double timeout_s, 
             if (outcome == 1) motion_pending = false;  // contact: still pushing until the next command
             return st;
         }
-        if (watch && stopped_from_outside(*watch)) {
+        if (watch && (superseded(*watch) || stopped_from_outside(*watch))) {
             const std::string u = units_label();
-            raise_stopped_from_outside(st, "push (approach " + f2(target) + " " + u + ", zone " +
-                                               detail::fmt_range(zone, u) + ")");
+            const std::string what = "push (approach " + f2(target) + " " + u + ", zone " + detail::fmt_range(zone, u) +
+                                     ")";
+            if (superseded(*watch)) raise_superseded(st, what);
+            raise_stopped_from_outside(st, what);
         }
         if (elapsed >= timeout_s) {
             const std::string u = units_label();
@@ -1089,7 +1094,8 @@ std::optional<Status> Axis::Impl::move_to_position(int row, const PositionMoveOp
     const bool needs_start = checked.zone || std::fabs(start - checked.target) > checked.band + kPosEps;
     return guard([&]() -> std::optional<Status> {
         release_stale_stop();
-        const MoveWatch watch = watch_now();  // right before the row's start frame
+        MoveWatch watch = watch_now();  // right before the row's start frame
+        watch.move = ++moves;           // a row start supersedes the waits of older moves
         motion_pending = true;
         {
             std::lock_guard<std::mutex> lock(mutex);

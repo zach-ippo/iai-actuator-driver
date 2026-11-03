@@ -4,7 +4,9 @@
 //
 // * wait() blocks until the move is done by its completion rule (as move_to with wait: on timeout or alarm a decel stop
 //   is sent and MotionTimeoutError / EcAlarmError thrown) and returns the final status; timeout nullopt = the time
-//   left of the move's own estimate, at least settle_s + kLateWaitS (a late wait() on a finished move returns it).
+//   left of the move's own estimate, at least settle_s + kLateWaitS (a late wait() on a finished move returns it). A
+//   stop of the axis from another thread ends wait(), poll() and done() at once: MotionIncompleteError, no STOP of
+//   their own (the status at the target and at rest is still a result).
 // * done() checks once without blocking (one fresh monitor sample, else one status read); Completion::Safe needs the
 //   settle window over several calls.
 // * result() is the final status once known (nullopt before).

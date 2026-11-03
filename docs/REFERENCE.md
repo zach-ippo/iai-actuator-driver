@@ -577,6 +577,8 @@ with Cell.open() as cell:              # every IAI adapter, every answering addr
     decelerating.
   - If the axis settles away from the target (stopped by someone else, command ignored, EC clamp),
     `MotionIncompleteError` is raised instead of waiting for the timeout.
+  - A `stop()` of the same axis from another thread ends the wait at once: `MotionIncompleteError` ("stopped from
+    outside this wait"), with no second STOP from the wait (ON-WIRE on a PCON-CB + RCP6).
 - **Preconditions.** Moves require Modbus control, servo on, homed, no alarm or emergency stop, not paused and no home
   return in progress; otherwise `EcNotReadyError` / `EcAlarmError` with a hint.
 - **Alarm reset.** `reset_alarm()` leaves a servo the alarm switched off **off**: an alarm keeps the servo-on level

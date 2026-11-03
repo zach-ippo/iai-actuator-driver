@@ -288,7 +288,9 @@ public:
 };
 
 /// The axis settled (in position, not moving) away from the commanded target: a STOP from another master, the unit
-/// ignoring the command (STOP held, PIO in control) or the unit clamping the target to its own soft limit.
+/// ignoring the command (STOP held, PIO in control) or the unit clamping the target to its own soft limit. Also a move
+/// wait that a stop of the same axis from another thread ended ("stopped from outside this wait": raised at once, no
+/// STOP of its own; stop_attempted() is set).
 class MotionIncompleteError : public EcError {
 public:
     using EcError::EcError;

@@ -189,6 +189,16 @@ struct StopHook {
     virtual void external_stop() = 0;
 };
 
+/// What a motion wait watches besides the position: the stops of its axis object that reach the unit after its move.
+/// Taken right before the move's frame (Axis::Impl::watch_now): `mark` is the stop mark the frame goes out with (the
+/// STOP-first gate refuses it otherwise), `halt` the stops the object counted so far (Axis::Impl::halts). A stop counts
+/// for the move when both changed: a STOP of this object went to the wire after the move's frame (a pause, or a STOP
+/// of another master, changes the mark alone).
+struct MoveWatch {
+    StopMark mark;
+    std::uint64_t halt = 0;
+};
+
 }  // namespace detail
 
 /// The state behind an Axis, and the work. Fields marked (mutex) are guarded by `mutex`; the atomics and `nv` guard
@@ -287,6 +297,36 @@ struct Axis::Impl {
         if (run) run->external_stop();
     }
 
+    // the motion waits and the stops of other threads (axis_fast.cpp: ended_from_outside)
+    /// Stops of this object (stop(), begin_stop(), a group stop, the decel stop of a wait), counted right after their
+    /// first frame was tried: a motion wait whose move such a STOP reached ends at once and sends no STOP of its own.
+    std::atomic<std::uint64_t> halts{0};
+    /// Counts one stop in `halts` when note() runs (right after the first frame), or else when it ends (the frame
+    /// threw: the unit may have received it).
+    class HaltNote {
+    public:
+        explicit HaltNote(Impl& a) : a_(a) {}
+        ~HaltNote() { note(); }
+        HaltNote(const HaltNote&) = delete;
+        HaltNote& operator=(const HaltNote&) = delete;
+        void note() {
+            if (!noted_) ++a_.halts;
+            noted_ = true;
+        }
+
+    private:
+        Impl& a_;
+        bool noted_ = false;
+    };
+    using MoveWatch = detail::MoveWatch;
+    /// The watch of a move whose frame goes out next.
+    MoveWatch watch_now() const { return {decision_mark(), halts.load()}; }
+    /// The end of a motion wait for the move `watch` when a stop of this object reached it from outside the wait:
+    /// true when the sample `st` shows the axis at rest within `band` of `target` (the move is done), else
+    /// MotionIncompleteError with stop_attempted set (the wait sends no STOP: that stop is under way). false when no
+    /// such stop came.
+    bool ended_from_outside(const MoveWatch& watch, const Status& st, std::optional<double> target, double band);
+
     // non-volatile write guard
     std::shared_ptr<detail::NvWriteTracker> nv_tracker = std::make_shared<detail::NvWriteTracker>();  ///< (mutex)
     /// This axis's tracker (its own, or the unit's shared one: Axis::share_nonvolatile_state).
@@ -361,7 +401,8 @@ struct Axis::Impl {
                                bool accel_only = false);
     void check_unit_speed(double speed);
     void check_unit_accel(double accel, const std::string& what, bool decel);
-    void send_direct(const DirectMove& move);
+    /// Send a 0x9900 block; returns the watch of its move (taken right before the frame).
+    MoveWatch send_direct(const DirectMove& move);
     std::vector<std::string> change_warnings(double speed, double accel);
     std::optional<Status> servo(bool on, bool wait, std::optional<double> timeout_s);
     std::vector<std::string> servo_blockers(const Status& st, bool after);
@@ -407,7 +448,7 @@ struct Axis::Impl {
         int address = 0;                         ///< the unit's command-profile block (class 0x0F)
     };
     ProfileMove check_profile_move(double position, double speed, double accel_g, double decel_g, double band);
-    void send_profile(const ProfileMove& profile, std::uint16_t ppow, std::uint16_t ctlf);
+    MoveWatch send_profile(const ProfileMove& profile, std::uint16_t ppow, std::uint16_t ctlf);
     std::optional<Status> move_profile(double position, const MoveOptions& options);
     std::pair<double, std::string> push_speed(std::optional<double> speed);
     std::pair<int, std::vector<std::string>> check_push_force(double force_pct);
@@ -416,7 +457,7 @@ struct Axis::Impl {
     std::optional<Status> change_move(std::optional<double> speed, std::optional<double> accel, bool wait,
                                       std::optional<double> timeout_s);
     /// The blend point of move_sequence: |position - target| <= band (no settle, no PEND), samples from `since` on.
-    Status wait_band(double target, double band, double timeout_s, double since);
+    Status wait_band(double target, double band, double timeout_s, double since, const MoveWatch* watch = nullptr);
     std::vector<Status> move_sequence(const std::vector<SequencePoint>& points, const SequenceOptions& options);
 
     /// Send the decel stop for `error`, then throw it (its own type).
@@ -507,6 +548,7 @@ struct Axis::Impl {
         double timeout_s = 0.0;
         Completion completion = Completion::Safe;
         double sent_at = 0.0;                 ///< now_s() right after the command was answered
+        MoveWatch watch;                      ///< taken right before its frame
     };
     std::optional<StartedMove> started_move;  ///< (mutex) the last one
     /// Where a wait loop takes its statuses from (next_status).
@@ -545,10 +587,13 @@ struct Axis::Impl {
     /// fresh, else one read (lean or full).
     Status sample_since(double since, bool lean);
     /// Record the move just sent (start_move_to).
-    void note_move(double target, double band, double timeout_s, Completion mode, double sent_at);
+    void note_move(double target, double band, double timeout_s, Completion mode, double sent_at,
+                   const MoveWatch& watch);
     /// wait_idle by the rule `mode` with samples from `since` on (default: this call). Stops and raises like wait_idle.
+    /// With the `watch` of the move it waits for, a stop of this object from outside the wait ends it at once
+    /// (ended_from_outside).
     Status wait_done(std::optional<double> target, std::optional<double> band, double timeout_s, Completion mode,
-                     std::optional<double> since = std::nullopt);
+                     std::optional<double> since = std::nullopt, const MoveWatch* watch = nullptr);
 
     // ------------------------------------------------------------------ command strategies (axis_strategy.cpp)
     // Port of ec.py _active_strategy / _run_strategy / _switch_to_register / stop_path and the register STOP substitute.

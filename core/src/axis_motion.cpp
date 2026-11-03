@@ -194,6 +194,7 @@ std::pair<Status, bool> Axis::Impl::stop_sequence(double timeout_s) {
     std::pair<Status, bool> result;
     bool refused = false;  // FC05 answered with exception 01: this unit / line has no coils
     try {
+        HaltNote halt(*this);  // the waits of this axis end on this stop (ended_from_outside)
         try {
             send_stop_coil(*bus, slave, true);
         } catch (const ModbusSlaveError& e) {
@@ -201,7 +202,10 @@ std::pair<Status, bool> Axis::Impl::stop_sequence(double timeout_s) {
             refused = true;
             stop_coil_on = false;
         }
-        if (!refused) result = hold_until_stopped(timeout_s);
+        if (!refused) {
+            halt.note();
+            result = hold_until_stopped(timeout_s);
+        }
     } catch (EcDriverError& e) {
         try {
             if (run.leave()) release_stop();
@@ -236,9 +240,11 @@ void Axis::Impl::try_stop(EcDriverError* error, const std::string& when) {
     }
     stop_coil_on = true;
     bool sent = false;
+    HaltNote halt(*this);  // the other waits of this axis end on this stop (ended_from_outside)
     try {
         send_stop_coil(*bus, slave, true);
         sent = true;
+        halt.note();
     } catch (const std::exception& e) {
         if (coil_refused(e)) {
             stop_coil_on = false;
@@ -747,7 +753,7 @@ DirectMove Axis::Impl::validate_motion(double position, double speed, double acc
     return move;
 }
 
-void Axis::Impl::send_direct(const DirectMove& move) {
+Axis::Impl::MoveWatch Axis::Impl::send_direct(const DirectMove& move) {
     // the caller's SendGate (taken before its checks) refuses the frame after a STOP from elsewhere; this one covers
     // a caller without one from here on
     const detail::SendGate decided(*bus, slave, decision_mark());
@@ -771,6 +777,7 @@ void Axis::Impl::send_direct(const DirectMove& move) {
                                      move.ppow ? std::nullopt : std::optional<double>(reg::from_counts(move.pcmd)));
     };
     const detail::SendGate sent(*bus, slave, decision_mark());  // only tells whether the frame went past the gate
+    const MoveWatch watch = watch_now();
     try {
         write_direct_move(*bus, slave, wire);
     } catch (...) {
@@ -778,6 +785,7 @@ void Axis::Impl::send_direct(const DirectMove& move) {
         throw;
     }
     record();
+    return watch;
 }
 
 // ============================================================================================ moves
@@ -804,11 +812,11 @@ std::optional<Status> Axis::Impl::move_to(double position, const MoveOptions& o)
     const double timeout =
         o.timeout_s ? *o.timeout_s : detail::default_move_timeout_s(std::fabs(target - st.position_mm), o.speed, o.accel_g);
     return guard([&]() -> std::optional<Status> {
-        send_direct(move);
+        const MoveWatch watch = send_direct(move);
         const double sent = now_s();
-        note_move(target, o.band, timeout, mode, sent);
+        note_move(target, o.band, timeout, mode, sent, watch);
         if (!o.wait) return std::nullopt;
-        return wait_done(target, o.band, timeout, mode, sent);
+        return wait_done(target, o.band, timeout, mode, sent, &watch);
     });
 }
 

@@ -151,7 +151,7 @@ Axis::Impl::ProfileMove Axis::Impl::check_profile_move(double position, double s
     return p;
 }
 
-void Axis::Impl::send_profile(const ProfileMove& p, std::uint16_t ppow, std::uint16_t ctlf) {
+Axis::Impl::MoveWatch Axis::Impl::send_profile(const ProfileMove& p, std::uint16_t ppow, std::uint16_t ctlf) {
     // SPOW / DPOW are kept from the unit's own block; LPOW, CTF2 and the zones are 0.
     const std::vector<std::uint16_t> current = bus->read_registers(slave, p.address, reg::kProfileWords);
     // target and band in the unit's own position counts: x10 on a 0.001 mm RCON unit (No.207; line.hpp)
@@ -172,7 +172,9 @@ void Axis::Impl::send_profile(const ProfileMove& p, std::uint16_t ppow, std::uin
         last_target = ppow ? std::nullopt : std::optional<double>(reg::from_counts(p.move.pcmd));
     }
     bus->read_write_registers(slave, reg::kMonitorBase, reg::kProfileMonitorWords, p.address, words);
+    const MoveWatch watch = watch_now();  // the PCRF edge starts the move
     bus->write_coil(slave, reg::kCoilPcrf, true);  // self-clearing: no OFF is sent
+    return watch;
 }
 
 std::optional<Status> Axis::Impl::move_profile(double position, const MoveOptions& o) {
@@ -186,11 +188,11 @@ std::optional<Status> Axis::Impl::move_profile(double position, const MoveOption
     const double timeout =
         o.timeout_s ? *o.timeout_s : detail::default_move_timeout_s(std::fabs(target - st.position_mm), o.speed, slower);
     return guard([&]() -> std::optional<Status> {
-        send_profile(p, 0, mod);
+        const MoveWatch watch = send_profile(p, 0, mod);
         const double sent = now_s();
-        note_move(target, o.band, timeout, mode, sent);
+        note_move(target, o.band, timeout, mode, sent, watch);
         if (!o.wait) return std::nullopt;
-        return wait_done(target, o.band, timeout, mode, sent);
+        return wait_done(target, o.band, timeout, mode, sent, &watch);
     });
 }
 
@@ -365,7 +367,7 @@ std::optional<Status> Axis::Impl::change_move(std::optional<double> speed, std::
 
 // ============================================================================================ sequences
 
-Status Axis::Impl::wait_band(double target, double band, double timeout_s, double since) {
+Status Axis::Impl::wait_band(double target, double band, double timeout_s, double since, const MoveWatch* watch) {
     const double deadline = now_s() + timeout_s;
     std::optional<double> away_since;
     Feed feed = make_feed(true, since);  // the lean block, or the monitor's samples from `since` on
@@ -373,6 +375,7 @@ Status Axis::Impl::wait_band(double target, double band, double timeout_s, doubl
         const Status st = next_status(feed);
         check_during_motion(st);
         if (std::fabs(st.position_mm - target) <= band + kPosEps) return st;
+        if (watch && ended_from_outside(*watch, st, target, band)) return st;
         const double now = now_s();
         const std::string u = units_label();
         if (st.in_position && !st.moving) {
@@ -434,12 +437,12 @@ std::vector<Status> Axis::Impl::move_sequence(const std::vector<SequencePoint>& 
             const double timeout = o.timeout_s ? *o.timeout_s
                                                : detail::default_move_timeout_s(std::fabs(p.target - st.position_mm),
                                                                                 p.speed, p.accel);
-            send_direct(p.move);
+            const MoveWatch watch = send_direct(p.move);
             const double sent = now_s();
             if (!o.blend_band || i + 1 == plan.size())
-                st = wait_done(p.target, p.band, timeout, mode, sent);
+                st = wait_done(p.target, p.band, timeout, mode, sent, &watch);
             else
-                st = wait_band(p.target, *o.blend_band, timeout, sent);
+                st = wait_band(p.target, *o.blend_band, timeout, sent, &watch);
             results.push_back(st);
         }
         return results;

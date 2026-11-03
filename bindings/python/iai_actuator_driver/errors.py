@@ -159,7 +159,9 @@ class MotionIncompleteError(EcError):
     """The axis settled (in position, not moving) away from the commanded target.
 
     Typical causes: a STOP from another master, the EC ignoring the command (STOP held, PIO in
-    control) or the EC clamping the target to its own soft limit.
+    control) or the EC clamping the target to its own soft limit. Also raised at once ("stopped from
+    outside this wait", no STOP of its own) when ``stop()`` of the same axis from another thread ends a
+    move wait.
     """
 
 

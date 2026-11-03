@@ -14,7 +14,7 @@ namespace iai_actuator_driver {
 
 struct MoveHandle::State {
     State(void* axis_, double target_, double band_, double timeout_, Completion completion_, double sent_at_,
-          double settle_s)
+          double settle_s, const detail::MoveWatch& watch_)
         : axis(axis_),
           target(std::round(target_ * 1000.0) / 1000.0),
           band(band_),
@@ -22,7 +22,8 @@ struct MoveHandle::State {
           completion(completion_),
           sent_at(sent_at_),
           deadline(sent_at_ + timeout_),
-          settle(settle_s) {}
+          settle(settle_s),
+          watch(watch_) {}
 
     void* axis;  ///< the Axis::Impl (MoveHandle members cast it back)
     double target;
@@ -34,6 +35,7 @@ struct MoveHandle::State {
     bool cancelled = false;
     std::optional<Status> result;
     detail::Settle settle;  ///< the safe rule's window over done() calls
+    detail::MoveWatch watch;  ///< a stop of the axis from outside ends the waits at once (ended_from_outside)
     long seq = 0;           ///< (ABI 0.5, py-monitor) the last status monitor sample poll() took
     double sample_at = -1.0;  ///< (ABI 0.5, py-monitor) now_s() when poll() last took one (< 0: never)
 };
@@ -44,11 +46,19 @@ template <class Impl>
 Impl& axis_of(void* p) {
     return *static_cast<Impl*>(p);
 }
+
+/// The watch of the move sent at `sent_at` (start_move_to recorded it), else the stops of the axis from now on.
+template <class Impl>
+detail::MoveWatch watch_of(Impl& ax, double sent_at) {
+    std::lock_guard<std::mutex> lock(ax.mutex);
+    if (ax.started_move && ax.started_move->sent_at == sent_at) return ax.started_move->watch;
+    return ax.watch_now();
+}
 }  // namespace
 
 MoveHandle::MoveHandle(Axis& axis, double target, double band, double timeout_s, Completion completion, double sent_at)
     : s_(std::make_shared<State>(axis.impl_.get(), target, band, timeout_s, completion, sent_at,
-                                 axis.impl_->opts().settle_s)) {}
+                                 axis.impl_->opts().settle_s, watch_of(*axis.impl_, sent_at))) {}
 
 double MoveHandle::target() const { return s_->target; }
 double MoveHandle::band() const { return s_->band; }
@@ -64,7 +74,8 @@ bool MoveHandle::done() {
     Axis::Impl& ax = axis_of<Axis::Impl>(s_->axis);
     const Status st = ax.sample_since(s_->sent_at, s_->completion == Completion::Fast);
     ax.check_during_motion(st);
-    if (ax.is_done(st, s_->target, s_->band, s_->completion, s_->settle)) {
+    if (ax.is_done(st, s_->target, s_->band, s_->completion, s_->settle) ||
+        ax.ended_from_outside(s_->watch, st, s_->target, s_->band)) {
         s_->result = st;
         ax.motion_pending = false;
         return true;
@@ -79,7 +90,7 @@ Status MoveHandle::wait(std::optional<double> timeout_s) {
     // late must not time out, and so stop the axis, on the settle window of a finished move)
     const double timeout =
         timeout_s ? *timeout_s : std::max(s_->deadline - now_s(), ax.opts().settle_s + kLateWaitS);
-    const Status st = ax.wait_done(s_->target, s_->band, timeout, s_->completion, s_->sent_at);
+    const Status st = ax.wait_done(s_->target, s_->band, timeout, s_->completion, s_->sent_at, &s_->watch);
     s_->result = st;
     return st;
 }
@@ -128,7 +139,8 @@ bool MoveHandle::monitored(double until) {
     s_->sample_at = now_s();
     const Status st = ax.confirmed(sample->status);
     ax.check_during_motion(st);
-    if (ax.is_done(st, s_->target, s_->band, s_->completion, s_->settle)) {
+    if (ax.is_done(st, s_->target, s_->band, s_->completion, s_->settle) ||
+        ax.ended_from_outside(s_->watch, st, s_->target, s_->band)) {
         s_->result = st;
         ax.motion_pending = false;
     }

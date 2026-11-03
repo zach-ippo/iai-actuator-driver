@@ -18,7 +18,10 @@
 // * No watchdog: if the PC or cable fails, a move in progress finishes. This driver is not a safety function.
 //
 // Thread safety: the bus serialises frames (one mutex per port); the Axis guards its own state. stop() may be called
-// from another thread while a thread waits for a move. Several axes may share one Port (daisy chain, UNVERIFIED).
+// from another thread while a thread waits for a move: that wait (move_to, MoveHandle::wait / poll / done) ends at once
+// with MotionIncompleteError ("stopped from outside this wait") and sends no STOP of its own (ON-WIRE on a PCON-CB +
+// RCP6: before, it ended about 3 s later and sent a second STOP). Several axes may share one Port (daisy chain,
+// UNVERIFIED).
 #pragma once
 
 #include <cstdint>

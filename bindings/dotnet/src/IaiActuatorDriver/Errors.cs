@@ -307,7 +307,9 @@ namespace IaiActuatorDriver
 
     /// <summary>
     /// The axis settled (in position, not moving) away from the commanded target: a STOP from another master, the unit
-    /// ignoring the command (STOP held, PIO in control) or the unit clamping the target to its own soft limit.
+    /// ignoring the command (STOP held, PIO in control) or the unit clamping the target to its own soft limit. Also
+    /// thrown at once ("stopped from outside this wait", no STOP of its own) when <c>Stop</c> of the same axis from
+    /// another thread ends a move wait.
     /// </summary>
     public class MotionIncompleteException : EcException
     {

@@ -179,7 +179,9 @@ std::pair<Status, bool> Axis::Impl::register_stop_sequence(double timeout_s, Sto
     stop_pause_on = true;
     std::pair<Status, bool> held;
     try {
+        HaltNote halt(*this);  // the waits of this axis end on this stop (ended_from_outside)
         registers.pause(*bus, slave, true);
+        halt.note();
         held = hold_until_stopped(timeout_s);
     } catch (EcDriverError& e) {
         try {
@@ -215,9 +217,11 @@ void Axis::Impl::try_register_stop(EcDriverError* error, const std::string& when
     stop_pause_on = true;
     std::optional<Status> st;
     bool sent = false;
+    HaltNote halt(*this);  // the other waits of this axis end on this stop (ended_from_outside)
     try {
         registers.pause(*bus, slave, true);
         sent = true;
+        halt.note();
     } catch (const std::exception& e) {
         detail::add_note(error, "decel stop (DRG1 pause) " + when + " failed too: " + e.what());
     }
@@ -242,6 +246,7 @@ void Axis::Impl::try_register_stop(EcDriverError* error, const std::string& when
 }
 
 void Axis::Impl::send_stop_first_frame() {
+    const HaltNote halt(*this);  // the waits of this axis end on this stop (ended_from_outside)
     if (register_stop_path()) {
         stop_pause_on = true;
         registers.pause(*bus, slave, true);

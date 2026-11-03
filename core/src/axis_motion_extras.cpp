@@ -26,7 +26,8 @@ using detail::kAxisLog;
 using detail::kPosEps;
 
 constexpr int kConAsofModeItem = 14;   ///< CON 8.14: No.53 stop mode b8-10 (P5 / P6 bits on an EC)
-constexpr int kConAsofDelayItem = 20;  ///< CON 8.20: No.36 automatic servo OFF delay 1, s
+/// CON 8.20 / 8.44 / 8.45: No.36 / No.37 / No.38 automatic servo OFF delay 1 / 2 / 3, s (No.53 stop mode 1 / 2 / 3)
+constexpr int kConAsofDelayItems[] = {20, 44, 45};
 constexpr double kPushStartSideMm = 0.005;  ///< a push start further into the zone than this is refused
 
 std::string f2(double v) { return util::fixed(v, 2); }
@@ -248,12 +249,20 @@ std::vector<std::string> Axis::Impl::auto_servo_off_push_warnings() {
     if (!system || reg::is_ec_family(system)) return {};  // an EC: its delay register is not known
     const std::optional<std::uint32_t> mode = item_raw(reg::kMotionParamsCategory, kConAsofModeItem);
     if (!mode || !((*mode >> 8) & 0x7)) return {};
-    const std::optional<std::uint32_t> delay = item_raw(reg::kMotionParamsCategory, kConAsofDelayItem);
-    const std::string after = delay ? " (" + std::to_string(*delay) + " s)" : std::string();
+    // the stop mode selects the delay: 1 -> No.36, 2 -> No.37, 3 -> No.38 (ON-WIRE: mode 2 with No.37 = 5 s on a PCON-CB)
+    const unsigned stop_mode = static_cast<unsigned>((*mode >> 8) & 0x7);
+    std::string which = "the delay No.53 selects";
+    std::string after;
+    if (stop_mode >= 1 && stop_mode <= 3) {
+        const std::optional<std::uint32_t> delay =
+            item_raw(reg::kMotionParamsCategory, kConAsofDelayItems[stop_mode - 1]);
+        which = "the No." + std::to_string(35 + stop_mode) + " delay";
+        if (delay) after = " (" + std::to_string(*delay) + " s)";
+    }
     return {util::format("automatic servo OFF is enabled (No.53 stop mode %u): after the push the servo switches off "
-                         "once the No.36 delay",
-                         static_cast<unsigned>((*mode >> 8) & 0x7)) +
-            after + " has passed and the work is no longer held (DOC PCON p.5-5)"};
+                         "once ",
+                         stop_mode) +
+            which + after + " has passed and the work is no longer held (DOC PCON p.5-5)"};
 }
 
 std::optional<PushResult> Axis::Impl::push(double target, double band, double force_pct, const PushOptions& o) {

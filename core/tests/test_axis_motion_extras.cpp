@@ -455,6 +455,25 @@ TEST(axis_push_con_warns_when_auto_servo_off_is_enabled) {
     CHECK(warned);
 }
 
+TEST(axis_push_con_auto_servo_off_warning_names_the_delay_no53_selects) {
+    auto sim = make_sim(SimProfile::Pcon);
+    Axis ax = open_sim(sim);
+    ax.identify();
+    const int mode_address = item_address(ax, "8.14");
+    const auto words = ax.read_registers(mode_address, 2);
+    const auto mode = reg::to_u32_words(reg::from_u32_words(words[0], words[1]) | (2u << 8));  // No.53 = 2
+    write_ram(*sim, mode_address, {mode.first, mode.second});
+    write_ram(*sim, item_address(ax, "8.20"), {0, 0});   // No.36 = 0 s
+    write_ram(*sim, item_address(ax, "8.44"), {0, 5});   // No.37 = 5 s
+    const auto result = ax.push(80.0, 10.0, 30.0, push_opts(1, 20.0));
+    REQUIRE(result.has_value());
+    std::string text;
+    for (const std::string& w : result->warnings)
+        if (contains(w, "automatic servo OFF")) text = w;
+    CHECK(contains(text, "No.37 delay (5 s)"));
+    CHECK(!contains(text, "No.36"));
+}
+
 TEST(axis_push_speed_from_the_unit) {
     const std::pair<SimProfile, double> expected[] = {
         {SimProfile::Slider, 30.0}, {SimProfile::Rod, 20.0}, {SimProfile::Gripper, 5.0}, {SimProfile::Pcon, 20.0}};

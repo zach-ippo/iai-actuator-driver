@@ -135,11 +135,12 @@ Each unit owns its files; no file belongs to two units.
 | sim | `src/sim_unit.cpp sim_motion.cpp sim_fixtures.cpp sim_line.cpp sim_profile.cpp sim_faults.cpp sim_gateway.cpp`, `src/sim_fixtures.hpp`, `tests/test_sim_*.cpp` | sim, sim_line, sim_gateway |
 | axis | `src/axis_core.cpp axis_motion.cpp axis_motion_extras.cpp axis_fast.cpp axis_config.cpp axis_nv.cpp cell.cpp monitor.cpp move_handle.cpp recovery.cpp info.cpp check.cpp`, `src/axis_impl.hpp`, `cli/*.cpp`, `cli/cli.hpp`, `tests/test_axis_*.cpp test_cell*.cpp test_cli*.cpp test_recovery*.cpp test_info*.cpp test_check*.cpp` | axis, motion, monitor, move_handle, recovery, info, check, cell, nonvolatile, iai_actuator_driver.hpp |
 | capi | `src/c_api*.cpp`, `src/c_api_impl.hpp`, `tests/test_capi*.cpp`, `tests/test_c_api*.cpp`, `tests/c_smoke.c` (the C ABI over the other four; [docs/NATIVE_ABI.md](../docs/NATIVE_ABI.md)) | `include/iai_actuator_driver.h` |
+| sel | `src/sel_frame.cpp`, `src/sel_frame.hpp` (internal: the SEL protocol's frames, checksum and hex fields; UNVERIFIED on a controller), `tests/test_sel_*.cpp` | none yet (nothing SEL in the C ABI) |
 
 - The public headers are the contract: a unit changes one only when a declaration cannot be implemented as written,
   and reports the change.
 - New files of a unit match its patterns in `build.py` (`UNITS`; e.g. `bus_*.cpp`, `model_*.cpp`, `sim_*.cpp`,
   `axis_*.cpp`, `c_api*.cpp`).
 - Test names start with their unit or area (`bus_`, `model_`, `sim_`, `axis_`, `cell_`, `cli_`, `recovery_`, `info_`,
-  `check_`, `capi_`). `tests/test_main.cpp` and `tests/test_harness.cpp` (the harness and the header-only helpers)
-  belong to no unit.
+  `check_`, `capi_`, `sel_`). `tests/test_main.cpp` and `tests/test_harness.cpp` (the harness and the header-only
+  helpers) belong to no unit.

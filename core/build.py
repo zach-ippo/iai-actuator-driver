@@ -29,8 +29,9 @@ Options: -j N (parallel jobs, default: CPUs), --release (-O2; default -O1), --fo
 --shards N (test: run the tests as N processes at once through tests/run_shards.py; default half the CPUs, at most 6;
 --shards 1 runs the test executable directly, one test after another).
 
-Units (disjoint file ownership; see DESIGN.md): bus, model, sim, axis, capi. ``--unit bus|model|sim`` builds and tests
-that unit alone (they only share header-only code); ``--unit axis`` needs the other three, ``--unit capi`` all four.
+Units (disjoint file ownership; see DESIGN.md): bus, model, sim, axis, capi, coord, sel. ``--unit bus|model|sim|sel``
+builds and tests that unit alone (they only share header-only code); ``--unit axis`` needs bus, model and sim,
+``--unit coord`` the axis unit too, ``--unit capi`` every one but sel.
 Incremental by mtime: an object is rebuilt when its source or any header in its .d file is newer, or the flags
 changed. The first compile after a zig install takes about a minute (zig builds its libc++ cache); then it is fast.
 """
@@ -86,9 +87,13 @@ UNITS: dict[str, dict[str, list[str]]] = {
         "src": ["coord_*.cpp"],
         "tests": ["test_coord*.cpp"],
     },
+    "sel": {  # the SEL protocol (sel_frame.hpp): a stack of its own beside the Modbus one, nothing in the C ABI yet
+        "src": ["sel_*.cpp"],
+        "tests": ["test_sel*.cpp"],
+    },
 }
 UNIT_DEPS = {"bus": [], "model": [], "sim": [], "axis": ["bus", "model", "sim"],
-             "capi": ["bus", "model", "sim", "axis", "coord"], "coord": ["bus", "model", "sim", "axis"]}
+             "capi": ["bus", "model", "sim", "axis", "coord"], "coord": ["bus", "model", "sim", "axis"], "sel": []}
 # The shared library: its name, and the define that makes IAD_API dllexport (only c_api*.cpp is compiled with it).
 SHARED_NAME = "iai_actuator_driver"
 SHARED_DEFINE = "-DIAD_BUILD_SHARED"

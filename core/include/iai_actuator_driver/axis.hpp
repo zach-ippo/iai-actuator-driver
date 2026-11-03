@@ -266,7 +266,9 @@ public:
     /// Home return (coil edge, or 0x45 cmd 0x0A with the unit's ORG). Waits for HEND and standstill when wait.
     std::optional<Status> home(bool wait = true, std::optional<double> timeout_s = std::nullopt,
                                std::optional<CommandMethod> method = std::nullopt);
-    /// Clear the current alarm; returns the new status.
+    /// Clear the current alarm; returns the new status. A servo the alarm switched off stays off: its servo-on level
+    /// (SON coil / DRG1 b12) is cleared first, since the reset alone re-energises the motor (ON-WIRE on a PCON-CB,
+    /// 2026-11-03); call servo(true) afterwards. A servo that is on stays on.
     Status reset_alarm(std::optional<CommandMethod> method = std::nullopt);
 
     // ---------------------------------------------------------------- motion

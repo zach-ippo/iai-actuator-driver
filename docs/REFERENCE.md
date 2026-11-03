@@ -579,6 +579,9 @@ with Cell.open() as cell:              # every IAI adapter, every answering addr
     `MotionIncompleteError` is raised instead of waiting for the timeout.
 - **Preconditions.** Moves require Modbus control, servo on, homed, no alarm or emergency stop, not paused and no home
   return in progress; otherwise `EcNotReadyError` / `EcAlarmError` with a hint.
+- **Alarm reset.** `reset_alarm()` leaves a servo the alarm switched off **off**: an alarm keeps the servo-on level
+  (SON coil / DRG1 b12) set, and on a PCON-CB the reset alone re-energised the motor (ON-WIRE, 2026-11-03), so the
+  driver clears that level first, on the reset's own path. Call `servo(True)` afterwards. A servo that is on stays on.
 - **Modbus control (PMSL).** The EC powers up with PMSS = 0. The driver takes control (PMSL coil 0x0427)
   automatically before a command, **but only while the axis is at rest**: on hardware, switching PMSL on in the middle
   of a move stopped that move. With PMSS = 0 and the axis moving, commands raise `EcNotReadyError` instead of touching

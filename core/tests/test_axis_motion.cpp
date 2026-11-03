@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "axis_impl.hpp"
+#include "iai_actuator_driver/commands.hpp"
 #include "iai_actuator_driver/crc.hpp"
 #include "iai_actuator_driver/fake_transport.hpp"
 #include "iai_actuator_driver/sim.hpp"
@@ -109,6 +110,34 @@ TEST(axis_motion_a_refusal_in_pio_writes_nothing_not_even_pmsl) {
     REQUIRE(st.has_value());
     CHECK(sim->pmsl());
     CHECK_NEAR(st->position_mm, 80.0, 0.1);
+}
+
+TEST(axis_motion_reset_alarm_leaves_a_servo_the_alarm_switched_off_off) {
+    // ON-WIRE on a PCON-CB, 2026-11-03: after a push back error 0x0DC switched the servo off, one alarm reset at rest
+    // re-energised the motor by itself (the servo-on level stayed set). reset_alarm() clears that level first.
+    auto sim = make_sim(SimProfile::Pcon);
+    Axis ax = open_sim(sim);
+    REQUIRE(ax.status().servo_on);
+    sim->trigger_alarm(0x0DC);
+    REQUIRE(!ax.status().servo_on);
+    // the simulated PCON-CB itself: a bare alarm reset turns the servo back on
+    send_alarm_reset(*ax.bus(), ax.slave(), CommandMethod::Coil);
+    REQUIRE(sim->servo_on());
+    sim->trigger_alarm(0x0DC);
+    sim->clear_requests();
+    const Status st = ax.reset_alarm();
+    CHECK(!st.alarm);
+    CHECK(!st.servo_on);
+    CHECK(!sim->servo_on());
+    CHECK_EQ(coil_trace(sim->requests(), reg::kCoilSon), "0");  // the servo-on level cleared before the reset
+    CHECK_EQ(coil_trace(sim->requests(), reg::kCoilAlrs), "10");
+    REQUIRE(ax.servo(true).has_value());
+    CHECK(sim->servo_on());
+    // a servo that is on stays on, with nothing more sent
+    sim->trigger_alarm(0x069);  // a message-level alarm: the servo stays on
+    sim->clear_requests();
+    CHECK(ax.reset_alarm().servo_on);
+    CHECK_EQ(coil_trace(sim->requests(), reg::kCoilSon), "");
 }
 
 TEST(axis_motion_check_move_refusals_send_nothing) {

@@ -1528,7 +1528,11 @@ class Elecylinder:
         return float(data["timeout_s"]), str(data["reason"])
 
     def reset_alarm(self, *, method: str | None = None) -> Status:
-        """Reset the current alarm (not a software reset) and return the new status."""
+        """Reset the current alarm (not a software reset) and return the new status.
+
+        A servo the alarm switched off stays off: its servo-on level is cleared first (on a PCON-CB the reset alone
+        re-energised the motor: ON-WIRE, 2026-11-03), so call :meth:`servo` afterwards. A servo that is on stays on.
+        """
         code = _METHOD_DEFAULT if method is None else _choice(method, _METHODS, "method")
         return self._status_call("iad_axis_reset_alarm", code)  # type: ignore[return-value]
 

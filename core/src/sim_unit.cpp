@@ -84,6 +84,7 @@ SimulatedUnit::Impl::Impl(const SimulatedUnitOptions& options)
       rtc_unset(fx.rtc_alarm),
       pio_unwired(fx.pio_unwired),
       action_mode_locks_son(fx.action_mode_locks_son),
+      alarm_reset_restores_servo(fx.alarm_reset_restores_servo),
       recompute_position_checksum(options.recompute_position_checksum),
       drop_reply_after_retarget(options.drop_reply_after_retarget),
       stop_latches(options.stop_latches),

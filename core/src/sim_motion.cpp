@@ -402,11 +402,16 @@ void SimulatedUnit::Impl::alarm_reset() {
         row_move.reset();
     }
     const bool abs_error = alarm_code == kSimAlarmAbsError;
+    const bool was_major = alarm_major;
     alarm_code = 0;
     alarm_major = false;
     if (abs_error) {
         servo_on = true;  // gripper recovery: after the ALRS pulse the servo came back on by itself (HEND 0)
         log_event("servo on (after ABS error reset)");
+    } else if (was_major && alarm_reset_restores_servo && son_level && !servo_on && pmsl && !son_blocked() &&
+               !son_locked) {
+        set_servo(true);  // PCON-CB: the servo-on level was still set (ON-WIRE, 2026-11-03)
+        log_event("servo on (the servo-on level was still set at the alarm reset)");
     }
     if (rtc_unset) raise_alarm(reg::kAlarmRtcStop);  // PCON: re-raised by itself while the clock is unset (message level)
 }
@@ -487,6 +492,7 @@ void SimulatedUnit::Impl::restart(bool power_up) {
         servo_on = false;  // CON after power-up: servo off, PSNS 0 until the first servo ON
         excited = false;
     }
+    son_level = servo_on;
     if (power_up) {
         homed = true;
         alarm_history.insert(alarm_history.begin(),

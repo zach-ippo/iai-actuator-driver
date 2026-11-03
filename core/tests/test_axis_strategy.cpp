@@ -168,7 +168,11 @@ TEST(axis_strategy_register_servo_home_reset_pause_through_fc06) {
     CHECK_EQ(after.alarm_code, 0);
     const auto first = drg1_values(sim->requests());
     REQUIRE(!first.empty());
-    CHECK_EQ(first.front(), reg::kDrg1Alrs);  // the alarm dropped the servo: ALRS alone
+    // the alarm dropped the servo: its level is cleared first (SON 0), then ALRS alone (a PCON-CB re-energised the
+    // motor at the reset while the level stayed set: ON-WIRE, 2026-11-03)
+    REQUIRE(first.size() >= 2);
+    CHECK_EQ(first[0], 0);
+    CHECK_EQ(first[1], reg::kDrg1Alrs);
     ax.servo(true);
     sim->clear_requests();
     ax.reset_alarm();  // with the servo on: SON is kept in both frames
@@ -580,7 +584,7 @@ TEST(axis_strategy_iai2_servo_home_reset_frames) {
     std::vector<int> codes;
     for (const Bytes& f : t->frames())
         if (f.size() == 23 && f[1] == 0x48) codes.push_back((f[3] << 8) | f[4]);
-    CHECK(codes == (std::vector<int>{0x30, 0x30, 0x31, 0x23}));
+    CHECK(codes == (std::vector<int>{0x30, 0x30, 0x31, 0x30, 0x23}));  // the alarm's servo OFF cleared before 0x23
     CHECK_EQ(count_fc(t->frames(), 0x05), 0);  // the axis itself wrote no coil
     CHECK(sim->homed());
     CHECK_EQ(sim->alarm_code(), 0);

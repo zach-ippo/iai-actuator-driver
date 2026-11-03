@@ -46,7 +46,9 @@ namespace IaiActuatorDriver
         /// <see cref="CommandMethod.Coil"/> (ALRS coil pulse, VERIFIED: it cleared ABS error 0x0EE on the gripper),
         /// <see cref="CommandMethod.Iai"/> (0x45 cmd 5 op1 0 - frame accepted with no alarm active; clearing a real alarm
         /// UNVERIFIED) or <c>null</c> (the configured strategy's). Takes Modbus control first if needed and the axis is at
-        /// rest. A cold-start alarm needs a software reset or a power cycle instead (UNVERIFIED).
+        /// rest. A cold-start alarm needs a software reset or a power cycle instead (UNVERIFIED). A servo the alarm switched
+        /// off stays off: its servo-on level is cleared first (on a PCON-CB the reset alone re-energised the motor: ON-WIRE,
+        /// 2026-11-03), so call <see cref="Servo"/> afterwards; a servo that is on stays on.
         /// </summary>
         public Status ResetAlarm(CommandMethod? method = null)
         {

@@ -481,6 +481,7 @@ ProfileFixture make_pcon() {
     f.rtc_alarm = true;
     f.pio_unwired = true;  // the PCON-CB on the bench: nothing on its PIO connector
     f.action_mode_locks_son = true;  // 0x45 cmd 0x0C op1 = 1 clears DSSE b12, servo ON then ignored (2026-11-02)
+    f.alarm_reset_restores_servo = true;  // the servo-on level survives an alarm: the reset re-energises (2026-11-03)
     f.ranges = {{0, 184}, {256, 264}, {512, 522}, {640, 660}, {768, 892}, {896, 1020}, {1024, 1066}, {1152, 1194}, {1280, 1472}, {22528, 22534}, {1536, 1600}, {1792, 1840}, {20736, 20784}, {2048, 2154}, {20992, 21098}, {2304, 2408}, {21248, 21352}, {3072, 3080}, {22016, 22020}, {3328, 3338}, {3456, 3476}, {3840, 3860}, {4096, 16384}, {20480, 20496}, {32512, 32526}, {32768, 32800}, {33024, 33040}, {33280, 33296}, {33792, 33846}, {33920, 33974}, {36864, 36898}, {38912, 38915}, {39168, 39178}, {39424, 39428}};
     f.param_ranges = {{1792, 1840}, {2048, 2154}, {2304, 2408}, {3072, 3080}};
     return f;

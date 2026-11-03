@@ -432,8 +432,18 @@ std::optional<Status> Axis::Impl::servo(bool on, bool wait, std::optional<double
 
 Status Axis::Impl::reset_alarm(std::optional<CommandMethod> method) {
     const CommandMethod strategy_ = strategy_for(method);  // an explicit method the line refuses: nothing sent
-    const Status st = status();
-    if (!st.modbus_enabled && opts().auto_modbus_control && detail::at_rest_for_control(st)) enable_control(true);
+    Status st = status();
+    if (!st.modbus_enabled && opts().auto_modbus_control && detail::at_rest_for_control(st)) {
+        if (const std::optional<Status> now = enable_control(true)) st = *now;
+    }
+    // The servo stays off: an alarm that switched it off leaves the servo-on level (SON coil / DRG1 b12) set, and the
+    // reset alone would re-energise the motor (ON-WIRE on a PCON-CB, 2026-11-03). That level is cleared first, on the
+    // reset's own path (a servo OFF is a stop path: first in the bus queue).
+    if (st.alarm && !st.servo_on && st.modbus_enabled) {
+        const StopPriority stop_priority;
+        log_info(kAxisLog, "alarm reset: the servo is off; its servo-on level is cleared first, so it stays off");
+        run_strategy(strategy_, "servo", [&](CommandMethod m) { send_servo(*bus, slave, false, m, &registers); });
+    }
     run_strategy(strategy_, "alarm reset", [&](CommandMethod m) { send_alarm_reset(*bus, slave, m, &registers); });
     return status();
 }

@@ -3680,7 +3680,8 @@ class NativeAxis:
         return _status_or_none(out)
 
     def reset_alarm(self, *, method: str | None = None) -> NativeStatus:
-        """Clear the current alarm (not a software reset) and return the new status (Axis::reset_alarm)."""
+        """Clear the current alarm (not a software reset) and return the new status (Axis::reset_alarm). A servo the
+        alarm switched off stays off (its servo-on level is cleared first); a servo that is on stays on."""
         code = _METHOD_DEFAULT if method is None else _choice(method, _METHODS, "method")
         out = Status()
         self._call("iad_axis_reset_alarm", code, ctypes.byref(out))

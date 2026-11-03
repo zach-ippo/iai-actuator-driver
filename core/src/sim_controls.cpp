@@ -70,6 +70,7 @@ bool SimulatedUnit::Impl::son_blocked() const { return emg_input || drive_cut ||
 void SimulatedUnit::Impl::request_servo(bool on) {
     // A servo ON / OFF command (SON coil, DRG1 SON, 0x45 cmd 9, 0x48 cmd 0x30): ON is ignored while an input blocks it,
     // and the first ON after a cold boot completes only after the excitation-detection time.
+    son_level = on;
     if (!on) {
         son_due.reset();
         set_servo(false);
@@ -218,7 +219,7 @@ void SimulatedUnit::set_state(const SimStateLevels& levels) {
     std::lock_guard<std::mutex> lock(impl_->mutex);
     Impl& s = *impl_;
     s.advance();
-    if (levels.servo_on) s.servo_on = *levels.servo_on;
+    if (levels.servo_on) s.servo_on = s.son_level = *levels.servo_on;
     if (levels.homed) s.homed = *levels.homed;
     if (levels.pmsl) s.pmsl = *levels.pmsl;
     if (levels.safety_speed) s.safety_speed = *levels.safety_speed;

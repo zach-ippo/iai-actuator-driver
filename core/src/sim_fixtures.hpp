@@ -83,6 +83,10 @@ struct ProfileFixture {
     /// PCON-CB, 2026-11-02). Whether op1 = 0 sets it again is untested: not modelled (worst case); a restart clears it
     /// here (UNVERIFIED: a power cycle with b12 at 0 was never tried)
     bool action_mode_locks_son = false;
+    /// An alarm that switches the servo off leaves the servo-on level set (the SON coil / DRG1 b12 / 0x45 cmd 9 written
+    /// last), and the alarm reset then turns the servo back on by itself (ON-WIRE on the PCON-CB, 2026-11-03: after a
+    /// push back error 0x0DC one alarm reset at rest re-energised the motor). The EC profiles: not modelled
+    bool alarm_reset_restores_servo = false;
     std::vector<std::pair<int, int>> ranges;        ///< [start, end) of every directory block and ID map
     std::vector<std::pair<int, int>> param_ranges;  ///< [start, end) of the parameter classes 7 / 8 / 9 / 0C data
 };
@@ -209,6 +213,7 @@ struct SimulatedUnit::Impl {
     bool rtc_unset;
     bool pio_unwired;
     bool action_mode_locks_son;
+    bool alarm_reset_restores_servo;
     bool recompute_position_checksum;
     bool drop_reply_after_retarget;
     bool stop_latches;
@@ -330,6 +335,7 @@ struct SimulatedUnit::Impl {
     std::optional<double> asof_at;  ///< simulated time the automatic servo OFF is due
     bool excited = true;           ///< DSSE PSNS: the excitation detection is done
     bool son_locked = false;       ///< DSSE b12 cleared by the action mode PC: servo ON ignored (action_mode_locks_son)
+    bool son_level = true;         ///< the servo-on level written last (alarm_reset_restores_servo)
     std::optional<double> son_due;  ///< simulated time a slow (first) servo ON completes
     bool teach_mode = false;       ///< MOD coil (DSS2 b11 MODS)
     bool teach_written = false;    ///< TEAC wrote a row (DSS2 b10 PWRT) and is still held

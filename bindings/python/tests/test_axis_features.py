@@ -160,7 +160,9 @@ class RegisterStrategyTest(unittest.TestCase):
             st = ec.reset_alarm()
             self.assertEqual(st.alarm_code, 0)
             alarm_reset = build_frame(1, struct.pack(">BHH", 0x06, R.DRG1, R.DRG1_ALRS))  # the alarm dropped the servo
-            self.assertEqual(drg1_writes(rec.tx)[0], alarm_reset)
+            # its servo-on level is cleared first (a PCON-CB re-energised at the reset otherwise: ON-WIRE, 2026-11-03)
+            servo_level_off = build_frame(1, struct.pack(">BHH", 0x06, R.DRG1, 0))
+            self.assertEqual(drg1_writes(rec.tx)[:2], [servo_level_off, alarm_reset])
             ec.servo(True)
             rec.clear()
             ec.reset_alarm()  # with the servo on: SON is kept in both frames

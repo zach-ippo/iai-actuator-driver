@@ -298,6 +298,18 @@ namespace IaiActuatorDriver.Cli
                 return;
             }
 
+            if (!result.Changed && !result.Committed)
+            {
+                // --no-commit with the value the unit already holds: nothing was sent
+                output.WriteLine($"{label} {result.Name} ({result.Key} @{result.Address}) = {result.After} (raw {result.RawAfter}): unchanged, the unit already holds this value; nothing written (--no-commit)");
+                foreach (var warning in result.Warnings)
+                {
+                    output.WriteLine("warning: " + warning);
+                }
+
+                return;
+            }
+
             output.WriteLine($"{label} {result.Name} ({result.Key} @{result.Address}): {result.Before} -> {result.After} (raw {result.RawBefore} -> {result.RawAfter}, read back OK)");
             if (result.Committed && result.CommitConfirmed)
             {

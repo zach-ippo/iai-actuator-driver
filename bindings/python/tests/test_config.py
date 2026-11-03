@@ -1006,6 +1006,10 @@ class CliTest(unittest.TestCase):
         self.assertIn("swreset", out)
         code, out, _ = run_cli("--sim", "--sim-profile", "gripper", "param", "set", "2", "0.2", "--no-commit")
         self.assertIn("RAM ONLY", out)
+        code, out, _ = run_cli("--sim", "--sim-profile", "gripper", "param", "set", "2", "0.1", "--no-commit")
+        self.assertEqual(code, 0)  # the value the unit holds: nothing written, not RAM ONLY
+        self.assertIn("unchanged, the unit already holds this value; nothing written (--no-commit)", out)
+        self.assertNotIn("RAM ONLY", out)
         code, out, err = run_cli("--sim", "--sim-profile", "gripper", "--json", "param", "set", "4", "0.6")
         self.assertEqual(code, 0, err)  # a home parameter: written with the home warning
         data = json.loads(out)

@@ -499,6 +499,10 @@ namespace IaiActuatorDriver.Tests
             var skipped = Run("--sim", "gripper", "param", "set", "2", "0.1"); // a new run: it cannot see an earlier RAM-only write
             Assert.Equal(0, skipped.Code);
             Assert.Contains("earlier --no-commit run left this value in RAM only", skipped.Out);
+            var same = Run("--sim", "gripper", "param", "set", "2", "0.1", "--no-commit"); // the value the unit holds
+            Assert.Equal(0, same.Code);
+            Assert.Contains("unchanged, the unit already holds this value; nothing written (--no-commit)", same.Out);
+            Assert.DoesNotContain("RAM ONLY", same.Out);
         }
     }
 }

@@ -1181,6 +1181,12 @@ def _print_param_write(result: ParameterWriteResult, out: TextIO, prefix: str = 
         for warning in result.warnings:
             print(f"warning: {warning}", file=out)
         return
+    if not result.changed and not result.committed:  # --no-commit with the value the unit already holds: nothing sent
+        print(f"{label} {result.name} ({result.key} @{result.address}) = {result.after} (raw {result.raw_after}): "
+              "unchanged, the unit already holds this value; nothing written (--no-commit)", file=out)  # fmt: skip
+        for warning in result.warnings:
+            print(f"warning: {warning}", file=out)
+        return
     print(f"{label} {result.name} ({result.key} @{result.address}): {result.before} -> {result.after}"
           f" (raw {result.raw_before} -> {result.raw_after}, read back OK)", file=out)  # fmt: skip
     if result.committed and result.commit_confirmed:

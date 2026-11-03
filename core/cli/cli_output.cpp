@@ -254,6 +254,12 @@ void parameter_write(const ParameterWriteResult& r, std::ostream& out, const std
         for (const auto& w : r.warnings) out << "warning: " << w << '\n';
         return;
     }
+    if (!r.changed && !r.committed) {  // --no-commit with the value the unit already holds: nothing was sent
+        out << label << ' ' << r.name << " (" << r.key << " @" << r.address << ") = " << r.after << " (raw "
+            << r.raw_after << "): unchanged, the unit already holds this value; nothing written (--no-commit)\n";
+        for (const auto& w : r.warnings) out << "warning: " << w << '\n';
+        return;
+    }
     out << label << ' ' << r.name << " (" << r.key << " @" << r.address << "): " << r.before << " -> " << r.after
         << " (raw " << r.raw_before << " -> " << r.raw_after << ", read back OK)\n";
     if (r.committed && r.commit_confirmed)

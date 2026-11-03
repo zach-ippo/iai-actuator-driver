@@ -113,6 +113,10 @@ TEST(cli_nonvolatile_guard_skips_unchanged_writes) {
     const CliRun same = cli_run(sim_args(state, {"param", "set", "P5", "0"}));
     CHECK_EQ(same.code, 0);
     CHECK(same.says("unchanged: nothing written (one non-volatile write cycle saved)"));
+    const CliRun same_ram = cli_run(sim_args(state, {"param", "set", "P5", "0", "--no-commit"}));
+    CHECK_EQ(same_ram.code, 0);
+    CHECK(same_ram.says("unchanged, the unit already holds this value; nothing written (--no-commit)"));
+    CHECK(!same_ram.says("RAM ONLY"));
     const CliRun changed = cli_run(sim_args(state, {"param", "set", "P5", "1", "--allow-dangerous"}));  // ignored
     CHECK_EQ(changed.code, 0);
     CHECK(changed.says("committed"));

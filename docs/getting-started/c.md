@@ -207,13 +207,14 @@ result), and `iad_axis_nonvolatile_writes` counts the writes. For a target that 
 
 ## Versions, input structs and stability
 
-The C ABI is 1.0, frozen within major 1. Check the library before the first other call (the example above does):
+The C ABI is 1.1 (1.0 is frozen within major 1; 1.1 only adds). Check the library before the first other call (the example above does):
 
 ```c
 if (!IAD_ABI_COMPATIBLE(iad_abi_version())) { /* the library is too old or of another major: do not call it */ }
 ```
 
-- The rule: the same major and a library minor at least the header's (the header is at C ABI 1.0).
+- The rule: the same major and a library minor at least the header's (the header is at C ABI 1.1; 1.0 is frozen
+  within major 1).
 - Within a major version nothing you call is removed, renamed or changed in meaning. A minor only adds. Every non-zero
   result is a failure.
 - The shared library's `SOVERSION` is the ABI major. The Windows DLL carries a version resource with the core's

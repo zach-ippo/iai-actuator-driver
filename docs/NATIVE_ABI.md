@@ -15,8 +15,10 @@ IAI Actuator Driver is unofficial: it is not an IAI product. See the [README](..
 
 ## The 1.0 contract
 
-The header is at C ABI 1.0, frozen within major 1. Everything declared in `iai_actuator_driver.h` is the stable ABI.
-The header's "Conventions" and "Stability" blocks repeat these rules where they apply.
+The header is at C ABI 1.1. ABI 1.0 is frozen within major 1, and 1.1 only adds to it: the serial framing options
+(`iad_transport_open_serial_options`, see [Transports and buses](#transports-and-buses)). Everything declared in
+`iai_actuator_driver.h` is the stable ABI. The header's "Conventions" and "Stability" blocks repeat these rules where
+they apply.
 
 **Stability.** Nothing a caller built against an earlier minor can see ever changes.
 
@@ -43,14 +45,16 @@ The header's "Conventions" and "Stability" blocks repeat these rules where they 
 
 **Sized structs.** Every input struct starts with `uint32_t struct_size` (the size the caller was compiled with) and
 `uint32_t reserved_header` (0). That covers the options and policy structs, the axis commands' options,
-`iad_position_entry`, `iad_sequence_point`, `iad_axis_move`, `iad_bus_options` and `iad_transport_callbacks`. A minor
-adds fields at the end.
+`iad_position_entry`, `iad_sequence_point`, `iad_axis_move`, `iad_bus_options`, `iad_transport_callbacks` and (1.1)
+`iad_serial_options`. A minor adds fields at the end.
 
 - The caller always sets `struct_size`: to `sizeof(...)` before an `_init` call or an output call
   (`iad_axis_get_options`, `iad_axis_read_position_table`), or to 0 by zeroing the struct (0 means the first size). A
   struct built by hand gets its `struct_size` first, then its fields.
 - The first size is the struct's 1.0 size. `iad_bus_options` and `iad_transport_callbacks` keep an older first size
-  (for `iad_transport_callbacks`: 96 bytes on 64-bit, without its last field `set_read_timeout`).
+  (for `iad_transport_callbacks`: 96 bytes on 64-bit, without its last field `set_read_timeout`). A struct a minor adds
+  has the size of that minor as its first size: `iad_serial_options` (1.1) 64 bytes. A library older than the struct
+  does not have the function that reads it (a 1.0 library has no `iad_transport_open_serial_options`).
 - The library reads `min(struct_size, its own size)`.
   - `IAD_ERR_INVALID_ARGUMENT`: a size below the first size, a non-zero `reserved_header`, or a size that cannot be real
     (not a multiple of the struct's alignment, or more than 4096 bytes past the library's own size: an unset field
@@ -736,6 +740,22 @@ These calls let a binding drive everything through the core. The header gives ea
 - **`iad_bus_info_json`** includes `lock_depth`, `lock_waiting`, `preemptible_words` and `suspended_monitors`, and never
   waits for the bus lock.
 - **Log level** (`iad_set_log_level`): lines below it never reach the log sink.
+- **Serial framing** (1.1; `iad_serial_options`, `iad_serial_options_init`, `iad_transport_open_serial_options`): a
+  serial port opened as `iad_transport_open_serial` does, with its settings in a sized struct: the rate, the read
+  timeout and the character framing. The default is 8 data bits, no parity, 1 stop bit (8N1), what the Modbus units use
+  and what `iad_transport_open_serial` always opens. 7 data bits, `IAD_PARITY_EVEN` / `IAD_PARITY_ODD` and 2 stop bits
+  are for a controller set to another framing. The Modbus RTU stacks (buses, axes, cells) need 8 data bits (a byte above
+  0x7F does not fit in 7); 7 data bits is only for a caller's own 7-bit protocol on `iad_transport_write` /
+  `iad_transport_read`. In the struct, 0 data bits or stop bits mean the default, as a `baud_rate` of 0 means 115200 and
+  a NaN `read_timeout_s` means 0.2 s. Another value (data bits other than 7 or 8, stop bits other than 1 or 2, a parity
+  that is not an `IAD_PARITY_*`) or a `struct_size` the rule refuses is `IAD_ERR_INVALID_ARGUMENT`, a set reserved slot
+  `IAD_ERR_UNSUPPORTED`: nothing is opened. A port whose driver does not keep the framing (POSIX: read back after the
+  open; a Linux pseudo terminal keeps only 8 data bits and no parity) is `IAD_ERR_TRANSPORT`. A byte that fails the
+  parity check is passed on as received on Windows and read as 0 on POSIX; the Modbus CRC drops the frame either way.
+  `iad_transport_reopen` keeps the framing. In C++ it is `SerialTransport(port, baud_rate, read_timeout_s,
+  SerialFraming)`. The bindings bind the two functions without a public call yet. Evidence: 8N1 as
+  `iad_transport_open_serial`; 7 data bits, parity and 2 stop bits are UNVERIFIED on hardware (no unit here uses them;
+  the tests check the Windows DCB and the termios flags each framing sets).
 
 ### Lines and gateways
 
@@ -867,9 +887,11 @@ testing call raises `NativeLibraryError` / `NotSupportedException`, and everythi
 
 The version rule is in [The 1.0 contract](#the-10-contract).
 
-- The bindings hold the version as constants: Python `native.ABI_VERSION_MAJOR` / `ABI_VERSION_MINOR`, C#
-  `NativeDriver.AbiMajor` / `AbiMinor`. The Python tests compare them with the header, the C# tests with the built
-  library.
+- The bindings hold the least version they accept as constants: Python `native.ABI_VERSION_MAJOR` /
+  `ABI_VERSION_MINOR`, C# `NativeDriver.AbiMajor` / `AbiMinor`. They stay at 1.0 while no public call of a binding
+  needs a 1.1 function, so a binding accepts a 1.0 or a 1.1 library and refuses another major; it raises its minor
+  when a public call starts to use a later function. The Python tests compare them with the header, the C# tests
+  with the built library.
 - `iad_library_version()` is the core's version (`kVersion`), the release version of the repository ("1.1.1"),
   independent of the ABI version.
 - **The library file.** CMake sets the shared library's `SOVERSION` to the ABI major (`libiai_actuator_driver.so.1`)

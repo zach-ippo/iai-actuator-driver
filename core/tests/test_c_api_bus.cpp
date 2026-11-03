@@ -156,7 +156,7 @@ int32_t IAD_CALL test_hook(const uint8_t* request, size_t size, uint8_t* reply, 
 }  // namespace
 
 TEST(capi03_version_and_sized_structs) {
-    CHECK_EQ(iad_abi_version(), (1u << 16) | 0u);
+    CHECK_EQ(iad_abi_version(), (1u << 16) | 1u);  // 1.1 keeps every 0.3 function
     iad_bus_options o;
     std::memset(&o, 0xAB, sizeof o);
     CHECK_EQ(iad_bus_options_init(&o), IAD_OK);

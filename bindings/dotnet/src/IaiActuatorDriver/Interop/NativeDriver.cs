@@ -22,7 +22,10 @@ namespace IaiActuatorDriver.Native
         /// <summary>The ABI major version this binding was written for (IAD_ABI_VERSION_MAJOR).</summary>
         public const int AbiMajor = 1;
 
-        /// <summary>The ABI minor version this binding was written for (IAD_ABI_VERSION_MINOR).</summary>
+        /// <summary>
+        /// The ABI minor version this binding was written for: the least minor it accepts. It stays 0 while no public
+        /// call needs a later one; the 1.1 imports (NativeMethods.Abi11.cs) are not used by any public call yet.
+        /// </summary>
         public const int AbiMinor = 0;
 
         /// <summary>Base name of the native library.</summary>

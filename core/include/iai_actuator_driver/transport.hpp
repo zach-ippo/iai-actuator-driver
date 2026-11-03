@@ -4,7 +4,8 @@
 // Design rules (VERIFIED in the Python edition): a port is opened once and kept open - opening / closing in a loop, or
 // a line BREAK of 150 ms or more, drops an EC back to its power-up baud rate - so the baud rate is changed in place and
 // no break is ever sent implicitly. 8 data bits, no parity, 1 stop bit, DTR and RTS asserted, no handshake (the line
-// state pyserial sets, i.e. the configuration the Python edition was verified with).
+// state pyserial sets, i.e. the configuration the Python edition was verified with). 8N1 is the default everywhere;
+// another framing (SerialFraming) is for a controller set to one.
 #pragma once
 
 #include <cstddef>
@@ -82,6 +83,34 @@ public:
     void write(const std::vector<std::uint8_t>& data) { write(data.data(), data.size()); }
 };
 
+/// The parity bit of a serial character (SerialFraming).
+enum class Parity {
+    None,  ///< no parity bit (the default)
+    Even,
+    Odd,
+};
+
+/// The character framing of a serial port. The default, 8 data bits, no parity, 1 stop bit (8N1), is what the Modbus
+/// units use; 7 data bits, a parity bit and 2 stop bits are for a controller set to another framing (UNVERIFIED on
+/// hardware: no unit here uses them). A Modbus RTU bus needs 8 data bits; 7 is only for a caller's own 7-bit protocol
+/// on Transport::write / read.
+struct SerialFraming {
+    int data_bits = 8;             ///< 7 or 8
+    Parity parity = Parity::None;  ///< None, Even or Odd
+    int stop_bits = 1;             ///< 1 or 2
+
+    /// std::invalid_argument for data bits other than 7 or 8, stop bits other than 1 or 2 or an unknown parity.
+    void check() const;
+
+    bool operator==(const SerialFraming& other) const noexcept {
+        return data_bits == other.data_bits && parity == other.parity && stop_bits == other.stop_bits;
+    }
+    bool operator!=(const SerialFraming& other) const noexcept { return !(*this == other); }
+};
+
+/// "8N1", "7E2", "8O1" (data bits, parity letter, stop bits).
+std::string to_string(const SerialFraming& framing);
+
 /// A real serial port: Win32 (CreateFile / DCB / COMMTIMEOUTS, "\\.\COMn" for any n) or POSIX termios (Linux; custom
 /// rates such as 230400 through the standard Bxxx constants). Opened once in the constructor. While at least one
 /// port is open on Windows the process timer resolution is raised to 1 ms (timeBeginPeriod; -lwinmm) so sleeps and
@@ -92,6 +121,10 @@ public:
     /// (IA-OS, another iai-actuator-driver, a terminal)..." / "<port> does not exist (unplugged?)..." / other OS errors.
     explicit SerialTransport(const std::string& port, int baud_rate = kDefaultBaudRate,
                              double read_timeout_s = kDefaultReadTimeoutS);
+    /// The same with another character framing (8N1 above). An unsupported framing (SerialFraming::check) is
+    /// std::invalid_argument before the port is opened; a port whose driver does not keep the framing (POSIX: read
+    /// back after the open) is a TransportError.
+    SerialTransport(const std::string& port, int baud_rate, double read_timeout_s, const SerialFraming& framing);
     ~SerialTransport() override;
     SerialTransport(const SerialTransport&) = delete;
     SerialTransport& operator=(const SerialTransport&) = delete;
@@ -109,6 +142,9 @@ public:
     void close() override;
     bool is_open() const override;
     std::string name() const override;
+
+    /// The character framing the port was opened with (reopen() keeps it).
+    SerialFraming framing() const;
 
     /// Open the same port again in place after it vanished (nothing is sent). Throws TransportError while absent.
     void reopen(std::optional<int> baud_rate = std::nullopt) override;

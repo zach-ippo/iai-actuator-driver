@@ -18,7 +18,8 @@ namespace IaiActuatorDriver.Net48Smoke
         public void The_native_core_loads_with_the_abi_of_the_binding()
         {
             NativeDriver.EnsureLoaded();
-            Assert.Equal((NativeDriver.AbiMajor, NativeDriver.AbiMinor), NativeDriver.AbiVersion);
+            var (major, minor) = NativeDriver.AbiVersion;
+            Assert.True(NativeDriver.IsAbiCompatible(major, minor));
             Assert.False(string.IsNullOrEmpty(NativeDriver.LibraryVersion));
             var named = Environment.GetEnvironmentVariable("IAI_ACTUATOR_DRIVER_NATIVE");
             if (!string.IsNullOrWhiteSpace(named))

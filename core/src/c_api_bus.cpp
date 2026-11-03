@@ -4,8 +4,9 @@
 // response timing"): the bus lock held across calls, the preemptible read scope, suspending the monitors of a bus, the
 // 0x45 flags, 0x48, broadcasts, the line on a bus and the response timing. C ABI 0.5 ("buses: shutdown, release"):
 // closing a bus without releasing its handle, releasing it without closing, the transport's set_read_timeout callback.
-// C ABI 0.6 ("buses: another transport"): a bus moved onto another transport in place. Evidence: simulator tests only
-// (UNVERIFIED on hardware).
+// C ABI 0.6 ("buses: another transport"): a bus moved onto another transport in place. C ABI 1.1: a serial port opened
+// with another character framing (iad_transport_open_serial_options). Evidence: simulator tests only (UNVERIFIED on
+// hardware).
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -306,6 +307,37 @@ std::shared_ptr<Transport> find_transport(iad_transport* handle) {
 
 iad_transport* register_transport(std::shared_ptr<Transport> transport) { return new_transport(std::move(transport)); }
 
+SerialArgs to_serial_args(const iad_serial_options* options) {
+    iad_serial_options o = zeroed<iad_serial_options>();  // NULL: the defaults (0 / NaN below)
+    if (options)
+        o = read_input(options, "iad_serial_options");
+    else
+        o.read_timeout_s = std::numeric_limits<double>::quiet_NaN();
+    if (o.baud_rate < 0) throw std::invalid_argument("iad_serial_options.baud_rate must be a rate, or 0 for 115200");
+    SerialArgs a;
+    if (o.baud_rate > 0) a.baud_rate = o.baud_rate;
+    a.read_timeout_s = std::isnan(o.read_timeout_s) ? kDefaultReadTimeoutS : o.read_timeout_s;
+    if (!(a.read_timeout_s >= 0.0) || !std::isfinite(a.read_timeout_s))
+        throw std::invalid_argument("iad_serial_options.read_timeout_s must be >= 0 (NaN: 0.2)");
+    if (o.data_bits != 0) a.framing.data_bits = o.data_bits;
+    if (o.stop_bits != 0) a.framing.stop_bits = o.stop_bits;
+    if (a.framing.data_bits != 7 && a.framing.data_bits != 8)
+        throw std::invalid_argument("iad_serial_options.data_bits must be 7 or 8 (0: 8), not " +
+                                    std::to_string(o.data_bits));
+    if (a.framing.stop_bits != 1 && a.framing.stop_bits != 2)
+        throw std::invalid_argument("iad_serial_options.stop_bits must be 1 or 2 (0: 1), not " +
+                                    std::to_string(o.stop_bits));
+    switch (o.parity) {
+        case IAD_PARITY_NONE: a.framing.parity = Parity::None; break;
+        case IAD_PARITY_EVEN: a.framing.parity = Parity::Even; break;
+        case IAD_PARITY_ODD: a.framing.parity = Parity::Odd; break;
+        default:
+            throw std::invalid_argument("iad_serial_options.parity must be IAD_PARITY_NONE, IAD_PARITY_EVEN or "
+                                        "IAD_PARITY_ODD, not " + std::to_string(o.parity));
+    }
+    return a;
+}
+
 std::atomic<int32_t>& log_level() {
     static std::atomic<int32_t> level{IAD_LOG_DEBUG};
     return level;
@@ -420,6 +452,20 @@ iad_result IAD_CALL iad_bus_options_init(iad_bus_options* options) {
     });
 }
 
+iad_result IAD_CALL iad_serial_options_init(iad_serial_options* options) {
+    return guarded([&] {
+        need(options, "options");
+        const SerialFraming d;
+        iad_serial_options c = zeroed<iad_serial_options>();
+        c.read_timeout_s = kDefaultReadTimeoutS;
+        c.baud_rate = kDefaultBaudRate;
+        c.data_bits = d.data_bits;
+        c.parity = IAD_PARITY_NONE;
+        c.stop_bits = d.stop_bits;
+        write_sized(options, c);  // a sized struct: as much as the caller's struct_size says
+    });
+}
+
 // ============================================================================================ transports
 
 iad_result IAD_CALL iad_transport_open_callbacks(const iad_transport_callbacks* callbacks, const char* name, void* user,
@@ -450,6 +496,19 @@ iad_result IAD_CALL iad_transport_open_serial(const char* port, int32_t baud_rat
         if (!(timeout >= 0.0) || !std::isfinite(timeout)) throw std::invalid_argument("read_timeout_s must be >= 0");
         *out = new_transport(
             std::make_shared<SerialTransport>(std::string(port), baud_rate > 0 ? baud_rate : kDefaultBaudRate, timeout));
+    });
+}
+
+iad_result IAD_CALL iad_transport_open_serial_options(const char* port, const iad_serial_options* options,
+                                                      iad_transport** out) {
+    return guarded([&] {
+        need(out, "out");
+        *out = nullptr;
+        need(port, "port");
+        if (!*port) throw std::invalid_argument("port name is empty");
+        const SerialArgs a = to_serial_args(options);
+        *out = new_transport(std::make_shared<SerialTransport>(std::string(port), a.baud_rate, a.read_timeout_s,
+                                                               a.framing));
     });
 }
 

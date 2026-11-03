@@ -66,7 +66,7 @@ def resolve(value: str | None) -> tuple[str, str]:
 def backend_info() -> dict[str, Any]:
     """The implementation in use and why: ``backend`` (``"native"``), ``requested`` (``IAI_DRIVER_BACKEND`` as read at
     import, ``None`` when unset), ``reason``, ``native_modules`` (:data:`MODULES`), ``library`` (its path), ``abi``
-    (``"1.0"``) and ``core_version``."""
+    (the loaded library's ``"major.minor"``, e.g. ``"1.1"``) and ``core_version``."""
     native = importlib.import_module(f"{PACKAGE}.native")
     major, minor = native.abi_version()
     return {

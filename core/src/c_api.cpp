@@ -70,6 +70,7 @@ IAD_CHECK_SIZED(iad_stop_options, 56);
 IAD_CHECK_SIZED(iad_wait_idle_options, 72);
 IAD_CHECK_SIZED(iad_change_options, 56);
 IAD_CHECK_SIZED(iad_cancel_paused_move_options, 48);
+IAD_CHECK_SIZED(iad_serial_options, 64);  // (1.1)
 // outputs (0.8: fixed for the major; iad_status 64 reserved bytes, iad_range 32, iad_limits 64, iad_event 32)
 IAD_CHECK_LAYOUT(iad_status, 208);
 IAD_CHECK_LAYOUT(iad_range, 88);

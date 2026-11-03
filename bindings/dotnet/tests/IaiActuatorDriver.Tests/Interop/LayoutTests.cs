@@ -58,6 +58,7 @@ namespace IaiActuatorDriver.Tests.Interop
         [InlineData(typeof(IadWaitIdleOptions), 72)]
         [InlineData(typeof(IadChangeOptions), 56)]
         [InlineData(typeof(IadCancelPausedMoveOptions), 48)]
+        [InlineData(typeof(IadSerialOptions), 64)]
         public void Struct_sizes_match_the_header(Type type, int size)
         {
             Assert.Equal(size, Marshal.SizeOf(type));
@@ -92,6 +93,7 @@ namespace IaiActuatorDriver.Tests.Interop
         [InlineData(typeof(IadWaitIdleOptions))]
         [InlineData(typeof(IadChangeOptions))]
         [InlineData(typeof(IadCancelPausedMoveOptions))]
+        [InlineData(typeof(IadSerialOptions))]
         public void Every_input_is_sized_from_0_8(Type type)
         {
             // struct_size, reserved_header first (the header's "Sized structs")

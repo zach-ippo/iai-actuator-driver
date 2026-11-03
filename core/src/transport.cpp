@@ -1,10 +1,12 @@
 // Serial-port discovery shared by both platforms (port of the Python edition's cell.list_ports; C# PortManager.cs):
 // IAI adapters first, then natural order of the name (COM2 before COM10). The platform listing itself is in
-// serial_win32.cpp (SetupAPI) and serial_posix.cpp (/sys/class/tty). Opens nothing.
+// serial_win32.cpp (SetupAPI) and serial_posix.cpp (/sys/class/tty). Opens nothing. Also the check of a serial
+// framing (SerialFraming), shared by both platforms' SerialTransport.
 #include <algorithm>
 #include <cctype>
 #include <mutex>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -64,6 +66,21 @@ bool same_port(const std::string& a, const std::string& b) {
 }
 
 }  // namespace
+
+void SerialFraming::check() const {
+    if (data_bits != 7 && data_bits != 8)
+        throw std::invalid_argument("data bits must be 7 or 8, not " + std::to_string(data_bits));
+    if (parity != Parity::None && parity != Parity::Even && parity != Parity::Odd)
+        throw std::invalid_argument("parity must be none, even or odd, not " +
+                                    std::to_string(static_cast<int>(parity)));
+    if (stop_bits != 1 && stop_bits != 2)
+        throw std::invalid_argument("stop bits must be 1 or 2, not " + std::to_string(stop_bits));
+}
+
+std::string to_string(const SerialFraming& framing) {
+    const char parity = framing.parity == Parity::Even ? 'E' : framing.parity == Parity::Odd ? 'O' : 'N';
+    return std::to_string(framing.data_bits) + parity + std::to_string(framing.stop_bits);
+}
 
 void detail::set_test_port_list(std::optional<std::vector<SerialPortInfo>> ports) {
     std::lock_guard<std::mutex> lock(test_ports_mutex());

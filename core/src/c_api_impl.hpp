@@ -34,6 +34,7 @@
 #include "iai_actuator_driver/move_handle.hpp"
 #include "iai_actuator_driver/recovery.hpp"
 #include "iai_actuator_driver/sim.hpp"
+#include "iai_actuator_driver/transport.hpp"
 #include "monotonic_cv.hpp"
 
 namespace iai_actuator_driver {
@@ -328,6 +329,15 @@ StopArgs to_stop_args(const iad_stop_options* options);
 WaitIdleArgs to_wait_idle_args(const iad_wait_idle_options* options);
 ChangeArgs to_change_args(const iad_change_options* options);
 double to_cancel_paused_timeout(const iad_cancel_paused_move_options* options);
+/// (1.1) The settings of iad_transport_open_serial_options (NULL: the defaults iad_serial_options_init writes; 0 in
+/// baud_rate, data_bits, stop_bits and NaN in read_timeout_s = its default). Every check happens here, before any port
+/// is opened: std::invalid_argument for a value the port cannot take.
+struct SerialArgs {
+    int baud_rate = kDefaultBaudRate;
+    double read_timeout_s = kDefaultReadTimeoutS;
+    SerialFraming framing;  ///< 8N1
+};
+SerialArgs to_serial_args(const iad_serial_options* options);
 
 CellOptions to_cell_options(const iad_cell_options* options, const iad_axis_options* axis_options);
 PositionEntry from_c(const iad_position_entry& entry);
@@ -484,6 +494,7 @@ IAD_SIZED_BASE(iad_stop_options, 56);
 IAD_SIZED_BASE(iad_wait_idle_options, 72);
 IAD_SIZED_BASE(iad_change_options, 56);
 IAD_SIZED_BASE(iad_cancel_paused_move_options, 48);
+IAD_SIZED_BASE(iad_serial_options, 64);  // (1.1) added by 1.1: its first size is its 1.1 size
 #undef IAD_SIZED_BASE
 
 namespace detail_sized {

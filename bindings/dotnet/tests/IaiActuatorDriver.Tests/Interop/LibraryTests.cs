@@ -9,9 +9,11 @@ namespace IaiActuatorDriver.Tests.Interop
     public class LibraryTests
     {
         [NativeFact]
-        public void The_abi_version_is_the_one_the_binding_was_written_for()
+        public void The_abi_version_is_one_the_binding_accepts()
         {
-            Assert.Equal((NativeDriver.AbiMajor, NativeDriver.AbiMinor), NativeDriver.AbiVersion);
+            // the library of this tree is at 1.1; the binding needs 1.0 (no public call uses a 1.1 function yet)
+            Assert.Equal((1, 1), NativeDriver.AbiVersion);
+            Assert.True(NativeDriver.IsAbiCompatible(NativeDriver.AbiVersion.Major, NativeDriver.AbiVersion.Minor));
             NativeDriver.EnsureLoaded();
             NativeDriver.EnsureLoaded();  // once is enough; twice is harmless
         }

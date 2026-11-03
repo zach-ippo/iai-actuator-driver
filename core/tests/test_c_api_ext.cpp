@@ -193,7 +193,7 @@ iad_recovery_policy quick_policy() {
 // ============================================================================================ codes and errors
 
 TEST(capi_ext_codes_kinds_and_error_details) {
-    CHECK_EQ(iad_abi_version(), (uint32_t(1) << 16) | uint32_t(0));  // 1.0 keeps every 0.2 function
+    CHECK_EQ(iad_abi_version(), (uint32_t(1) << 16) | uint32_t(1));  // 1.1 keeps every 0.2 function
     CHECK_EQ(std::string(iad_result_name(IAD_ERR_RECOVERY)), std::string("IAD_ERR_RECOVERY"));
     CHECK_EQ(std::string(iad_result_name(IAD_ERR_UNIT_REPLACED)), std::string("IAD_ERR_UNIT_REPLACED"));
     CHECK_EQ(std::string(iad_result_name(IAD_ERR_FILE)), std::string("IAD_ERR_FILE"));

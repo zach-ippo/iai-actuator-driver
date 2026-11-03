@@ -1,7 +1,9 @@
-// SerialTransport and the port listing on Linux (POSIX termios): raw 8N1, DTR and RTS asserted, no handshake, poll()
-// timeouts, the rate changed in place, a BREAK only on request; discovery from /sys/class/tty. VERIFIED on Linux with
-// the IAI USB adapter (CP210x, cp210x driver, passed into WSL 2 with usbipd) on a PCON-CB, 2026-11-03: the harness's
-// Python and C++ command-line editions and the SDK's C example; macOS UNVERIFIED.
+// SerialTransport and the port listing on Linux (POSIX termios): raw, 8N1 by default, DTR and RTS asserted, no
+// handshake, poll() timeouts, the rate changed in place, a BREAK only on request; discovery from /sys/class/tty.
+// VERIFIED on Linux with the IAI USB adapter (CP210x, cp210x driver, passed into WSL 2 with usbipd) on a PCON-CB,
+// 2026-11-03: the harness's Python and C++ command-line editions and the SDK's C example; macOS UNVERIFIED. Another
+// framing (7 data bits, parity, 2 stop bits: SerialFraming, CSIZE / PARENB / PARODD / CSTOPB) is UNVERIFIED on
+// hardware; a port whose driver does not keep it (read back after the open) is refused with a TransportError.
 #ifndef _WIN32
 
 #include <dirent.h>
@@ -29,6 +31,7 @@
 #include "iai_actuator_driver/errors.hpp"
 #include "iai_actuator_driver/timing.hpp"
 #include "iai_actuator_driver/transport.hpp"
+#include "serial_framing.hpp"
 
 namespace iai_actuator_driver {
 namespace detail {
@@ -75,6 +78,28 @@ std::string base_name(const std::string& path) {
 
 }  // namespace
 
+void detail::apply_framing(termios& tio, const SerialFraming& framing) {
+    tio.c_cflag &= ~static_cast<tcflag_t>(CSIZE | PARENB | PARODD | CSTOPB);
+#ifdef CMSPAR
+    tio.c_cflag &= ~static_cast<tcflag_t>(CMSPAR);  // mark / space parity, left set by another program
+#endif
+    tio.c_iflag &= ~static_cast<tcflag_t>(INPCK | IGNPAR);
+    tio.c_cflag |= static_cast<tcflag_t>(framing.data_bits == 7 ? CS7 : CS8);
+    if (framing.parity != Parity::None) {
+        tio.c_cflag |= static_cast<tcflag_t>(framing.parity == Parity::Odd ? (PARENB | PARODD) : PARENB);
+        tio.c_iflag |= static_cast<tcflag_t>(INPCK);
+    }
+    if (framing.stop_bits == 2) tio.c_cflag |= static_cast<tcflag_t>(CSTOPB);
+}
+
+bool detail::has_framing(const termios& tio, const SerialFraming& framing) {
+    const bool parity = framing.parity != Parity::None;
+    return (tio.c_cflag & CSIZE) == static_cast<tcflag_t>(framing.data_bits == 7 ? CS7 : CS8) &&
+           ((tio.c_cflag & PARENB) != 0) == parity &&
+           (!parity || ((tio.c_cflag & PARODD) != 0) == (framing.parity == Parity::Odd)) &&
+           ((tio.c_cflag & CSTOPB) != 0) == (framing.stop_bits == 2);
+}
+
 // ------------------------------------------------------------------------------------------ SerialTransport
 
 struct SerialTransport::Impl {
@@ -82,6 +107,7 @@ struct SerialTransport::Impl {
     int fd = -1;
     int baud = kDefaultBaudRate;
     double read_timeout = kDefaultReadTimeoutS;
+    SerialFraming framing;  // 8N1 unless the constructor was given another
 
     bool open() const { return fd >= 0; }
 
@@ -113,14 +139,25 @@ struct SerialTransport::Impl {
                                               IXANY | INPCK);
         tio.c_oflag &= ~static_cast<tcflag_t>(OPOST);
         tio.c_lflag &= ~static_cast<tcflag_t>(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
-        tio.c_cflag &= ~static_cast<tcflag_t>(CSIZE | PARENB | CSTOPB);
 #ifdef CRTSCTS
         tio.c_cflag &= ~static_cast<tcflag_t>(CRTSCTS);
 #endif
-        tio.c_cflag |= static_cast<tcflag_t>(CS8 | CLOCAL | CREAD);
+        tio.c_cflag |= static_cast<tcflag_t>(CLOCAL | CREAD);
+        detail::apply_framing(tio, framing);  // 8N1 by default
         tio.c_cc[VMIN] = 0;
         tio.c_cc[VTIME] = 0;
-        if (tcsetattr(fd, TCSANOW, &tio) != 0) fail("tcsetattr (raw 8N1)", errno);
+        const auto refuse_framing = [&] {  // the driver dropped part of the framing: EINVAL, or a change read back
+            throw TransportError(path + ": the port does not take the framing " + to_string(framing) +
+                                 " (its driver changed the data bits, parity or stop bits)");
+        };
+        if (tcsetattr(fd, TCSANOW, &tio) != 0) {
+            const int code = errno;
+            if (code == EINVAL && framing != SerialFraming{}) refuse_framing();
+            fail(("tcsetattr (raw " + to_string(framing) + ")").c_str(), code);
+        }
+        termios now;
+        if (tcgetattr(fd, &now) != 0) fail("tcgetattr", errno);
+        if (!detail::has_framing(now, framing)) refuse_framing();
         apply_speed(rate);
         int bits = TIOCM_DTR | TIOCM_RTS;
         if (ioctl(fd, TIOCMBIS, &bits) != 0) {
@@ -170,12 +207,19 @@ struct SerialTransport::Impl {
     }
 };
 
-SerialTransport::SerialTransport(const std::string& port, int baud_rate, double read_timeout_s) : impl_(new Impl) {
+SerialTransport::SerialTransport(const std::string& port, int baud_rate, double read_timeout_s)
+    : SerialTransport(port, baud_rate, read_timeout_s, SerialFraming{}) {}
+
+SerialTransport::SerialTransport(const std::string& port, int baud_rate, double read_timeout_s,
+                                 const SerialFraming& framing)
+    : impl_(new Impl) {
     if (port.empty()) throw std::invalid_argument("port name required");
     if (baud_rate <= 0) throw std::invalid_argument("baud rate must be > 0");
     if (!(read_timeout_s >= 0.0)) throw std::invalid_argument("read timeout must be >= 0");
+    framing.check();  // before anything is opened
     impl_->path = port.find('/') == std::string::npos ? "/dev/" + port : port;
     impl_->read_timeout = read_timeout_s;
+    impl_->framing = framing;
     impl_->open_port(baud_rate);
 }
 
@@ -281,6 +325,8 @@ void SerialTransport::close() { impl_->close_port(); }
 bool SerialTransport::is_open() const { return impl_->open(); }
 
 std::string SerialTransport::name() const { return impl_->path; }
+
+SerialFraming SerialTransport::framing() const { return impl_->framing; }
 
 void SerialTransport::reopen(std::optional<int> baud_rate) {
     const int rate = baud_rate.value_or(impl_->baud);

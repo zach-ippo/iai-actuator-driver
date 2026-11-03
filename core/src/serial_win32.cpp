@@ -1,6 +1,7 @@
 // SerialTransport and the port listing on Windows: CreateFile("\\.\COMn") / DCB / COMMTIMEOUTS, SetupAPI for
 // discovery. Line state as the Python edition (pyserial) was VERIFIED with: 8N1, DTR and RTS asserted, no handshake;
-// the port is opened once, the rate changed in place, a BREAK only on request. This edition is UNVERIFIED on hardware.
+// the port is opened once, the rate changed in place, a BREAK only on request. This edition is UNVERIFIED on hardware,
+// and so is another framing (7 data bits, parity, 2 stop bits: SerialFraming).
 #ifdef _WIN32
 
 #ifndef NOMINMAX
@@ -27,6 +28,7 @@
 #include "iai_actuator_driver/errors.hpp"
 #include "iai_actuator_driver/timing.hpp"
 #include "iai_actuator_driver/transport.hpp"
+#include "serial_framing.hpp"
 
 namespace iai_actuator_driver {
 namespace detail {
@@ -90,6 +92,13 @@ bool starts_with_ci(const std::string& text, const char* prefix) {
 
 }  // namespace
 
+void detail::apply_framing(DCB& dcb, const SerialFraming& framing) {
+    dcb.ByteSize = static_cast<BYTE>(framing.data_bits);
+    dcb.Parity = framing.parity == Parity::Even ? EVENPARITY : framing.parity == Parity::Odd ? ODDPARITY : NOPARITY;
+    dcb.fParity = framing.parity == Parity::None ? FALSE : TRUE;
+    dcb.StopBits = framing.stop_bits == 2 ? TWOSTOPBITS : ONESTOPBIT;
+}
+
 // ------------------------------------------------------------------------------------------ SerialTransport
 
 struct SerialTransport::Impl {
@@ -98,6 +107,7 @@ struct SerialTransport::Impl {
     HANDLE handle = INVALID_HANDLE_VALUE;
     int baud = kDefaultBaudRate;
     double read_timeout = kDefaultReadTimeoutS;
+    SerialFraming framing;  // 8N1 unless the constructor was given another
     bool timer_raised = false;
 
     bool open() const { return handle != INVALID_HANDLE_VALUE; }
@@ -133,11 +143,8 @@ struct SerialTransport::Impl {
         dcb.DCBlength = sizeof(DCB);
         if (!GetCommState(handle, &dcb)) fail("GetCommState");
         dcb.BaudRate = static_cast<DWORD>(rate);
-        dcb.ByteSize = 8;
-        dcb.Parity = NOPARITY;
-        dcb.StopBits = ONESTOPBIT;
+        detail::apply_framing(dcb, framing);  // 8N1 by default
         dcb.fBinary = TRUE;
-        dcb.fParity = FALSE;
         dcb.fOutxCtsFlow = FALSE;
         dcb.fOutxDsrFlow = FALSE;
         dcb.fDtrControl = DTR_CONTROL_ENABLE;
@@ -149,7 +156,8 @@ struct SerialTransport::Impl {
         dcb.fNull = FALSE;
         dcb.fRtsControl = RTS_CONTROL_ENABLE;
         dcb.fAbortOnError = FALSE;
-        if (!SetCommState(handle, &dcb)) fail(("setting " + std::to_string(rate) + " baud 8N1").c_str());
+        if (!SetCommState(handle, &dcb))
+            fail(("setting " + std::to_string(rate) + " baud " + to_string(framing)).c_str());
         SetupComm(handle, 4096, 4096);
         apply_timeouts(1, false);
         PurgeComm(handle, PURGE_RXCLEAR | PURGE_TXCLEAR | PURGE_RXABORT | PURGE_TXABORT);
@@ -194,12 +202,19 @@ struct SerialTransport::Impl {
     }
 };
 
-SerialTransport::SerialTransport(const std::string& port, int baud_rate, double read_timeout_s) : impl_(new Impl) {
+SerialTransport::SerialTransport(const std::string& port, int baud_rate, double read_timeout_s)
+    : SerialTransport(port, baud_rate, read_timeout_s, SerialFraming{}) {}
+
+SerialTransport::SerialTransport(const std::string& port, int baud_rate, double read_timeout_s,
+                                 const SerialFraming& framing)
+    : impl_(new Impl) {
     if (port.empty()) throw std::invalid_argument("port name required");
     if (baud_rate <= 0) throw std::invalid_argument("baud rate must be > 0");
     if (!(read_timeout_s >= 0.0)) throw std::invalid_argument("read timeout must be >= 0");
+    framing.check();  // before anything is opened
     split_port_name(port, impl_->path, impl_->name);
     impl_->read_timeout = read_timeout_s;
+    impl_->framing = framing;
     impl_->open_port(baud_rate);
 }
 
@@ -300,6 +315,8 @@ void SerialTransport::close() { impl_->close_port(); }
 bool SerialTransport::is_open() const { return impl_->open(); }
 
 std::string SerialTransport::name() const { return impl_->name; }
+
+SerialFraming SerialTransport::framing() const { return impl_->framing; }
 
 void SerialTransport::reopen(std::optional<int> baud_rate) {
     const int rate = baud_rate.value_or(impl_->baud);

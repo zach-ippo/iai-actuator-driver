@@ -4,7 +4,8 @@
  * that the header is valid C and that a C program drives the library through its exports: versions, option defaults,
  * an axis and a cell on the simulator, the JSON size query, error codes and messages, closing twice and NULL handles,
  * and (ABI 0.2) a move handle, the status monitor with its event queue, unit info, the cancel entry, per-axis move
- * values and pause / resume on a cell. Simulator only: no COM port is opened.
+ * values and pause / resume on a cell, (ABI 1.1) the serial framing options and their refusal. Simulator only: no COM
+ * port is opened.
  *
  * Evidence: UNVERIFIED on hardware (the simulator stands in for the units).
  */
@@ -64,6 +65,8 @@ int main(void) {
     int polls = 0;
     size_t need = 0;
     size_t count = 0;
+    iad_serial_options serial;
+    iad_transport* transport = NULL;
 
     /* the library and its version: the loader rule before any other call (IAD_ABI_COMPATIBLE: the same major and a
      * library minor at least the header's), then this build's own */
@@ -234,6 +237,16 @@ int main(void) {
     EXPECT_RC(iad_cell_close(cell), IAD_OK);
     EXPECT_RC(iad_cell_close(cell), IAD_OK);
     EXPECT_RC(iad_cell_axis_count(cell, &count), IAD_ERR_INVALID_ARGUMENT);
+
+    /* 1.1: the serial framing options; an unsupported one is refused before any port is opened */
+    memset(&serial, 0, sizeof serial);
+    serial.struct_size = (uint32_t)sizeof serial;
+    EXPECT_RC(iad_serial_options_init(&serial), IAD_OK);
+    EXPECT(serial.struct_size == 64 && serial.data_bits == 8 && serial.parity == IAD_PARITY_NONE);
+    EXPECT(serial.stop_bits == 1 && serial.baud_rate == 115200);
+    serial.data_bits = 6;
+    EXPECT_RC(iad_transport_open_serial_options("IAD-NO-SUCH-PORT", &serial, &transport), IAD_ERR_INVALID_ARGUMENT);
+    EXPECT(transport == NULL);
 
     printf("c_smoke: %d checks, %d failed\n", g_checks, g_failed);
     return g_failed ? 1 : 0;

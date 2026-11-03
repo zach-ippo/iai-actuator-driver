@@ -179,7 +179,10 @@ log = logging.getLogger(__name__)
 # ====================================================================== ABI constants (iai_actuator_driver.h)
 
 ABI_VERSION_MAJOR = 1
-"""The ABI this binding is written for: the library must report this major and at least this minor."""
+"""The ABI this binding is written for: the library must report this major and at least this minor. The minor stays 0
+while no call of the binding needs a later one: the 1.1 functions (iad_transport_open_serial_options,
+iad_serial_options_init) are bound when the library has them, and a 1.0 library lacks them (:func:`missing_functions`)
+but is still accepted."""
 ABI_VERSION_MINOR = 0
 
 TESTING_ABI_VERSION = 1
@@ -1061,6 +1064,22 @@ class BusOptions(ctypes.Structure):
     ]
 
 
+class SerialOptions(_Sized):
+    """iad_serial_options (1.1, 64 bytes; sized): the settings of iad_transport_open_serial_options, the character
+    framing among them (data bits 7 or 8, parity IAD_PARITY_NONE 0 / EVEN 1 / ODD 2, stop bits 1 or 2; 8N1 by
+    default)."""
+
+    _fields_ = [
+        *_SIZED_HEADER,
+        ("read_timeout_s", ctypes.c_double),
+        ("baud_rate", ctypes.c_int32),
+        ("data_bits", ctypes.c_int32),
+        ("parity", ctypes.c_int32),
+        ("stop_bits", ctypes.c_int32),
+        ("reserved", _c_reserved4),
+    ]
+
+
 STRUCT_SIZES: dict[type[ctypes.Structure], int] = {
     # 0.8 inputs (sized: struct_size first)
     AxisOptions: 104, OpenOptions: 72, SimOptions: 80, MoveOptions: 80, PositionMoveOptions: 64, NvWriteOptions: 56,
@@ -1075,6 +1094,8 @@ STRUCT_SIZES: dict[type[ctypes.Structure], int] = {
     MotionCaps: 336,
     # 0.3 (iad_transport_callbacks holds pointers: its size follows the pointer size, TRANSPORT_CALLBACKS_SIZE)
     BusOptions: 56,
+    # 1.1 inputs (sized; the first size is the 1.1 size)
+    SerialOptions: 64,
 }
 """The size of every struct (the same numbers c_api.cpp checks): an output's is frozen within an ABI major version, a
 sized input's is its first size (0.8; a later minor only appends)."""
@@ -1341,9 +1362,11 @@ _SIGNATURES: tuple[tuple[str, Any, list[Any]], ...] = (
     ("iad_set_log_level", _R, [_I]),
     ("iad_transport_callbacks_init", _R, [_P(TransportCallbacks)]),
     ("iad_bus_options_init", _R, [_P(BusOptions)]),
+    ("iad_serial_options_init", _R, [_P(SerialOptions)]),  # 1.1
     # 0.3: transports
     ("iad_transport_open_callbacks", _R, [_P(TransportCallbacks), _STR, ctypes.c_void_p, _HOUT]),
     ("iad_transport_open_serial", _R, [_STR, _I, _D, _HOUT]),
+    ("iad_transport_open_serial_options", _R, [_STR, _P(SerialOptions), _HOUT]),  # 1.1
     ("iad_transport_close", _R, [_H]),
     ("iad_transport_release", _R, [_H]),
     ("iad_transport_info_json", _R, [_H, *_BUF]),

@@ -89,6 +89,8 @@ STRUCTS = {
     "iad_axis_move": native.AxisMove, "iad_motion_caps": native.MotionCaps,
     # 0.3
     "iad_transport_callbacks": native.TransportCallbacks, "iad_bus_options": native.BusOptions,
+    # 1.1
+    "iad_serial_options": native.SerialOptions,
 }
 
 
@@ -148,7 +150,7 @@ class LayoutTest(unittest.TestCase):
                     native.SequencePoint, native.SequenceOptions, native.MonitorOptions, native.TrackOptions,
                     native.CRecoveryPolicy, native.CheckOptions, native.AxisMove, native.ServoOptions,
                     native.HomeOptions, native.StopOptions, native.WaitIdleOptions, native.ChangeOptions,
-                    native.CancelPausedMoveOptions):  # fmt: skip
+                    native.CancelPausedMoveOptions, native.SerialOptions):  # fmt: skip
             with self.subTest(sized=cls.__name__):
                 self.assertEqual((cls.struct_size.offset, cls.reserved_header.offset), (0, 4))
                 self.assertEqual(cls().struct_size, ctypes.sizeof(cls))  # constructing one sizes it
@@ -223,7 +225,10 @@ class LayoutTest(unittest.TestCase):
         minor = re.search(r"#define IAD_ABI_VERSION_MINOR (\d+)", text)
         assert major is not None and minor is not None
         header_version = (int(major.group(1)), int(minor.group(1)))
-        self.assertEqual(header_version, (native.ABI_VERSION_MAJOR, native.ABI_VERSION_MINOR))
+        # the binding needs the header's major and a minor it does not exceed (1.0: no call needs a 1.1 function yet)
+        self.assertEqual(header_version[0], native.ABI_VERSION_MAJOR)
+        self.assertLessEqual(native.ABI_VERSION_MINOR, header_version[1])
+        self.assertEqual((native.ABI_VERSION_MAJOR, native.ABI_VERSION_MINOR), (1, 0))
         testing = HEADER.with_name("iai_actuator_driver_testing.h").read_text(encoding="utf-8")
         found = re.search(r"#define IAD_TESTING_ABI_VERSION (\d+)", testing)
         assert found is not None
@@ -426,11 +431,39 @@ class HelperCallTest(unittest.TestCase):
 @needs_native
 class NativeLibraryTest(unittest.TestCase):
     def test_versions_and_exports(self) -> None:
-        self.assertEqual(native.abi_version(), (native.ABI_VERSION_MAJOR, native.ABI_VERSION_MINOR))
+        major, minor = native.abi_version()
+        if HEADER.is_file():  # a source checkout: the library of this tree has the header's version
+            text = HEADER.read_text(encoding="utf-8")
+            found = [re.search(rf"#define IAD_ABI_VERSION_{part} (\d+)", text) for part in ("MAJOR", "MINOR")]
+            assert found[0] is not None and found[1] is not None
+            self.assertEqual((major, minor), (int(found[0].group(1)), int(found[1].group(1))))
+        self.assertTrue(major == native.ABI_VERSION_MAJOR and minor >= native.ABI_VERSION_MINOR)
         self.assertRegex(native.library_version(), r"^\d+\.\d+\.\d+")
         self.assertEqual(native.missing_functions(), [])
         self.assertEqual(native.result_name(native.IAD_ERR_SOFT_LIMIT), "IAD_ERR_SOFT_LIMIT")
         self.assertIsInstance(native.list_ports(), list)  # opens nothing
+
+    def test_serial_options_calls_go_through_the_signatures(self) -> None:
+        # 1.1: iad_serial_options_init and iad_transport_open_serial_options called through the ctypes signatures; the
+        # port never exists, so a refused framing stays unopened and a valid one fails only in the open
+        if {"iad_serial_options_init", "iad_transport_open_serial_options"} & set(native.missing_functions()):
+            self.skipTest("a C ABI 1.0 library")
+        lib = native.load()
+        options = native.SerialOptions()
+        self.assertEqual(lib.fn("iad_serial_options_init")(ctypes.byref(options)), native.IAD_OK)
+        self.assertEqual((options.struct_size, options.read_timeout_s, options.baud_rate), (64, 0.2, 115200))
+        self.assertEqual((options.data_bits, options.parity, options.stop_bits), (8, 0, 1))
+        open_options = lib.fn("iad_transport_open_serial_options")
+        handle = ctypes.c_void_p(1)  # overwritten with NULL first
+        options.data_bits = 6
+        self.assertEqual(open_options(b"IAD-NO-SUCH-PORT", ctypes.byref(options), ctypes.byref(handle)),
+                         native.IAD_ERR_INVALID_ARGUMENT)  # fmt: skip
+        self.assertIsNone(handle.value)
+        options.data_bits, options.parity, options.stop_bits = 7, 1, 2  # 7E2
+        handle = ctypes.c_void_p(1)
+        self.assertEqual(open_options(b"IAD-NO-SUCH-PORT", ctypes.byref(options), ctypes.byref(handle)),
+                         native.IAD_ERR_TRANSPORT)  # fmt: skip
+        self.assertIsNone(handle.value)
 
     def test_stale_handles_are_detected(self) -> None:
         ax = native.NativeAxis.open_sim()

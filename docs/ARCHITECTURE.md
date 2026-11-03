@@ -314,11 +314,11 @@ transport                SerialTransport (Win32, POSIX) | SimulatedUnit | SimLin
   required-size output; its fields are only ever added.
 - `iad_axis_open_sim` and `iad_cell_open_sim` run every function on the simulator, so each binding is tested without
   hardware.
-- The header is at C ABI 1.0, frozen within major 1: sized inputs, fixed outputs, one rule for the defaults,
-  `IAD_UNKNOWN` 2, `IAD_CALL` for 32-bit Windows, and each function once (variants folded into their base functions,
-  the axis commands with options structs). The ABI grows by minor versions that only add functions, codes or
-  meanings of reserved slots; earlier functions and struct sizes stay (the contract is the first section of
-  NATIVE_ABI.md).
+- The header is at C ABI 1.1 (1.0 frozen within major 1, and 1.1 adds the serial framing options): sized inputs, fixed
+  outputs, one rule for the defaults, `IAD_UNKNOWN` 2, `IAD_CALL` for 32-bit Windows, and each function once (variants
+  folded into their base functions, the axis commands with options structs). The ABI grows by minor versions that only
+  add functions, codes or meanings of reserved slots; earlier functions and struct sizes stay (the contract is the first
+  section of NATIVE_ABI.md).
 - It covers what the Python package has: push, command-profile moves, acceleration patterns, moves started without
   waiting (`iad_axis_start_move_to`, `iad_move_handle_wait`, `iad_move_handle_poll`), the status monitor and fast
   mode, recovery, line and gateway calls, unit info and backup, the self-test, the cell's extras, coordinated motion

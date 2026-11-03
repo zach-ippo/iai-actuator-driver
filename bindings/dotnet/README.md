@@ -373,8 +373,8 @@ rate is a parameter, guarded like any other. The command line has no row-write c
 
 ## Native core (interop layer)
 
-The library runs on the C++ core through its C ABI 1.0 (`iai_actuator_driver.dll`, header
-`core/include/iai_actuator_driver.h`,
+The library runs on the C++ core through its C ABI (it needs C ABI 1.0 and accepts any 1.x library;
+`iai_actuator_driver.dll`, header `core/include/iai_actuator_driver.h`,
 [docs/NATIVE_ABI.md](https://github.com/zach-ippo/iai-actuator-driver/blob/main/docs/NATIVE_ABI.md)). The binding is an internal
 layer (`src/IaiActuatorDriver/Interop/`, namespace `IaiActuatorDriver.Interop`); write applications against the
 public classes above.

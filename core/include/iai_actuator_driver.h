@@ -70,17 +70,18 @@
  *   adds fields at its end. The caller always sets struct_size: to sizeof(the struct) before its _init function or an
  *   output call (iad_axis_get_options, iad_axis_read_position_table), or by _init itself for a struct that is zeroed
  *   (struct_size 0 is a zeroed struct: the library takes the first size); a struct built by hand has its struct_size
- *   set, then its fields. The library reads min(struct_size, its own size): a struct_size below the struct's first
- *   size (its 1.0 size; 0.3 for those two), a non-zero reserved_header, or a struct_size that cannot be a struct's
- *   size (not a multiple of the struct's alignment, or more than 4096 bytes beyond the library's own size: an unset
- *   field holding garbage) is IAD_ERR_INVALID_ARGUMENT; non-zero bytes beyond its own size (a field of a later ABI)
- *   and non-zero reserved slots are IAD_ERR_UNSUPPORTED, never silently ignored. An array of sized structs
- *   (iad_axis_move_sequence, iad_cell_move_each) takes its stride from the first element's struct_size, and every
- *   element has that struct_size. The library writes a sized struct (its _init function and those outputs) up to the
- *   size the caller put in struct_size before the call when that is a size this library knows for the struct, else (0,
- *   or a size it does not know) up to its first size, which every caller's struct has; struct_size then holds the size
- *   written. So a caller that uses a field added after the first size sets struct_size = sizeof(the struct) before
- *   calling _init, and a struct_size that was never set (stack garbage) is the caller's error.
+ *   set, then its fields. The library reads min(struct_size, its own size): a struct_size below the struct's first size
+ *   (its 1.0 size; 0.3 for those two; (1.1) the 1.1 size of iad_serial_options, which 1.1 added), a non-zero
+ *   reserved_header, or a struct_size that cannot be a struct's size (not a multiple of the struct's alignment, or more
+ *   than 4096 bytes beyond the library's own size: an unset field holding garbage) is IAD_ERR_INVALID_ARGUMENT;
+ *   non-zero bytes beyond its own size (a field of a later ABI) and non-zero reserved slots are IAD_ERR_UNSUPPORTED,
+ *   never silently ignored. An array of sized structs (iad_axis_move_sequence, iad_cell_move_each) takes its stride
+ *   from the first element's struct_size, and every element has that struct_size. The library writes a sized struct
+ *   (its _init function and those outputs) up to the size the caller put in struct_size before the call when that is a
+ *   size this library knows for the struct, else (0, or a size it does not know) up to its first size, which every
+ *   caller's struct has; struct_size then holds the size written. So a caller that uses a field added after the first
+ *   size sets struct_size = sizeof(the struct) before calling _init, and a struct_size that was never set (stack
+ *   garbage) is the caller's error.
  * - Options: every iad_*_options struct has an iad_*_options_init function that writes its defaults (a zeroed options
  *   struct is NOT the defaults wherever 0 is a value: caps and times use NaN). A NULL options pointer means the
  *   defaults. iad_sequence_point and (0.8) iad_axis_move have no _init: zero them, set struct_size, then the fields
@@ -141,7 +142,8 @@
  * - The declarations keep the order of ABI 1.0 (core/abi/manifest-1.0.txt; the bindings bind the functions in that
  *   order), so a topic can have several sections, listed above; a new function goes into its topic's section. The ABI
  *   0.1 functions are those of the sections "library" to "cell"; the sections after "cell" came with 0.2 to 0.7, and a
- *   "(0.x)" tag marks what a later version added to an earlier section, struct or comment.
+ *   "(0.x)" tag marks what a later version added to an earlier section, struct or comment; a "(1.x)" tag marks what a
+ *   minor of major 1 added.
  */
 #ifndef IAI_ACTUATOR_DRIVER_H
 #define IAI_ACTUATOR_DRIVER_H
@@ -180,12 +182,14 @@
 #  endif
 #endif
 
-/* ABI version: 1.0, frozen within major 1. A different major means an incompatible ABI: a binding refuses to load it.
- * A higher minor only adds functions or gives reserved slots a meaning, so a library of the same major and at least
- * the minor a caller was compiled with serves it. 1.0 is the layout of 0.8 relabelled, with no layout change; the
- * "(0.8)" tags below mark what that layout added, the other 0.x tags where a function first appeared. */
+/* ABI version: 1.1; 1.0 is frozen within major 1. A different major means an incompatible ABI: a binding refuses to
+ * load it. A higher minor only adds functions or gives reserved slots a meaning, so a library of the same major and at
+ * least the minor a caller was compiled with serves it. 1.0 is the layout of 0.8 relabelled, with no layout change;
+ * the "(0.8)" tags below mark what that layout added, the other 0.x tags where a function first appeared. (1.1) adds
+ * iad_transport_open_serial_options (the character framing of a serial port: data bits, parity, stop bits), its
+ * sized struct iad_serial_options, iad_serial_options_init and the IAD_PARITY_* constants. */
 #define IAD_ABI_VERSION_MAJOR 1
-#define IAD_ABI_VERSION_MINOR 0
+#define IAD_ABI_VERSION_MINOR 1
 /** Both in one number, as iad_abi_version() returns it: (major << 16) | minor. Usable in #if. */
 #define IAD_ABI_VERSION ((IAD_ABI_VERSION_MAJOR << 16) | IAD_ABI_VERSION_MINOR)
 /** The loader rule: whether a library whose iad_abi_version() is `library_version` serves a caller compiled with
@@ -321,6 +325,11 @@ enum iad_result_code {
 /* How a baud change is sent (C++ BaudChangeMethod). */
 #define IAD_BAUD_DIRECT 0 /* broadcast at the current rate, then switch the port in place (the default) */
 #define IAD_BAUD_BREAK 1  /* port to 9600, line BREAK, broadcast at 9600 (UNVERIFIED on an EC) */
+
+/* (1.1) The parity bit of a serial character (iad_serial_options.parity; C++ Parity). */
+#define IAD_PARITY_NONE 0 /* no parity bit (the default) */
+#define IAD_PARITY_EVEN 1
+#define IAD_PARITY_ODD 2
 
 /* Alarm level (C++ AlarmLevel). */
 #define IAD_ALARM_LEVEL_NONE 0                /* no alarm, or the 0x0FFF power-up marker */
@@ -1221,6 +1230,22 @@ typedef struct iad_bus_options {
     uint64_t reserved[4];
 } iad_bus_options;
 
+/** (1.1) Settings of iad_transport_open_serial_options (C++ SerialTransport with a SerialFraming). 8N1 is the default
+ *  and what the Modbus units use; 7 data bits, a parity bit and 2 stop bits are for a controller set to another
+ *  framing (UNVERIFIED on hardware). The Modbus RTU stacks (buses, axes, cells) need 8 data bits: 7 data bits is only
+ *  for a caller's own 7-bit protocol on iad_transport_write / iad_transport_read. Its first size is its 1.1 size (64
+ *  bytes). */
+typedef struct iad_serial_options {
+    uint32_t struct_size;        /* sized: see "Sized structs" above */
+    uint32_t reserved_header;    /* 0 */
+    double read_timeout_s;       /* per-read timeout; default 0.2; NaN = 0.2 */
+    int32_t baud_rate;           /* default 115200; 0 = 115200 */
+    int32_t data_bits;           /* 8 (default) or 7; 0 = 8 */
+    int32_t parity;              /* IAD_PARITY_NONE (default, 0), IAD_PARITY_EVEN or IAD_PARITY_ODD */
+    int32_t stop_bits;           /* 1 (default) or 2; 0 = 1 */
+    uint64_t reserved[4];
+} iad_serial_options;
+
 /* ------------------------------------------------------------------------------------------- library */
 
 /** (IAD_ABI_VERSION_MAJOR << 16) | IAD_ABI_VERSION_MINOR of the loaded library. Compare with the header's. */
@@ -2068,6 +2093,8 @@ IAD_API iad_result IAD_CALL iad_set_log_level(int32_t level);
  *  never written past its end. */
 IAD_API iad_result IAD_CALL iad_transport_callbacks_init(iad_transport_callbacks* callbacks);
 IAD_API iad_result IAD_CALL iad_bus_options_init(iad_bus_options* options);
+/** (1.1) The defaults of iad_transport_open_serial_options: 115200 baud, read timeout 0.2 s, 8N1. */
+IAD_API iad_result IAD_CALL iad_serial_options_init(iad_serial_options* options);
 
 /* ------------------------------------------------------------------------------------------- transports */
 
@@ -2084,6 +2111,17 @@ IAD_API iad_result IAD_CALL iad_transport_open_callbacks(const iad_transport_cal
  *  busy or absent. */
 IAD_API iad_result IAD_CALL iad_transport_open_serial(const char* port, int32_t baud_rate, double read_timeout_s,
                                                       iad_transport** out);
+/** (1.1) iad_transport_open_serial with its settings in a sized struct, the character framing among them (options
+ *  NULL = the defaults of iad_serial_options_init: 115200 baud, 8N1). Data bits other than 7 or 8, a parity other than
+ *  an IAD_PARITY_* value, stop bits other than 1 or 2, a negative baud_rate or read_timeout_s, or a struct_size the
+ *  "Sized structs" rule refuses is IAD_ERR_INVALID_ARGUMENT, and a set reserved slot IAD_ERR_UNSUPPORTED: then nothing
+ *  is opened and *out is NULL. IAD_ERR_TRANSPORT when the port is busy or absent, or (POSIX) when its driver does not
+ *  keep the framing (read back after the open; a Linux pseudo terminal keeps only 8 data bits and no parity). A byte
+ *  that fails the parity check is passed on as received on Windows and read as 0 on POSIX; the Modbus CRC drops the
+ *  frame either way. Evidence: 8N1 as iad_transport_open_serial; 7 data bits, parity and 2 stop bits UNVERIFIED on
+ *  hardware. */
+IAD_API iad_result IAD_CALL iad_transport_open_serial_options(const char* port, const iad_serial_options* options,
+                                                              iad_transport** out);
 /** Close the transport (Transport::close: a bus, axis or cell on it then fails with IAD_ERR_TRANSPORT until it is
  *  reopened) and release the handle. NULL or a closed handle: IAD_OK. */
 IAD_API iad_result IAD_CALL iad_transport_close(iad_transport* transport);

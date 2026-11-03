@@ -73,6 +73,44 @@ std::uint32_t vcmd_of(const Bytes& fc10) {
 
 }  // namespace
 
+TEST(axis_motion_a_refusal_in_pio_writes_nothing_not_even_pmsl) {
+    // ON-WIRE on a PCON-CB, 2026-11-03: a move_to refused in PIO for "servo is off" had switched PMSS 0 -> 1 first.
+    // With auto_modbus_control (the default) every refusal now runs before the PMSL coil is written.
+    auto sim = make_sim(SimProfile::Pcon, 20.0, false);  // PMSS = 0, as after a power-up
+    Axis ax = open_sim(sim);
+    SimStateLevels off;
+    off.servo_on = false;
+    sim->set_state(off);
+    MoveOptions mo;
+    mo.speed = 10.0;
+    PushOptions po;
+    po.speed = 10.0;
+    sim->clear_requests();
+    CHECK_THROWS(ax.move_to(80.0, mo), EcNotReadyError);
+    CHECK_THROWS(ax.move_to_position(1), EcNotReadyError);
+    CHECK_THROWS(ax.jog(1.0, mo), EcNotReadyError);
+    CHECK_THROWS(ax.push(90.0, 5.0, 30.0, po), EcNotReadyError);
+    CHECK_THROWS(ax.home(true, std::nullopt, CommandMethod::Iai), EcNotReadyError);
+    CHECK_EQ(write_frames(sim->requests()), 0);
+    CHECK(!sim->pmsl());
+    // a servo ON the status shows cannot work, and a push from inside its zone: refused before PMSL too
+    sim->set_inputs(std::nullopt, true, std::nullopt);  // the motor drive power cut
+    CHECK_THROWS(ax.servo(true), ServoBlockedError);
+    sim->set_inputs(std::nullopt, false, std::nullopt);
+    SimStateLevels on;
+    on.servo_on = true;
+    sim->set_state(on);
+    sim->clear_requests();
+    CHECK_THROWS(ax.push(ax.status().position_mm - 10.0, 5.0, 30.0, po), EcNotReadyError);
+    CHECK_EQ(write_frames(sim->requests()), 0);
+    CHECK(!sim->pmsl());
+    // a command that is not refused still takes the control at rest, as before
+    const auto st = ax.move_to(80.0, mo);
+    REQUIRE(st.has_value());
+    CHECK(sim->pmsl());
+    CHECK_NEAR(st->position_mm, 80.0, 0.1);
+}
+
 TEST(axis_motion_check_move_refusals_send_nothing) {
     auto sim = make_sim(SimProfile::Slider);
     Axis ax = open_sim(sim);

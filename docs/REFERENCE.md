@@ -582,7 +582,10 @@ with Cell.open() as cell:              # every IAI adapter, every answering addr
 - **Modbus control (PMSL).** The EC powers up with PMSS = 0. The driver takes control (PMSL coil 0x0427)
   automatically before a command, **but only while the axis is at rest**: on hardware, switching PMSL on in the middle
   of a move stopped that move. With PMSS = 0 and the axis moving, commands raise `EcNotReadyError` instead of touching
-  PMSL. `auto_modbus_control=False` makes the driver require an explicit `enable_modbus_control()`. PMSS does not gate
+  PMSL. A command the driver refuses (servo off, not homed, a blocked servo ON, a moving axis, a push row or push
+  started inside its zone, a bad home pattern) is refused before control is taken, so nothing is written, not even
+  PMSL (a refused move had switched PMSS 0 -> 1 first: ON-WIRE on the PCON-CB, 2026-11-03). `auto_modbus_control=False`
+  makes the driver require an explicit `enable_modbus_control()`. PMSS does not gate
   0x9900 moves on the EC: a move sent by another tool runs whatever PMSS is. A pause at a standstill with the servo off
   (DSS1 STP, no SV, no MOVE, no home return, no push and VNOW 0) does not block taking control; a pause with the servo
   on does (a PLC holding a stop input on a move), and a PLC pause with the servo off is still indistinguishable from an

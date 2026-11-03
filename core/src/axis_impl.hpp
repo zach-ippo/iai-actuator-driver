@@ -327,10 +327,16 @@ struct Axis::Impl {
     std::string describe() const;
 
     // ------------------------------------------------------------------ motion (axis_motion.cpp)
+    /// require_control's refusals (the gateway, auto_modbus_control, at rest, a STOP held elsewhere); nothing sent.
+    void check_control(const Status& st);
     Status require_control(Status st);
     /// wake_asof: an automatic servo OFF (STAT ASOF) is not a refusal; the servo is switched back on first
-    /// (wake_from_auto_servo_off). false (check_move): accepted, nothing sent.
-    Status require(Status st, bool servo = true, bool homed = true, bool allow_paused = false, bool wake_asof = true);
+    /// (wake_from_auto_servo_off). false (check_move): accepted, nothing sent. `refusals`: the caller's own checks of
+    /// the status (they throw to refuse). With Modbus control off every refusal (these too) runs before auto Modbus
+    /// control takes PC control, so a refused command writes nothing, not even PMSL; the pause is checked after it
+    /// (taking control ends a PIO pause), and the checks run again on the status after it.
+    Status require(Status st, bool servo = true, bool homed = true, bool allow_paused = false, bool wake_asof = true,
+                   const std::function<void(const Status&)>& refusals = {});
     void check_during_motion(const Status& st);
     void release_stop();
     void release_stale_stop();

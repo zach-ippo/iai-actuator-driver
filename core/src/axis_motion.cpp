@@ -54,9 +54,9 @@ void detail::check_timeout(const std::optional<double>& timeout_s, const std::st
 
 // ============================================================================================ preconditions
 
-Status Axis::Impl::require_control(Status st) {
+void Axis::Impl::check_control(const Status& st) {
     bus->line()->require_control(slave);  // gateway lines first (RCON: MANU; line.hpp); nothing sent when refused
-    if (st.modbus_enabled) return st;
+    if (st.modbus_enabled) return;
     if (!opts().auto_modbus_control)
         throw EcNotReadyError("Modbus control is off (PMSS = 0, as after every power-up); call enable_modbus_control() "
                               "while the axis is at rest");
@@ -67,14 +67,36 @@ Status Axis::Impl::require_control(Status st) {
     // a STOP / group stop another thread holds: refused before PMSL, so the control mode never changes under that
     // stop (PIO -> PC would also clear a PLC's *STP pause); nothing sent
     refuse_while_stop_held_elsewhere();
+}
+
+Status Axis::Impl::require_control(Status st) {
+    check_control(st);
+    if (st.modbus_enabled) return st;
     log_info(kAxisLog, "taking Modbus control (PMSL) while the axis is at rest");
     return *enable_control(true);
 }
 
-Status Axis::Impl::require(Status st, bool servo_needed, bool homed_needed, bool allow_paused, bool wake_asof) {
+Status Axis::Impl::require(Status st, bool servo_needed, bool homed_needed, bool allow_paused, bool wake_asof,
+                           const std::function<void(const Status&)>& refusals) {
     if (st.emergency_stop) throw EcNotReadyError("emergency stop is active");
     if (st.alarm)
         throw EcAlarmError(st.alarm_code, util::format("alarm 0x%03x is active; call reset_alarm()", st.alarm_code));
+    // asof_ok: an automatic servo OFF (STAT ASOF) is accepted (woken, or a check only); pause: the pause counts
+    const auto refuse = [&](const Status& s, bool asof_ok, bool pause) {
+        if (servo_needed && !s.servo_on && !(asof_ok && s.auto_servo_off().value_or(false)))
+            throw EcNotReadyError("servo is off; call servo(true)");
+        if (s.homing()) throw EcNotReadyError("a home return is in progress; wait for it to finish");
+        if (homed_needed && !s.homed) throw EcNotReadyError("axis is not homed; call home()");
+        if (pause && s.paused() && !allow_paused)
+            throw EcNotReadyError("axis is paused (STP is on); call resume() first");
+        if (refusals) refusals(s);
+    };
+    if (!st.modbus_enabled) {
+        // every refusal before auto Modbus control takes PC control (PMSL): a refused command writes nothing (ON-WIRE
+        // on a PCON-CB, 2026-11-03: a move refused for "servo is off" in PIO had switched PMSS 0 -> 1 first)
+        check_control(st);
+        refuse(st, true, false);
+    }
     st = require_control(st);
     // an automatic servo OFF (STAT ASOF) is not a refusal: the servo goes back on first (axis_strategy.cpp)
     bool asof = servo_needed && !st.servo_on && st.auto_servo_off().value_or(false);
@@ -82,10 +104,7 @@ Status Axis::Impl::require(Status st, bool servo_needed, bool homed_needed, bool
         st = wake_from_auto_servo_off(st);
         asof = false;
     }
-    if (servo_needed && !st.servo_on && !asof) throw EcNotReadyError("servo is off; call servo(true)");
-    if (st.homing()) throw EcNotReadyError("a home return is in progress; wait for it to finish");
-    if (homed_needed && !st.homed) throw EcNotReadyError("axis is not homed; call home()");
-    if (st.paused() && !allow_paused) throw EcNotReadyError("axis is paused (STP is on); call resume() first");
+    refuse(st, asof, true);
     return st;
 }
 
@@ -376,9 +395,10 @@ std::optional<Status> Axis::Impl::servo(bool on, bool wait, std::optional<double
     Status st = status();
     double timeout = 0.0;
     if (on) {
-        require(st, false, false, true);
-        const std::vector<std::string> reasons = servo_blockers(st, false);
-        if (!reasons.empty()) throw ServoBlockedError("servo ON not sent: " + util::join(reasons, "; "), reasons);
+        require(st, false, false, true, true, [this](const Status& s) {
+            const std::vector<std::string> reasons = servo_blockers(s, false);
+            if (!reasons.empty()) throw ServoBlockedError("servo ON not sent: " + util::join(reasons, "; "), reasons);
+        });
         release_stale_stop();
         motion_pending = true;
         timeout = timeout_s ? *timeout_s : servo_on_timeout(st);
@@ -463,9 +483,8 @@ std::optional<Status> Axis::Impl::home(bool wait, std::optional<double> timeout_
     detail::check_timeout(timeout_s);
     const detail::SendGate gate(*bus, slave, decision_mark());  // a STOP from elsewhere after this refuses it
     const CommandMethod m = strategy_for(method);  // adapted to the line; an explicit method it refuses: nothing sent
-    const Status st = require(status(), true, false);
     std::optional<std::uint32_t> org;
-    if (m == CommandMethod::Iai) {
+    if (m == CommandMethod::Iai) {  // read before Modbus control is taken: a bad ORG is a refusal (require)
         try {
             org = read_home_pattern();
         } catch (const TransportError&) {
@@ -473,12 +492,14 @@ std::optional<Status> Axis::Impl::home(bool wait, std::optional<double> timeout_
         } catch (const std::exception& e) {
             if (!not_readable(e)) throw;
         }
-        if (!org || *org == 0 || *org == 0xFFFFFFFFu || (*org & 0xFFFF) == 0) {
+    }
+    const Status st = require(status(), true, false, false, true, [&](const Status&) {
+        if (m == CommandMethod::Iai && (!org || *org == 0 || *org == 0xFFFFFFFFu || (*org & 0xFFFF) == 0)) {
             const std::string shown = org ? util::format("0x%08X", static_cast<unsigned>(*org)) : "not found";
             throw EcNotReadyError("0x45 home needs a valid home pattern ORG (item 9.16); this unit's is " + shown +
                                   " (op1 = 0 is rejected 0x11). Use the coil method. Nothing sent");
         }
-    }
+    });
     double timeout = 0.0;
     if (timeout_s) {
         timeout = *timeout_s;
@@ -1012,19 +1033,20 @@ std::optional<Status> Axis::Impl::move_to_position(int row, const PositionMoveOp
     if (!st.modbus_enabled && !opts().auto_modbus_control)
         throw EcNotReadyError(std::string("Modbus control is off (PMSS = 0, as after every power-up) and ") +
                               detail::kN4Note + "; call enable_modbus_control() while the axis is at rest");
-    st = require(st);  // takes Modbus control here, at rest only
     const std::string u = units_label();
-    if (!st.idle())
-        throw EcNotReadyError("stored position " + std::to_string(row) +
-                              ": 0x9800 is only sent from rest (the axis is moving); wait for the current move to "
-                              "finish or stop() it");
+    st = require(st, true, true, false, true, [&](const Status& s) {  // takes Modbus control here, at rest only
+        if (!s.idle())
+            throw EcNotReadyError("stored position " + std::to_string(row) +
+                                  ": 0x9800 is only sent from rest (the axis is moving); wait for the current move to "
+                                  "finish or stop() it");
+        if (checked.zone && (s.position_mm - checked.target) * checked.direction > 0.005)
+            throw EcNotReadyError("stored position " + std::to_string(row) + " is a push row (approach " +
+                                  f2(checked.target) + " " + u + ", push zone " + detail::fmt_range(checked.zone, u) +
+                                  ") and the axis at " + f2(s.position_mm) + " " + u +
+                                  " is inside or past the zone: the unit would skip the approach and push from here. "
+                                  "Move to the approach side first (e.g. the other stored position).");
+    });
     const double start = st.position_mm;
-    if (checked.zone && (start - checked.target) * checked.direction > 0.005)
-        throw EcNotReadyError("stored position " + std::to_string(row) + " is a push row (approach " +
-                              f2(checked.target) + " " + u + ", push zone " + detail::fmt_range(checked.zone, u) +
-                              ") and the axis at " + f2(start) + " " + u +
-                              " is inside or past the zone: the unit would skip the approach and push from here. Move "
-                              "to the approach side first (e.g. the other stored position).");
     const double accel = std::min(entry.accel_g, entry.decel_g);
     const double run_speed = std::max(entry.speed_mm_s * scale, 0.01);
     double timeout = 0.0;

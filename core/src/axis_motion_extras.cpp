@@ -272,15 +272,16 @@ std::optional<PushResult> Axis::Impl::push(double target, double band, double fo
     if (!(stroke.min - kPosEps <= end && end <= stroke.max + kPosEps))
         throw SoftLimitError("push band end " + f2(end) + " " + u + " outside the stroke " +
                              detail::fmt_range(stroke, u) + "; nothing sent");
-    const Status st = require(status());
-    if (!st.idle()) throw EcNotReadyError("push needs a stopped axis (wait for the current move to finish)");
-    const double start = st.position_mm;
     const Span zone{std::min(target, end), std::max(target, end)};
-    if ((start - target) * o.direction > kPushStartSideMm)
-        throw EcNotReadyError("start position " + f2(start) + " " + u + " is inside or past the push zone " +
-                              detail::fmt_range(zone, u) +
-                              ": the unit would skip the approach and push from where it is. Move to the approach side "
-                              "first.");
+    const Status st = require(status(), true, true, false, true, [&](const Status& s) {  // before PMSL (require)
+        if (!s.idle()) throw EcNotReadyError("push needs a stopped axis (wait for the current move to finish)");
+        if ((s.position_mm - target) * o.direction > kPushStartSideMm)
+            throw EcNotReadyError("start position " + f2(s.position_mm) + " " + u +
+                                  " is inside or past the push zone " + detail::fmt_range(zone, u) +
+                                  ": the unit would skip the approach and push from where it is. Move to the approach "
+                                  "side first.");
+    });
+    const double start = st.position_mm;
     double timeout = 0.0;
     if (o.timeout_s) {
         timeout = *o.timeout_s;

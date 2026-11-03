@@ -246,7 +246,17 @@ namespace IaiActuatorDriver.Tests
             var (code, output, _) = s.Run("--port", "COM3", "goto", "0", "--speed-pct", "25", "--allow-fast");
             Assert.Equal(0, code);
             Assert.Contains("position        0.00 mm", output);
-            Assert.Equal("45 00 06 00 00 00 40", Frames.Pdu(Frames.Iai(s.Ports["COM3"].Transport).Single()));
+            Assert.Equal("45 00 06 00 00 00 3F", Frames.Pdu(Frames.Iai(s.Ports["COM3"].Transport).Single()));
+        }
+
+        [Fact]
+        public void Goto_notes_a_rounded_speed_override()
+        {
+            var s = Com3(position: 50.0);
+            var (code, _, error) = s.Run("--port", "COM3", "goto", "0", "--speed-pct", "0.1", "--allow-fast");
+            Assert.Equal(0, code);
+            Assert.Contains("note: --speed-pct 0.1: the row runs at 0.78 % of its stored speed (override code 1;", error);
+            Assert.Equal("45 00 06 00 00 00 01", Frames.Pdu(Frames.Iai(s.Ports["COM3"].Transport).Single()));
         }
 
         [Fact]

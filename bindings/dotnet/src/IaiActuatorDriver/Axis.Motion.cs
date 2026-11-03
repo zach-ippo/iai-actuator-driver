@@ -272,7 +272,7 @@ namespace IaiActuatorDriver
         /// <summary>
         /// Run stored position <paramref name="n"/> (0 .. <see cref="MaxPositions"/> - 1; on an EC 0 = backward end, 1 =
         /// forward end, 2 = middle) with FC06 0x9800 = n, or - with <paramref name="speedPct"/> (1..100 % of the row's stored
-        /// speed) - with 0x45 cmd 6 (op1 = n, op2 = max(1, round(255 x pct / 100)); VERIFIED on the PCON, UNVERIFIED on an EC).
+        /// speed) - with 0x45 cmd 6 (op1 = n, op2 = round(256 x pct / 100) - 1 within 1..255: the unit runs (op2 + 1) / 256, ON-WIRE on the PCON-CB; VERIFIED on the PCON, UNVERIFIED on an EC).
         /// The row is read and checked first (position / push end inside the effective stroke, not incremental, checksum OK;
         /// unless <paramref name="allowAboveCaps"/> its stored speed / accel / push force within the configured caps, else only
         /// the unit's own MAXV / MAXA / MAXD / MXPP). The unit silently ignores 0x9800 while PMSS = 0 (VERIFIED), so Modbus

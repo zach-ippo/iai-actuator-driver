@@ -331,7 +331,10 @@ with Elecylinder.open("COM3") as ec:
   (0 .. `max_positions()` - 1: MAXP 3.2 capped by the directory; 3 rows on an EC, 64 on the PCON-CB tested) with
   FC06 0x9800 = n, at the row's **own** speed and acceleration (a push row runs its push). With `speed_pct` (1-100) it
   uses 0x45 cmd 6 instead and runs the row at that share of its stored speed, with nothing written to the unit
-  (VERIFIED on the EC gripper and the PCON-CB). CLI: `goto N [--speed-pct P] [--allow-fast] [--no-wait]`.
+  (VERIFIED on the EC gripper and the PCON-CB). The share goes in steps of 1/256: the unit runs op2 at (op2 + 1) / 256
+  (ON-WIRE on the PCON-CB), so the driver sends op2 = round(256 x pct / 100) - 1 within 1..255 (25 % runs exactly,
+  1 % runs 1.17 %, at least 0.78 %); a share rounded by more than 5 % is logged, and the CLIs print a note. CLI:
+  `goto N [--speed-pct P] [--allow-fast] [--no-wait]`.
   - The row is checked first: its position (and a push row's push end) must lie in the effective stroke, it must not
     be incremental and its checksum must be valid. Unless `allow_above_caps`, its stored speed / accel / push force
     must also be within the driver's caps (the slider's rows run at 108.5 / 248.5 mm/s and the EC-R6S's backward end

@@ -305,7 +305,7 @@ TEST(axis_motion_move_to_position_takes_control_and_overrides) {
     CHECK_NEAR(st2->position_mm, 0.0, 0.1);
     const auto cmd6 = iai_frames(sim->requests(), reg::kIaiCmdMovePosition);
     REQUIRE(cmd6.size() == 1);
-    CHECK_EQ((cmd6[0][6] << 8) | cmd6[0][7], 128);  // op2 = round(255 x 50 / 100)
+    CHECK_EQ((cmd6[0][6] << 8) | cmd6[0][7], 127);  // op2 = round(256 x 50 / 100) - 1: the unit runs (op2 + 1) / 256
     CHECK_EQ(sim->override_moves(), 1);
     CHECK_EQ(sim->nonvolatile_writes(), 0);
     // the guards send nothing

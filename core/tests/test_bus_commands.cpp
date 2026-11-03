@@ -145,16 +145,23 @@ TEST(bus_cmd_position_moves) {
     send_position_move(r.bus, 1, 3);
     CHECK(r.frames() == (Frames{"01 06 98 00 00 03 E6 AB"}));
     r.t->clear_writes();
-    send_position_move_override(r.bus, 1, 3, 50.0);   // round(127.5) = 128 (half to even)
-    send_position_move_override(r.bus, 1, 3, 0.1);    // max(1, 0)
-    send_position_move_override(r.bus, 1, 3, 30.0);   // round(76.5) = 76 (half to even, as Python)
+    // the unit runs (code + 1) / 256 (ON-WIRE on the PCON-CB): code = round(256 x pct / 100) - 1, within 1..255
+    send_position_move_override(r.bus, 1, 3, 50.0);   // 128 - 1 = 127
+    send_position_move_override(r.bus, 1, 3, 0.1);    // max(1, 0 - 1)
+    send_position_move_override(r.bus, 1, 3, 30.0);   // round(76.8) - 1 = 76
     send_position_move_override(r.bus, 1, 3, 100.0);  // 255
+    send_position_move_override(r.bus, 1, 3, 5.0);    // round(12.8) - 1 = 12 (13 ran 5.47 % on the PCON-CB)
     const Frames f = r.frames();
-    REQUIRE(f.size() == 4);
-    CHECK_EQ(f[0], "01 45 00 06 00 03 00 80 EC A3");
+    REQUIRE(f.size() == 5);
+    CHECK_EQ(f[0].substr(0, 23), "01 45 00 06 00 03 00 7F");
     CHECK_EQ(f[1], "01 45 00 06 00 03 00 01 2C C3");
     CHECK_EQ(f[2].substr(0, 23), "01 45 00 06 00 03 00 4C");
     CHECK_EQ(f[3].substr(0, 23), "01 45 00 06 00 03 00 FF");
+    CHECK_EQ(f[4].substr(0, 23), "01 45 00 06 00 03 00 0C");
+    CHECK_EQ(speed_override_code(25.0), 63);
+    CHECK_EQ(speed_override_code(1.0), 2);  // 3 / 256 = 1.17 %
+    CHECK_NEAR(speed_override_pct(63), 25.0, 1e-12);
+    CHECK_NEAR(speed_override_pct(1), 0.78125, 1e-12);
     CHECK_THROWS(send_position_move_override(r.bus, 1, 3, std::nan("")), std::invalid_argument);
 }
 

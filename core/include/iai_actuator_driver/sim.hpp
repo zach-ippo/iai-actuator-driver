@@ -16,8 +16,8 @@
 // * STP is a level input. Home: HEND 0, GHMS 1, to the mechanical end, a creep back to 0.00 with MOVE 0 but GHMS 1,
 //   then HEND 1 + PEND 1. Push rows (CTLF b1): approach, then push over the band; obstacle_mm gives contact, none PSFL.
 // * IAI 0x45: servo cmd 9, home cmd 0x0A (op1 = the home pattern; 0 rejected 0x11), alarm reset cmd 5 op1 0, software
-//   reset cmd 5 op1 1 (after servo off; with the servo on alarm 0x090), action mode 0x0C, stored row cmd 6 at op2/255
-//   of its speed, broadcast baud change cmd 4 (codes in ignored_baud_codes are ignored, as the EC-R6S rod ignored 0x06).
+//   reset cmd 5 op1 1 (after servo off; with the servo on alarm 0x090), action mode 0x0C, stored row cmd 6 at
+//   (op2 + 1) / 256 of its speed, broadcast baud change cmd 4 (codes in ignored_baud_codes are ignored, as the EC-R6S rod ignored 0x06).
 //   Unknown commands are rejected 0x21. On an EC profile cmd 6 with a row the position mode does not run (row 2 in
 //   2-position mode) is rejected 0x11 and nothing moves, as on the EC-GRBP8M gripper; 0x9800 still runs it (unverified).
 //   After a software reset PMSS reads 0 (the EC-R6S rod), except on the gripper and the PCON profiles (kept at 1).

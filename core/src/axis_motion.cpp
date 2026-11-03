@@ -877,7 +877,7 @@ Axis::Impl::StoredRow Axis::Impl::check_stored_row(int row, const PositionEntry&
         const std::string configured = o.max_speed_mm_s ? gs(*o.max_speed_mm_s) : "none";
         const std::string how = speed_scale == 1.0
                                     ? "its stored speed"
-                                    : util::format("%.0f %% of its stored speed", speed_scale * 100.0);
+                                    : util::format("%.2f %% of its stored speed", speed_scale * 100.0);
         std::string text = "stored position " + std::to_string(row) + " runs at " + how + " " + f2(run_speed) + " " +
                            u + "/s, above ";
         text += allow_above_caps ? std::string("the unit's own maximum")
@@ -998,10 +998,15 @@ std::optional<Status> Axis::Impl::move_to_position(int row, const PositionMoveOp
         bus->line()->require(LineOperation::IaiCommand, "move_to_position(speed_pct) (0x45 cmd 6)");  // line.hpp
         if (!std::isfinite(*o.speed_pct) || !(*o.speed_pct > 0 && *o.speed_pct <= 100))
             throw SoftLimitError("speed_pct must be in (0, 100], got " + gs(*o.speed_pct) + "; nothing sent");
-        override_code = std::max(1, static_cast<int>(std::nearbyint(255.0 * *o.speed_pct / 100.0)));
+        override_code = speed_override_code(*o.speed_pct);  // the unit runs (code + 1) / 256 (commands.hpp)
+        const double runs = speed_override_pct(*override_code);
+        if (std::fabs(runs - *o.speed_pct) > 0.05 * *o.speed_pct)
+            log_warning(kAxisLog, util::format("speed_pct %s %%: stored position %d runs at %.2f %% of its stored "
+                                               "speed (override code %d; the unit runs (code + 1) / 256)",
+                                               gs(*o.speed_pct).c_str(), row, runs, *override_code));
     }
     const PositionEntry entry = read_row(row);
-    const double scale = override_code ? *override_code / 255.0 : 1.0;
+    const double scale = override_code ? speed_override_pct(*override_code) / 100.0 : 1.0;
     const StoredRow checked = check_stored_row(row, entry, o.allow_above_caps, scale);
     Status st = status();
     if (!st.modbus_enabled && !opts().auto_modbus_control)

@@ -110,6 +110,17 @@ class CliNewCommandsTest(unittest.TestCase):
         code, _, err = run_cli("--sim", "--sim-profile", "pcon", "goto", "64")
         self.assertEqual(code, 2)
 
+    def test_goto_notes_a_rounded_speed_override(self) -> None:
+        # the unit runs (code + 1) / 256 of the row's speed (ON-WIRE on the PCON-CB): 0.1 % runs as code 1 = 0.78 %
+        code, _, err = run_cli("--sim", "--sim-profile", "pcon", "--unit-max", "--sim-time-scale", "50", "goto", "1",
+                               "--speed-pct", "0.1", "--no-wait")  # fmt: skip
+        self.assertEqual(code, 0, err)
+        self.assertIn("note: --speed-pct 0.1: the row runs at 0.78 % of its stored speed (override code 1;", err)
+        code, _, err = run_cli("--sim", "--sim-profile", "pcon", "--unit-max", "--sim-time-scale", "50", "goto", "1",
+                               "--speed-pct", "25")  # fmt: skip
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("note: --speed-pct", err)  # 25 % runs as code 63 = 25.00 %
+
     def test_con_parameters(self) -> None:
         code, out, _ = run_cli("--sim", "--sim-profile", "pcon", "param", "list")
         self.assertEqual(code, 0, out)

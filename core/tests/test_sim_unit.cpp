@@ -605,7 +605,7 @@ TEST(sim_iai_action_mode) {
     CHECK(!rig->moving());
 }
 
-TEST(sim_iai_cmd6_runs_a_stored_row_at_op2_of_255) {
+TEST(sim_iai_cmd6_runs_a_stored_row_at_op2_plus_1_of_256) {
     Rig full(pure_trapezoid());
     CHECK_EQ(iai(full.u(), reg::kIaiCmdMovePosition, 1, 255), 0);  // row 1: 150.00 mm at 248.50 mm/s
     full.clock.advance(0.2);
@@ -613,11 +613,15 @@ TEST(sim_iai_cmd6_runs_a_stored_row_at_op2_of_255) {
     CHECK_EQ(reg::from_i32_words(v_full[0], v_full[1]), 24960);  // 248.5 mm/s reads 19.9 x 12.48, quantized to 20 steps
     CHECK_EQ(full->override_moves(), 1);
     Rig half(pure_trapezoid());
-    CHECK_EQ(iai(half.u(), reg::kIaiCmdMovePosition, 1, 128), 0);  // 128 / 255 of the stored speed
+    CHECK_EQ(iai(half.u(), reg::kIaiCmdMovePosition, 1, 127), 0);  // (127 + 1) / 256 of the stored speed
     half.clock.advance(0.2);
     const Words v_half = read_regs(half.u(), reg::kVnow, 2);
     CHECK_EQ(reg::from_i32_words(v_half[0], v_half[1]), 12480);
-    CHECK(contains(half->events(), "move to position 1 at 50 %"));
+    CHECK(contains(half->events(), "move to position 1 at 50.00 %"));
+    // the PCON-CB's steps (ON-WIRE): code 13 ran an 840 mm/s row at 46.0 mm/s = 14 / 256, not 13 / 255
+    Rig slow(pure_trapezoid());
+    CHECK_EQ(iai(slow.u(), reg::kIaiCmdMovePosition, 1, 13), 0);
+    CHECK(contains(slow->events(), "move to position 1 at 5.47 %"));
     half.clock.advance(5.0);
     CHECK_NEAR(half->position_mm(), 150.0, 1e-6);
     CHECK_EQ(read_regs(half.u(), reg::kPoss, 1)[0], 1);  // POSS: the completed stored row

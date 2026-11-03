@@ -501,7 +501,7 @@ namespace IaiActuatorDriver.Tests
             var (bus, t) = sim.Bus();
             var axis = new Axis(bus, 1, SimUnit.Fast);
             axis.MoveToPosition(0, speedPct: 25);
-            Assert.Equal("45 00 06 00 00 00 40", Frames.Pdu(Frames.Iai(t).Single())); // round(255 x 0.25) = 64
+            Assert.Equal("45 00 06 00 00 00 3F", Frames.Pdu(Frames.Iai(t).Single())); // round(256 x 0.25) - 1 = 63: runs 64 / 256
             Assert.Throws<SoftLimitException>(() => axis.MoveToPosition(0, speedPct: 0));
             Assert.Throws<SoftLimitException>(() => axis.MoveToPosition(0, speedPct: 101));
         }

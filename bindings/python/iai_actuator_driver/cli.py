@@ -303,7 +303,7 @@ def build_parser() -> argparse.ArgumentParser:
     goto.add_argument(
         "--speed-pct", type=float, default=None,
         help="run the row at 1-100 %% of its stored speed (0x45 cmd 6, VERIFIED on the EC gripper and the PCON-CB; "
-        "nothing written to the unit)",
+        "in steps of 1/256, at least 0.78 %%; nothing written to the unit)",
     )  # fmt: skip
     goto.add_argument(
         "--allow-fast", action="store_true",
@@ -863,6 +863,16 @@ def _run_recover(ec: Elecylinder, label: str, args: argparse.Namespace, out: Tex
     return 0
 
 
+def _override_note(pct: float) -> None:
+    """The note when the speed override is rounded: the unit runs (code + 1) / 256 of the row's stored speed (ON-WIRE
+    on the PCON-CB), code = round(256 x pct / 100) - 1 within 1..255 (the driver's own rule)."""
+    code = min(255, max(1, round(256 * pct / 100) - 1))
+    runs = (code + 1) * 100 / 256
+    if abs(runs - pct) > 0.05 * pct:
+        print(f"note: --speed-pct {pct:g}: the row runs at {runs:.2f} % of its stored speed (override code {code}; "
+              "the unit runs (code + 1) / 256)", file=sys.stderr)  # fmt: skip
+
+
 def _move_and_change(ec: Elecylinder, args: argparse.Namespace) -> Status | None:
     """``move ... --change-speed / --change-accel``: start the move, wait ``--change-after`` s, change the running move
     and wait for it to finish (:meth:`Elecylinder.change_speed` / ``change_accel``; VERIFIED on the EC-GRBP8M gripper,
@@ -1361,6 +1371,8 @@ def _execute(ec: Elecylinder, label: str, args: argparse.Namespace, out: TextIO)
         direction = -1 if args.toward_home else 1
         result = ec.push(args.mm, args.band, args.pct, direction, speed_mm_s=args.speed)
     elif cmd == "goto":
+        if args.speed_pct is not None and 0 < args.speed_pct <= 100:  # out of range: refused by move_to_position
+            _override_note(args.speed_pct)
         result = ec.move_to_position(args.n, wait=not args.no_wait, allow_above_caps=args.allow_fast,
                                      speed_pct=args.speed_pct)  # fmt: skip
         if result is None:

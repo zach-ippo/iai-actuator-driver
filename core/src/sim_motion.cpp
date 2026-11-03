@@ -315,7 +315,7 @@ void SimulatedUnit::Impl::move_to_row(int n, double speed_scale) {
     }
     const Words row = row_words(n);
     std::string text = util::format("move to position %d", n);
-    if (speed_scale != 1.0) text += util::format(" at %.0f %%", speed_scale * 100.0);
+    if (speed_scale != 1.0) text += util::format(" at %.2f %%", speed_scale * 100.0);
     log_event(text);
     wake_from_asof("row move");
     const double band_mm = reg::from_u32_words(row[2], row[3]) / 100.0;

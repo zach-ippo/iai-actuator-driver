@@ -56,6 +56,19 @@ TEST(cli_read_only_commands_and_a_move_on_the_simulator) {
         CHECK(!help.says(hidden));
 }
 
+TEST(cli_goto_notes_a_rounded_speed_override) {
+    // the unit runs (code + 1) / 256 of the row's stored speed (ON-WIRE on the PCON-CB): 0.1 % runs as code 1 = 0.78 %
+    const CliRun slow = cli_run({"--sim", "--sim-profile", "pcon", "--unit-max", "--sim-time-scale", "50", "goto", "1",
+                                 "--speed-pct", "0.1", "--no-wait"});
+    CHECK_EQ(slow.code, 0);
+    CHECK(slow.err.find("note: --speed-pct 0.1: the row runs at 0.78 % of its stored speed (override code 1;") !=
+          std::string::npos);
+    const CliRun exact = cli_run(
+        {"--sim", "--sim-profile", "pcon", "--unit-max", "--sim-time-scale", "50", "goto", "1", "--speed-pct", "25"});
+    CHECK_EQ(exact.code, 0);
+    CHECK(!exact.says("note: --speed-pct"));  // 25 % runs as code 63 = 25.00 %
+}
+
 TEST(cli_unit_without_a_family_name_is_reported_without_a_label) {
     // the simulator's "unknown" unit (system 0x99, unit 0x7E): reported as what it says it is, and driven
     const CliRun ident = cli_run({"--sim", "--sim-profile", "unknown", "identify"});

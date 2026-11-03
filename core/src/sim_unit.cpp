@@ -692,10 +692,11 @@ Bytes SimulatedUnit::Impl::fc45(const Bytes& body) {
 }
 
 int SimulatedUnit::Impl::move_position_override(int n, int override_value) {
-    // 0x45 cmd 6: run stored row n at override / 255 of its stored speed (VERIFIED in the Python edition on the EC
-    // gripper and the PCON). On an EC a row its position mode does not run (row 2 in 2-position mode) is rejected 0x11
-    // "1st operand error" and nothing moves (VERIFIED in the Python edition on the EC-GRBP8M gripper, P9 = 0; 0x9800
-    // with such a row is unverified: it still runs). Rejected 0x3A while PMSS = 0, 0x23 with the servo off, 0x24 while
+    // 0x45 cmd 6: run stored row n at (override + 1) / 256 of its stored speed (VERIFIED in the Python edition on the
+    // EC gripper and the PCON; the 1/256 steps ON-WIRE on the PCON-CB: code 13 ran an 840 mm/s row at 46.0 mm/s). On an
+    // EC a row its position mode does not run (row 2 in 2-position mode) is rejected 0x11 "1st operand error" and
+    // nothing moves (VERIFIED in the Python edition on the EC-GRBP8M gripper, P9 = 0; 0x9800 with such a row is
+    // unverified: it still runs). Rejected 0x3A while PMSS = 0, 0x23 with the servo off, 0x24 while
     // homing, 0x12 for op2 = 0 (simulator choices, as the order of the checks).
     if (!pmsl) return kSimRejectMonitorMode;
     if (!servo_on) return kSimRejectServoOff;
@@ -707,7 +708,7 @@ int SimulatedUnit::Impl::move_position_override(int n, int override_value) {
     }
     if (override_value < 1 || override_value > 0xFF) return 0x12;
     ++override_moves;
-    move_to_row(n, override_value / 255.0);
+    move_to_row(n, (override_value + 1) / 256.0);
     return 0;
 }
 

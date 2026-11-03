@@ -80,8 +80,8 @@ class PconTest(unittest.TestCase):
                          (840.0, 840.0, None))
         self.assertEqual((limits["accel"]["max"], limits["decel"]["max"]), (1.0, 1.0))
         self.assertEqual((limits["stored_rows"]["min"], limits["stored_rows"]["max"]), (0, 63))
-        self.assertEqual(limits["speed_override"], {"min": 1, "max": 100, "unit": "%",
-                                                     "source": "0x45 cmd 6 op2 = 255 x % / 100"})
+        source = "0x45 cmd 6 op2 = round(256 x % / 100) - 1 (the unit runs (op2 + 1) / 256)"
+        self.assertEqual(limits["speed_override"], {"min": 1, "max": 100, "unit": "%", "source": source})
 
     def test_configured_cap_is_the_integrators(self) -> None:
         sim = SimulatedEC(profile="pcon", time_scale=50.0)
@@ -153,7 +153,7 @@ class PconTest(unittest.TestCase):
             self.assertEqual(st.position_mm, 87.90)
             frames = sent(rec, 0x45)
             self.assertEqual(len(frames), 1)
-            self.assertEqual(frames[0][2:8], bytes([0, R.IAI_CMD_MOVE_POSITION, 0, 1, 0, 64]))  # op2 = 255 x 25 %
+            self.assertEqual(frames[0][2:8], bytes([0, R.IAI_CMD_MOVE_POSITION, 0, 1, 0, 63]))  # 256 x 25 % - 1
             self.assertEqual(sim.override_moves, 1)
             with self.assertRaises(SoftLimitError):
                 ec.move_to_position(64)  # beyond MAXP

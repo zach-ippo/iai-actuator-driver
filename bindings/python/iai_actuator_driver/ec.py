@@ -1707,7 +1707,8 @@ class Elecylinder:
         speed_pct: float | None = None,
     ) -> Status | None:
         """Run stored row ``n`` (read and checked first; Modbus control taken at rest). ``speed_pct`` 1..100 % of the
-        row's speed; ``allow_above_caps``: only the unit's own limits apply to the row."""
+        row's speed (in steps of 1/256: the unit runs op2 at (op2 + 1) / 256, at least 0.78 %); ``allow_above_caps``:
+        only the unit's own limits apply to the row."""
         o = _n.PositionMoveOptions()
         _n._check(self._lib, "iad_position_move_options_init", ctypes.byref(o))
         o.timeout_s = _nan(timeout)

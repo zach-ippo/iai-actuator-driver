@@ -417,7 +417,7 @@ AxisRanges make_ranges(const RangeInputs& in) {
     r.speed_override.min = 1.0;
     r.speed_override.max = 100.0;
     r.speed_override.unit = "%";
-    r.speed_override.source = "0x45 cmd 6 op2 = 255 x % / 100";
+    r.speed_override.source = "0x45 cmd 6 op2 = round(256 x % / 100) - 1 (the unit runs (op2 + 1) / 256)";
     return r;
 }
 

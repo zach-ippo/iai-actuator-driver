@@ -118,11 +118,17 @@ void send_position_move(ModbusRtu& bus, int slave, int row) {
     bus.write_register(slave, reg::kCommand1Base, static_cast<std::uint16_t>(row));
 }
 
-IaiResponse send_position_move_override(ModbusRtu& bus, int slave, int row, double speed_pct) {
+int speed_override_code(double speed_pct) {
     if (!std::isfinite(speed_pct)) throw std::invalid_argument("speed_pct must be a finite number");
-    // round half to even, as the Python edition's round() (255 x 30 % = 76.5 -> 76)
-    const double scaled = std::nearbyint(255.0 * speed_pct / 100.0);
-    const int override_value = static_cast<int>(std::max(1.0, std::min(scaled, 65535.0)));
+    // the unit runs (code + 1) / 256 (ON-WIRE on the PCON-CB); round half to even (256 x 5 % = 12.8 -> 13 - 1 = 12)
+    const double code = std::nearbyint(256.0 * speed_pct / 100.0) - 1.0;
+    return static_cast<int>(std::max(1.0, std::min(code, 255.0)));
+}
+
+double speed_override_pct(int code) { return (code + 1) * 100.0 / 256.0; }
+
+IaiResponse send_position_move_override(ModbusRtu& bus, int slave, int row, double speed_pct) {
+    const int override_value = speed_override_code(speed_pct);
     IaiOptions options;
     options.retries = 0;
     return bus.iai_command(slave, 0, reg::kIaiCmdMovePosition, row, override_value, options);

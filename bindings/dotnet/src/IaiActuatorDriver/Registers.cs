@@ -556,7 +556,7 @@ namespace IaiActuatorDriver
         public const int IAI_RESET_ALARM = 0x0000;
         /// <summary>op1 of the software reset: 01 45 00 05 00 01 00 00 -&gt; 01 45 00 00 (ON-WIRE, VERIFIED)</summary>
         public const int IAI_RESET_SOFTWARE = 0x0001;
-        /// <summary>op1 = stored row n, op2 = speed override (255 = 100 %). VERIFIED on the PCON (row 1 at 25 % ran at ~25 % of its stored speed); UNVERIFIED on an EC</summary>
+        /// <summary>op1 = stored row n, op2 = speed override: the row runs at (op2 + 1) / 256 of its stored speed (255 = 100 %; ON-WIRE on the PCON-CB: op2 13 ran an 840 mm/s row at 46.0 mm/s). VERIFIED on the PCON; UNVERIFIED on an EC</summary>
         public const int IAI_CMD_MOVE_POSITION = 0x06;
         /// <summary>op1: 1 = on, 0 = off. VERIFIED (01 45 00 09 00 00 00 00 = servo OFF -&gt; 01 45 00 00)</summary>
         public const int IAI_CMD_SERVO = 0x09;

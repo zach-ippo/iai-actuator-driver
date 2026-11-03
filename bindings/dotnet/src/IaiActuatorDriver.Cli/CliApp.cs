@@ -658,7 +658,18 @@ namespace IaiActuatorDriver.Cli
                 case "goto":
                 {
                     var n = CliArgs.ParseInt("goto N", positional[0]);
-                    var st = axis.MoveToPosition(n, args.Double("--speed-pct"), !args.Has("--no-wait"), allowAboveCaps: args.Has("--allow-fast"), cancellationToken: ct);
+                    var pct = args.Double("--speed-pct");
+                    if (pct is double p && p > 0 && p <= 100) // out of range: refused by MoveToPosition
+                    {
+                        // the unit runs (code + 1) / 256 of the row's speed (ON-WIRE on the PCON-CB)
+                        var code = (int)Math.Max(1.0, Math.Min(255.0, Math.Round(256.0 * p / 100.0) - 1.0));
+                        var runs = (code + 1) * 100.0 / 256.0;
+                        if (Math.Abs(runs - p) > 0.05 * p)
+                            error.WriteLine(I($"note: --speed-pct {p}: the row runs at {runs:0.00} % of its stored speed ")
+                                            + I($"(override code {code}; the unit runs (code + 1) / 256)"));
+                    }
+
+                    var st = axis.MoveToPosition(n, pct, !args.Has("--no-wait"), allowAboveCaps: args.Has("--allow-fast"), cancellationToken: ct);
                     if (st is null)
                     {
                         output.WriteLine(I($"stored position {n} started"));
@@ -1025,7 +1036,8 @@ Axis commands (positions in mm, or deg on a rotary axis; every range is read fro
   push POS BAND PCT [--toward-home] [--speed V]
                                approach POS, then push over BAND at PCT % force (capped by --max-push and MXPP)
   goto N [--speed-pct P] [--allow-fast] [--no-wait]
-                               run stored row N at its stored speed (or P % of it; 0x45 cmd 6)
+                               run stored row N at its stored speed (or P % of it; 0x45 cmd 6, in steps of
+                               1/256, at least 0.78 %)
   stop                         decel stop (STOP coil on, wait until stopped, off); works without Modbus control
   pause | resume | cancel-pause
                                hold the move and keep its remaining travel (stays set after this command ends) /

@@ -262,7 +262,7 @@ inline constexpr int kIaiBaudOp2 = 0x0005;
 inline constexpr int kIaiCmdReset = 0x05;         ///< op1 0 = alarm reset, 1 = software reset
 inline constexpr int kIaiResetAlarm = 0x0000;     ///< 01 45 00 05 00 00 00 00 (VERIFIED on the EC-R6S rod)
 inline constexpr int kIaiResetSoftware = 0x0001;  ///< 01 45 00 05 00 01 00 00 (ON-WIRE + VERIFIED)
-inline constexpr int kIaiCmdMovePosition = 0x06;  ///< op1 = row, op2 = override (255 = 100 %)
+inline constexpr int kIaiCmdMovePosition = 0x06;  ///< op1 = row, op2 = override: runs (op2 + 1) / 256 (255 = 100 %)
 inline constexpr int kIaiCmdServo = 0x09;         ///< op1 1 on / 0 off (VERIFIED)
 inline constexpr int kIaiCmdHome = 0x0A;          ///< op1 = ORG & 0xFFFF (VERIFIED on the EC-R6S rod)
 inline constexpr int kIaiCmdStop = 0x0B;

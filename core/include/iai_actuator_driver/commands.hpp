@@ -145,8 +145,16 @@ IaiResponse send_software_reset(ModbusRtu& bus, int slave);
 /// Stored-row move: FC06 0x9800 = row (starts at once; ignored by an EC while PMSS = 0, VERIFIED).
 void send_position_move(ModbusRtu& bus, int slave, int row);
 
-/// Stored-row move with a speed override: 0x45 cmd 6 op1 = row, op2 = max(1, round(255 x pct / 100)) (VERIFIED on the
-/// EC gripper and the PCON).
+/// The 0x45 cmd 6 speed override code of `speed_pct` (finite; std::invalid_argument otherwise): the unit runs the row
+/// at (code + 1) / 256 of its stored speed (ON-WIRE on the PCON-CB: code 13 ran an 840 mm/s row at 46.0 mm/s, code 3
+/// at 13.1 mm/s; other units UNVERIFIED, the same register), so code = round(256 x pct / 100) - 1, clamped to 1..255
+/// (100 % -> 255, 25 % -> 63, 5 % -> 12; 0.97 % and below -> 1 = 0.78 %, the slowest the unit runs).
+int speed_override_code(double speed_pct);
+/// The share of the stored speed (%) the unit runs with override `code`: (code + 1) / 256 x 100.
+double speed_override_pct(int code);
+
+/// Stored-row move with a speed override: 0x45 cmd 6 op1 = row, op2 = speed_override_code(pct) (VERIFIED on the EC
+/// gripper and the PCON).
 IaiResponse send_position_move_override(ModbusRtu& bus, int slave, int row, double speed_pct);
 
 /// The 9-word direct numeric move block at 0x9900 (DOC-CON layout, VERIFIED frame shape): an FC10 write starts the

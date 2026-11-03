@@ -550,9 +550,9 @@ IAI_CMD_RESET: Final = 0x05  # op1: 0 = alarm reset, 1 = software reset (Elecyli
 IAI_RESET_ALARM: Final = 0x0000  # op1 of the alarm reset: 01 45 00 05 00 00 00 00 (VERIFIED on the EC-R6S rod)
 IAI_RESET_SOFTWARE: Final = 0x0001  # op1 of the software reset: 01 45 00 05 00 01 00 00 -> 01 45 00 00 (ON-WIRE,
 #                                     VERIFIED)
-IAI_CMD_MOVE_POSITION: Final = 0x06  # op1 = stored row n, op2 = speed override (255 = 100 %). VERIFIED on the
-#                                      EC-GRBP8M gripper and the PCON-CB (row 1 at 25 % ran at ~25 % of its stored
-#                                      speed on the PCON-CB)
+IAI_CMD_MOVE_POSITION: Final = 0x06  # op1 = stored row n, op2 = speed override: the row runs at (op2 + 1) / 256 of
+#                                      its stored speed (255 = 100 %; ON-WIRE on the PCON-CB: op2 13 ran an 840 mm/s
+#                                      row at 46.0 mm/s). VERIFIED on the EC-GRBP8M gripper and the PCON-CB
 IAI_CMD_SERVO: Final = 0x09  # op1: 1 = on, 0 = off. VERIFIED (01 45 00 09 00 00 00 00 = servo OFF -> 01 45 00 00)
 IAI_CMD_HOME: Final = 0x0A  # op1 = ORG (item 9.16) & 0xFFFF, op2 0. VERIFIED on the EC-R6S rod
 #                             (01 45 00 0A 00 07 00 00); op1 = 0 is rejected 0x11 "1st operand error" (VERIFIED on

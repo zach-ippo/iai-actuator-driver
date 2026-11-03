@@ -4,6 +4,7 @@
 // range read from the unit itself. This edition is UNVERIFIED on hardware.
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -87,7 +88,8 @@ Axis commands (positions in mm, or deg on a rotary axis; every range is read fro
                                approach POS, then push over BAND at PCT % force (capped by --max-push and
                                MXPP 7.9; below MNPP only warned); default away from home
   goto N [--speed-pct P] [--allow-fast] [--no-wait]
-                               run stored row N at its stored speed (or P % of it; 0x45 cmd 6)
+                               run stored row N at its stored speed (or P % of it; 0x45 cmd 6, in steps of
+                               1/256, at least 0.78 %)
   stop                         decel stop (STOP coil on, wait until stopped, off); works without Modbus control
   pause | resume               hold the move keeping its remaining travel / let it continue
   cancel-pause                 drop the remaining travel of a paused move and release the pause
@@ -761,6 +763,15 @@ int execute(Axis& axis, const std::string& label, const std::string& command, co
         o.speed_pct = args.number("--speed-pct");
         o.wait = !args.has("--no-wait");
         o.allow_above_caps = args.has("--allow-fast");
+        if (o.speed_pct && *o.speed_pct > 0 && *o.speed_pct <= 100) {  // out of range: refused by move_to_position
+            const int code = speed_override_code(*o.speed_pct);
+            const double runs = speed_override_pct(code);
+            if (std::fabs(runs - *o.speed_pct) > 0.05 * *o.speed_pct)
+                err << util::format("note: --speed-pct %s: the row runs at %.2f %% of its stored speed "
+                                    "(override code %d; the unit runs (code + 1) / 256)",
+                                    util::g(*o.speed_pct).c_str(), runs, code)
+                    << '\n';
+        }
         const std::optional<Status> st = axis.move_to_position(row, o);
         if (!st) {
             if (json) {

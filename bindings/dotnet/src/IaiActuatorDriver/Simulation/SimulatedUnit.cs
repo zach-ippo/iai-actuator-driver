@@ -39,7 +39,7 @@ namespace IaiActuatorDriver.Simulation
     /// test G5 (a contact fingerprint for a moment, then a miss).</description></item>
     /// <item><description>IAI 0x45: servo cmd 9, home cmd 0x0A with op1 = the home pattern (op1 = 0 rejected 0x11), alarm
     /// reset cmd 5 op1 0, software reset cmd 5 op1 1 (after servo off; with the servo on it raises alarm 0x090), action
-    /// mode cmd 0x0C, stored row cmd 6 at op2 / 255 of its speed (VERIFIED on the PCON), broadcast baud change cmd 4.
+    /// mode cmd 0x0C, stored row cmd 6 at (op2 + 1) / 256 of its speed (VERIFIED on the PCON), broadcast baud change cmd 4.
     /// Unknown commands are rejected 0x21. Alarms follow <see cref="Alarms.AlarmLevelOf"/>: a message-level code keeps
     /// the axis running, any other switches the servo off.</description></item>
     /// <item><description>Command profile 0x0F00 (20 words) is writable (read back as written, no motion) and runs with the

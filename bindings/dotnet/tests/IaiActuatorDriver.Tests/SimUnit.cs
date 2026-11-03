@@ -612,7 +612,7 @@ namespace IaiActuatorDriver.Tests
                     Sfty = op2 != 0;
                     break;
                 case Registers.IAI_CMD_MOVE_POSITION:
-                    StartRow(op1, op2 / 255.0);
+                    StartRow(op1, (op2 + 1) / 256.0); // the PCON-CB runs (op2 + 1) / 256 (ON-WIRE)
                     break;
                 default:
                     rejection = 0x01;

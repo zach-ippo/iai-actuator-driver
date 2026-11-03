@@ -134,10 +134,11 @@ Further profiles (``profile=``):
 On every profile the command profile 0x0F00 (20 words: PCMD, VCMD, ACMD, DCMD, INP, SPOW, DPOW, PPOW, CTLF, LPOW,
 CTF2, ZNMP, ZNLP) is writable (FC10 / FC17; read back as written, no motion) and runs with the PCRF coil 0x042E
 (self-clearing; separate acceleration and deceleration; CTLF b1 / b2 push, b3 incremental; a new profile + PCRF
-retargets; STOP stops it), VERIFIED on the EC-GRBP8M gripper and the PCON-CB. 0x45 cmd 6 runs stored row op1 at op2 /
-255 of its stored speed (VERIFIED on the EC-GRBP8M gripper and the PCON-CB); an EC profile rejects a row its position
-mode does not run (row 2 in 2-position mode) with 0x11 "1st operand error" and nothing moves (VERIFIED on the
-EC-GRBP8M gripper in 2-position mode). 0x9800 with such a row is unverified: the simulator still runs it.
+retargets; STOP stops it), VERIFIED on the EC-GRBP8M gripper and the PCON-CB. 0x45 cmd 6 runs stored row op1 at
+(op2 + 1) / 256 of its stored speed (VERIFIED on the EC-GRBP8M gripper and the PCON-CB; the 1/256 steps ON-WIRE on the
+PCON-CB); an EC profile rejects a row its position mode does not run (row 2 in 2-position mode) with 0x11 "1st operand
+error" and nothing moves (VERIFIED on the EC-GRBP8M gripper in 2-position mode). 0x9800 with such a row is
+unverified: the simulator still runs it.
 
 Modelled from the manuals (DOC ME0162-12A unless noted; UNVERIFIED on an EC):
 

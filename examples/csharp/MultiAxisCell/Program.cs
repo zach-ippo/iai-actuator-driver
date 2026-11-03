@@ -264,10 +264,18 @@ namespace IaiActuatorDriver.Examples
                 if (st.Moving) flags.Add("moving");
                 if (st.ModbusEnabled) flags.Add("PC control");
                 var text = string.Join(", ", flags);
-                if ((st.Alarm || st.Warning) && st.AlarmCode != 0)
+                if (st.Alarm || st.Warning) // the bit can be set with no code (code 0)
                 {
-                    var alarm = Alarms.AlarmInfoOf(st.AlarmCode);
-                    text += $"; {(st.Alarm ? "alarm" : "warning")} {alarm.Hex} {alarm.Name}";
+                    text += $"; {(st.Alarm ? "alarm" : "warning")}";
+                    if (st.AlarmCode != 0)
+                    {
+                        var alarm = Alarms.AlarmInfoOf(st.AlarmCode);
+                        text += $" {alarm.Hex} {alarm.Name}";
+                    }
+                    else
+                    {
+                        text += " (no code)";
+                    }
                 }
 
                 var units = plan.TryGetValue(kv.Key, out var p) ? p.Units : string.Empty;

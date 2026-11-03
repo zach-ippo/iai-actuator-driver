@@ -172,7 +172,8 @@ class MachineSequence:
             raise SequenceAlarm(f"link lost: {fault}")
         for name, st in image.items():
             if st.alarm:
-                raise SequenceAlarm(f"{name}: alarm 0x{st.alarm_code:03X} {alarm_name(st.alarm_code)}")
+                code = f"0x{st.alarm_code:03X} {alarm_name(st.alarm_code)}" if st.alarm_code else "(no code)"
+                raise SequenceAlarm(f"{name}: alarm {code}")
             if st.emergency_stop:
                 raise SequenceAlarm(f"{name}: emergency stop")
         if self.step_limit_s is not None and time.perf_counter() - self.step_started > self.step_limit_s:
@@ -262,6 +263,8 @@ def report_axes(cell: Cell) -> None:
                 text += f", {about['level_text']}: {about['remedy']}"
             else:
                 text += " (a warning: the axis runs on)"
+        elif st.alarm or st.warning:  # the bit can be set with no code (code 0)
+            text += f", {'alarm' if st.alarm else 'warning'} (no code)"
         print(text)
 
 

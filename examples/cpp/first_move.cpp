@@ -199,9 +199,14 @@ std::string describe(const iad::Status& st, const std::string& units) {
     for (const auto& f : flags) {
         if (f.second) text += std::string(", ") + f.first;
     }
-    if ((st.alarm || st.warning()) && st.alarm_code != 0) {
-        const iad::AlarmInfo info = iad::alarm_info(st.alarm_code);
-        text += std::string("; ") + (st.alarm ? "alarm " : "warning ") + info.hex + " " + info.name;
+    if (st.alarm || st.warning()) {  // the bit can be set with no code (code 0)
+        text += std::string("; ") + (st.alarm ? "alarm" : "warning");
+        if (st.alarm_code != 0) {
+            const iad::AlarmInfo info = iad::alarm_info(st.alarm_code);
+            text += std::string(" ") + info.hex + " " + info.name;
+        } else {
+            text += " (no code)";
+        }
     }
     return text;
 }

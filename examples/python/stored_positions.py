@@ -135,9 +135,13 @@ def describe(st: Status, units: str) -> str:
         if on
     ]  # fmt: skip
     text = f"position {st.position_mm:.2f} {units}, " + (", ".join(flags) or "no flags set")
-    if (st.alarm or st.warning) and st.alarm_code:
-        alarm = alarm_info(st.alarm_code)
-        text += f"; {'alarm' if st.alarm else 'warning'} {alarm['hex']} {alarm['name']}"
+    if st.alarm or st.warning:  # the bit can be set with no code (code 0)
+        text += f"; {'alarm' if st.alarm else 'warning'}"
+        if st.alarm_code:
+            alarm = alarm_info(st.alarm_code)
+            text += f" {alarm['hex']} {alarm['name']}"
+        else:
+            text += " (no code)"
     return text
 
 

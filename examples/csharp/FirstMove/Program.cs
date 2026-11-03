@@ -242,10 +242,18 @@ namespace IaiActuatorDriver.Examples
             if (st.Moving) text += ", moving";
             if (st.ModbusEnabled) text += ", PC control";
             if (st.EmergencyStop) text += ", emergency stop";
-            if ((st.Alarm || st.Warning) && st.AlarmCode != 0)
+            if (st.Alarm || st.Warning) // the bit can be set with no code (code 0)
             {
-                var alarm = Alarms.AlarmInfoOf(st.AlarmCode);
-                text += $"; {(st.Alarm ? "alarm" : "warning")} {alarm.Hex} {alarm.Name}";
+                text += $"; {(st.Alarm ? "alarm" : "warning")}";
+                if (st.AlarmCode != 0)
+                {
+                    var alarm = Alarms.AlarmInfoOf(st.AlarmCode);
+                    text += $" {alarm.Hex} {alarm.Name}";
+                }
+                else
+                {
+                    text += " (no code)";
+                }
             }
 
             return text;

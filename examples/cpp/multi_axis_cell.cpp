@@ -247,9 +247,14 @@ void print_status(iad::Cell& cell, const std::string& title) {
                               std::make_pair("PC control", st.modbus_enabled)}) {
             if (f.second) flags += std::string(flags.empty() ? "" : ", ") + f.first;
         }
-        if ((st.alarm || st.warning()) && st.alarm_code != 0) {
-            const iad::AlarmInfo info = iad::alarm_info(st.alarm_code);
-            flags += std::string("; ") + (st.alarm ? "alarm " : "warning ") + info.hex + " " + info.name;
+        if (st.alarm || st.warning()) {  // the bit can be set with no code (code 0)
+            flags += std::string("; ") + (st.alarm ? "alarm" : "warning");
+            if (st.alarm_code != 0) {
+                const iad::AlarmInfo info = iad::alarm_info(st.alarm_code);
+                flags += std::string(" ") + info.hex + " " + info.name;
+            } else {
+                flags += " (no code)";
+            }
         }
         std::printf("  %-8s %8.2f %-3s %s\n", name.c_str(), st.position_mm, cell.units_of(name).c_str(), flags.c_str());
     }

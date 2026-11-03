@@ -232,9 +232,13 @@ static void show_status(const char* label, const iad_status* st, const char* uni
     if (st->moving) n += snprintf(text + n, sizeof text - (size_t)n, " moving,");
     if (st->modbus_enabled) n += snprintf(text + n, sizeof text - (size_t)n, " PC control,");
     if (st->emergency_stop) n += snprintf(text + n, sizeof text - (size_t)n, " emergency stop,");
-    if (st->alarm || st->warning) {
-        n += snprintf(text + n, sizeof text - (size_t)n, " %s 0x%03X,", st->alarm ? "alarm" : "warning",
-                      (unsigned)st->alarm_code);
+    if (st->alarm || st->warning) { /* the bit can be set with no code (code 0): say so rather than print 0x000 */
+        const char* what = st->alarm ? "alarm" : "warning";
+        if (st->alarm_code != 0) {
+            n += snprintf(text + n, sizeof text - (size_t)n, " %s 0x%03X,", what, (unsigned)st->alarm_code);
+        } else {
+            n += snprintf(text + n, sizeof text - (size_t)n, " %s (no code),", what);
+        }
     }
     text[n - 1] = '\0'; /* drop the last comma */
     show(label, text);

@@ -199,6 +199,9 @@ TEST(cli_parity_backup_writes_a_read_only_json_file) {
     const CliRun bad = cli_run({"--sim", "backup", temp_file("x.json"), "--rows", "abc"});
     CHECK_EQ(bad.code, 2);
     CHECK(bad.err_says("--rows"));
+    const CliRun wrapped = cli_run({"--sim", "backup", temp_file("w.json"), "--rows", "4294967296"});
+    CHECK_EQ(wrapped.code, 2);
+    CHECK(wrapped.err_says("--rows"));
 }
 
 TEST(cli_parity_recover_reports_and_never_moves) {

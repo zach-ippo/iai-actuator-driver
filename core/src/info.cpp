@@ -2178,7 +2178,7 @@ BackupRows BackupRows::parse(const std::string& text) {
     for (const std::string& part : util::split(compact, ',')) {
         if (part.empty()) continue;
         const std::optional<long long> n = util::parse_int(part);
-        if (!n) throw std::invalid_argument(why);
+        if (!n || *n < 0 || *n > INT_MAX) throw std::invalid_argument(why);  // checked before the cast: no wrap to row 0
         rows.push_back(static_cast<int>(*n));
     }
     if (rows.empty()) throw std::invalid_argument(why);

@@ -617,6 +617,8 @@ TEST(info_backup_rows_used_all_and_listed) {
     for (int n = reg::kSimpleDataFirstRow; n <= reg::kSimpleDataLastRow; ++n) slider_rows.push_back(n);
     CHECK(rows == slider_rows);
     CHECK_THROWS(info::BackupRows::parse("0,x"), std::invalid_argument);
+    CHECK_THROWS(info::BackupRows::parse("4294967296"), std::invalid_argument);  // not wrapped to row 0
+    CHECK_THROWS(info::BackupRows::parse("0,2147483648"), std::invalid_argument);
     CHECK(info::BackupRows::parse("0, 1,2").numbers == std::vector<int>({0, 1, 2}));
     CHECK_EQ(info::BackupRows::parse("all").selection, "all");
 }

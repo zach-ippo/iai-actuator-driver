@@ -677,7 +677,8 @@ function renderHead() {
   const lim = ax.limits || {};
   $("axName").textContent = ax.name;
   const info = ax.info || {};
-  $("axModel").textContent = [info.model, info.controller !== info.model ? info.controller : null, lim.kind, lim.family,
+  $("axModel").textContent = [info.model, info.controller !== info.model ? info.controller : null,
+    lim.kind !== "unknown" ? lim.kind : null, lim.family,
     `axis no. ${ax.axis_number}`].filter(Boolean).join(" · ");
   const pos = lim.position || {};
   const u = unitsOf(ax);

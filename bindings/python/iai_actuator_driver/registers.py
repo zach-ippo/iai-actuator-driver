@@ -758,10 +758,12 @@ def axis_units(actuator_kind: int | None, rotary_atyp: bool | None = None) -> st
 
 
 def axis_kind_name(actuator_kind: int | None, rotary_atyp: bool | None = None) -> str:
-    """AKID kind in words (``"unknown"`` when not read, ``"kind <n>"`` for a value outside the table); without AKID,
-    ``"rotary"`` when ATYP 7.7 bit 8 says so (``rotary_atyp``)."""
+    """AKID kind in words (``"kind <n>"`` for a value outside the table); without AKID, ``"rotary"`` or ``"linear"``
+    from ATYP 7.7 bit 8 (``rotary_atyp``), ``"unknown"`` when neither was read."""
     if actuator_kind is None:
-        return ACTUATOR_KINDS[AKID_ROTARY] if rotary_atyp else "unknown"
+        if rotary_atyp is None:
+            return "unknown"
+        return ACTUATOR_KINDS[AKID_ROTARY] if rotary_atyp else "linear"
     return ACTUATOR_KINDS.get(actuator_kind, f"kind {actuator_kind}")
 
 # The user-parameter candidates IA-OS lists per (system, unit) code. Some are then hidden by runtime rules

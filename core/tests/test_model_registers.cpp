@@ -138,7 +138,7 @@ TEST(model_reg_axis_units_and_kind) {
     CHECK_EQ(reg::axis_units(std::nullopt, true), "deg");
     CHECK_EQ(reg::axis_units(std::nullopt, false), "mm");
     CHECK_EQ(reg::axis_kind_name(std::nullopt, true), "rotary");
-    CHECK_EQ(reg::axis_kind_name(std::nullopt, false), "unknown");
+    CHECK_EQ(reg::axis_kind_name(std::nullopt, false), "linear");  // e.g. a PCON-CB with an RCP6 slider
     CHECK_EQ(reg::axis_units(3, true), "mm");
     CHECK_EQ(reg::axis_kind_name(3, true), "rod");
     CHECK_EQ(reg::axis_units(1, false), "deg");

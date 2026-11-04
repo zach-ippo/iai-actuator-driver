@@ -50,6 +50,7 @@ class TextHelpersTest(unittest.TestCase):
                          ["EC", "EC", "PCON", "ACON/DCON", "SCON", "IAI controller", "IAI controller"])
         self.assertEqual([R.axis_units(k) for k in (1, 0, 3, 42, None)], ["deg", "mm", "mm", "mm", "mm"])
         self.assertEqual(R.axis_kind_name(42), "kind 42")
+        self.assertEqual([R.axis_kind_name(None, r) for r in (True, False, None)], ["rotary", "linear", "unknown"])
         self.assertIs(Axis, Elecylinder)
 
 
@@ -63,7 +64,7 @@ class PconTest(unittest.TestCase):
         self.assertEqual((info.system_code, info.unit_code, info.product_family), (0xAE, 0x44, "PCON"))
         self.assertEqual((info.model, info.controller_name, info.model_name), ("PCON-CB (FB)", "PCON-CB (FB)", None))
         self.assertEqual(info.serial_number, "SIM-0000005")
-        self.assertEqual((info.units, info.kind, info.max_positions), ("mm", "unknown", 64))
+        self.assertEqual((info.units, info.kind, info.max_positions), ("mm", "linear", 64))  # no AKID: ATYP not rotary
         self.assertEqual(info.max_speed_mm_s, 840.0)
         text = json.dumps(info.to_dict())
         text.encode("cp1252")  # never a crash on a cp1252 console

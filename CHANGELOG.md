@@ -21,6 +21,9 @@ Unofficial: not an IAI product. Versions follow PEP 440.
   during the step, so a clock step shows apart from a slow PC or line.
 - Examples: an alarm or warning bit with code 0 prints "warning (no code)" or "alarm (no code)", not "warning
   0x000".
+- Actuator kind: a unit without AKID (item 7.33), such as a CON controller, is "linear" when ATYP 7.7 bit 8 says it is
+  not rotary, instead of "unknown" (seen on the PCON-CB with an RCP6); the GUI's workbench line leaves out a kind that
+  is still unknown.
 
 ## 1.1.1 - 2026-11-03
 

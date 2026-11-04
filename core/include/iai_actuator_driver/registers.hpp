@@ -346,7 +346,8 @@ std::string system_name(std::optional<int> system_code);
 std::optional<std::string> ec_family(std::optional<int> system_code, std::optional<int> unit_code);
 /// "deg" for a rotary axis (AKID 1, or ATYP TYPE without AKID), else "mm".
 std::string axis_units(std::optional<int> actuator_kind, std::optional<bool> rotary_atyp = std::nullopt);
-/// AKID kind in words ("slider", "rod", "gripper"... "unknown", "kind <n>").
+/// AKID kind in words ("slider", "rod", "gripper"... "kind <n>"); without AKID, "rotary" or "linear" from the ATYP
+/// TYPE bit, "unknown" when neither was read.
 std::string axis_kind_name(std::optional<int> actuator_kind, std::optional<bool> rotary_atyp = std::nullopt);
 /// Directory category name ("position table"...; "?" when unknown).
 std::string category_name(int category_id);

@@ -648,9 +648,11 @@ namespace IaiActuatorDriver
         /// </summary>
         public static string AxisUnits(int? actuatorKind, bool? rotaryAtyp) =>
             actuatorKind.HasValue ? AxisUnits(actuatorKind) : (rotaryAtyp == true ? "deg" : "mm");
-        /// <summary>As <see cref="AxisKindName(int?)"/>; without AKID, "rotary" when ATYP 7.7 bit 8 says so.</summary>
+        /// <summary>As <see cref="AxisKindName(int?)"/>; without AKID, "rotary" or "linear" from ATYP 7.7 bit 8,
+        /// "unknown" when neither was read.</summary>
         public static string AxisKindName(int? actuatorKind, bool? rotaryAtyp) =>
-            actuatorKind.HasValue ? AxisKindName(actuatorKind) : (rotaryAtyp == true ? ACTUATOR_KINDS[AKID_ROTARY] : "unknown");
+            actuatorKind.HasValue ? AxisKindName(actuatorKind)
+            : rotaryAtyp is bool rotary ? (rotary ? ACTUATOR_KINDS[AKID_ROTARY] : "linear") : "unknown";
         /// <summary>AKID kind in words ("unknown" when not read, "kind &lt;n&gt;" for a value outside the table).</summary>
         public static string AxisKindName(int? actuatorKind)
         {

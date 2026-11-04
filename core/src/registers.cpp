@@ -215,7 +215,10 @@ std::string axis_units(std::optional<int> actuator_kind, std::optional<bool> rot
 }
 
 std::string axis_kind_name(std::optional<int> actuator_kind, std::optional<bool> rotary_atyp) {
-    if (!actuator_kind) return rotary_atyp.value_or(false) ? find(kActuatorKinds, kAkidRotary) : "unknown";
+    if (!actuator_kind) {  // a unit without AKID (a CON controller): the ATYP TYPE bit says rotary or not
+        if (!rotary_atyp) return "unknown";
+        return *rotary_atyp ? find(kActuatorKinds, kAkidRotary) : "linear";
+    }
     const char* name = find(kActuatorKinds, *actuator_kind);
     return name ? std::string(name) : "kind " + std::to_string(*actuator_kind);
 }

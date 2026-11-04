@@ -92,7 +92,7 @@ The simulator answers Modbus RTU byte for byte and mimics what the hardware test
 | `docs/` | User and maintainer documents |
 | `tools/` | `test.py`, the parallel unittest runner and the hardware harness ([tools/hw](../tools/hw/README.md)) |
 | `licenses/` | `NOTICE` and `NATIVE_THIRD_PARTY.txt`: the sources of the copies in `bindings/python/` (both) and `apps/gui/` (`NOTICE`), packed into every release asset; `LICENSE` stays at the root |
-| `.github/` | CI, the release workflow and the release scripts, the issue forms, `CONTRIBUTING.md` and `SECURITY.md` |
+| `.github/` | CI, the release workflow and the release scripts, the issue forms and `CONTRIBUTING.md` |
 
 In `bindings/python/iai_actuator_driver/`:
 

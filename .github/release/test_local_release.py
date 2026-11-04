@@ -699,7 +699,7 @@ class CiPathFilters(unittest.TestCase):
         """python-native runs the whole suite (test_packaging reads the documents, test_examples runs the examples)."""
         native = self.area("native")
         for path in ("core/src/x.cpp", "bindings/python/x.py", "docs/GETTING_STARTED.md", "examples/python/x.py",
-                     "README.md", ".github/CONTRIBUTING.md", ".github/SECURITY.md", "licenses/NOTICE",
+                     "README.md", ".github/CONTRIBUTING.md", "licenses/NOTICE",
                      ".github/release/local_release.py"):
             self.assertRegex(path, native, path)
 

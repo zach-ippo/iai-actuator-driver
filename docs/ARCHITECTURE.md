@@ -402,7 +402,7 @@ files.
 | `examples/{python,csharp,cpp,c}/` | one task per program, simulator or unit | run on the simulator |
 | `docs/` | the documents | packaging and wording checks |
 | `licenses/` | `NOTICE` and `NATIVE_THIRD_PARTY.txt`: the sources of the copies in `bindings/python/` (both) and `apps/gui/` (`NOTICE`), packed into every release asset; `LICENSE` stays at the root | packaging checks |
-| `.github/` | `workflows/ci.yml`, `workflows/release.yml`, `release/` (the release scripts), the issue forms, `CONTRIBUTING.md`, `SECURITY.md` | |
+| `.github/` | `workflows/ci.yml`, `workflows/release.yml`, `release/` (the release scripts), the issue forms, `CONTRIBUTING.md` | |
 
 One CI workflow (`ci.yml`), and no CI job opens a serial port. The GitHub workflows run only by hand or on a pull
 request, never on a push or a tag (Actions minutes are limited); `python tools/test.py` runs the tests on the

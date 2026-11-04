@@ -122,7 +122,7 @@ PATH_MAP: list[tuple[str, set[str]]] = [
     ("examples/", {"docs"}),
     (".github/release/", {"docs", "release"}),  # docs: the wording check; release: its tests (and their own file)
     (".github/workflows/", {"docs", "release"}),  # test_local_release reads ci.yml and release.yml
-    (".github/", {"docs"}),  # CONTRIBUTING.md, SECURITY.md, the issue forms
+    (".github/", {"docs"}),  # CONTRIBUTING.md, the issue forms
     (".gitignore", {"docs"}),
     (".gitattributes", {"docs"}),
     (".editorconfig", {"docs"}),

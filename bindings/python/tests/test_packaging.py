@@ -20,7 +20,7 @@ GITHUB = "https://github.com/zach-ippo/iai-actuator-driver/"
 DOCS = (
     "README.md", "CHANGELOG.md", "docs/GETTING_STARTED.md", "docs/COMPATIBILITY.md", "docs/DRIVER.md", "docs/REFERENCE.md",
     "docs/HARDWARE_SETUP.md", "docs/TROUBLESHOOTING.md", "docs/FAQ.md", "docs/ARCHITECTURE.md", "examples/README.md",
-    ".github/CONTRIBUTING.md", "docs/PYTHON_FALLBACK.md", ".github/SECURITY.md",
+    ".github/CONTRIBUTING.md", "docs/PYTHON_FALLBACK.md",
 )
 # the licence files the packages carry, and where the repository keeps each: LICENSE at the root (where GitHub finds the
 # licence), the notices in licenses/ (.github/release/check_package.py NOTICES)

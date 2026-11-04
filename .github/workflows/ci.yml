@@ -106,7 +106,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           # The path filters (extended regular expressions over the changed paths). The python area (the sdist and
-          # wheel build) also covers the root files, licenses/, .github/*.md (CONTRIBUTING.md, SECURITY.md) and docs/
+          # wheel build) also covers the root files, licenses/, .github/*.md (CONTRIBUTING.md) and docs/
           # (tests/test_packaging.py checks the documents, their links and their wording, and the package copies of
           # the notices), .github/release/ (the version check it runs) and core/include/ (the header the binding
           # layout tests read without a library). The core area also covers the Python package (every module

@@ -114,7 +114,7 @@ features and paths, never a unit or a model: every unit is driven the same way.
 - 1.0.x releases fix bugs only.
 - Bugs, questions and results from your unit go to
   [GitHub Issues](https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose), with a form for a bug and one
-  for a unit report. A security problem: see [SECURITY.md](.github/SECURITY.md).
+  for a unit report.
 - IAI does not support this driver: do not send it questions or reports about it.
 
 ## Documentation

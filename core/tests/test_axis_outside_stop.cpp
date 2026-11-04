@@ -60,6 +60,17 @@ struct TxLog {
             n += f.size() > 4 && f[1] == 0x05 && ((f[2] << 8) | f[3]) == reg::kCoilStop && f[4] == 0xFF;
         return n;
     }
+    /// FC03 reads after the last FC16 write (a move's frame): the status reads of a wait since its move went out.
+    int reads_since_write() {
+        std::lock_guard<std::mutex> lock(mutex);
+        int n = 0;
+        for (const auto& f : frames) {
+            if (f.size() < 2) continue;
+            if (f[1] == 0x10) n = 0;
+            if (f[1] == 0x03) ++n;
+        }
+        return n;
+    }
 };
 
 /// One simulated unit on real time behind a bus that logs its frames.
@@ -436,8 +447,14 @@ TEST(axis_outside_stop_a_stop_of_another_program_seen_in_the_status_ends_the_wai
     Rig r;
     auto other = std::make_shared<ModbusRtu>(r.sim);
     Outcome out;
+    const double start = r.sim->position_mm();  // 73.95 mm: "> 2.0" held at once, and the STOP could come first
     ec_test::Thread waiter([&] { record(out, [&] { r.ax->move_to(140.0, slow(20.0)); }); });
-    REQUIRE(wait_until([&] { return r.sim->moving() && r.sim->position_mm() > 2.0; }));
+    // the STOP once the wait saw the axis moving (two status reads since the move: the first one completed), whatever
+    // the host's timing; before, a fast host stopped the axis ahead of the wait's first read (a wait that never saw
+    // the move cannot tell it from an ignored one and keeps the settled-away check)
+    REQUIRE(wait_until([&] {
+        return r.sim->moving() && r.sim->position_mm() > start + 2.0 && r.tx.reads_since_write() >= 2;
+    }));
     other->write_coil(1, reg::kCoilStop, true);
     REQUIRE(wait_until([&] { return !r.sim->moving(); }));
     const double stopped_at = now_s();

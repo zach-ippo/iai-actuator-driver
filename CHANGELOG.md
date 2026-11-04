@@ -3,6 +3,34 @@
 Unofficial: not an IAI product. Versions follow PEP 440. Evidence words: VERIFIED (hardware), ON-WIRE (observed
 serial traffic), DOC (public IAI manuals), UNVERIFIED.
 
+## Unreleased
+
+### Added
+
+- C ABI 1.1: `iad_transport_open_serial_options` opens a serial port with another character framing (7 or 8 data
+  bits, parity none / even / odd, 1 or 2 stop bits), with `iad_serial_options`, `iad_serial_options_init` and the
+  `IAD_PARITY_*` constants. 8N1 stays the default; the Modbus RTU stacks need 8 data bits. ABI 1.0 is unchanged and
+  both bindings still need only 1.0, so they accept a 1.0 or a 1.1 library. 7 data bits, parity and 2 stop bits are
+  UNVERIFIED on hardware.
+- C++: the non-volatile write tracker (`NvWriteTracker`) has a public header, `iai_actuator_driver/nonvolatile.hpp`.
+- SEL protocol (internal, UNVERIFIED on a controller): the core gains a SEL frame codec, the phase-1 message codecs,
+  a simulator and a link with a no-blind-resend retry policy. There is no customer API yet: nothing SEL is in the
+  C ABI, Python or C#.
+
+### Changed
+
+- Servo on: on a CON unit whose DSSE bit 12 stays 0 with Modbus control on, the servo-blocked message now names the
+  cause and the remedy (PMSL OFF, then ON, at rest) instead of "no known cause" (VERIFIED on the PCON-CB).
+- Coordinated runs: a late-frame refusal (`LateFrame`) says how far the system clock moved against the steady clock
+  during the step, so a clock step shows apart from a slow PC or line.
+- Examples: an alarm or warning bit with code 0 prints "warning (no code)" or "alarm (no code)", not "warning
+  0x000".
+- C ABI documentation: the keys each JSON request reads are listed in `core/abi/json_keys.json` and checked against
+  the parsers; the coordinated request lists `expect_start`.
+- Hardware test harness: the message-level alarm 0x069 a unit shows right after power-up is taken as its normal
+  state at the start; any other start alarm is still refused.
+- Release script: a load-sensitive test that fails once is re-run once, as `tools/test.py` does.
+
 ## 1.1.1 - 2026-11-03
 
 A maintenance release over 1.1.0: bug fixes only. The C ABI stays 1.0. The bugs marked "seen on the PCON-CB" were

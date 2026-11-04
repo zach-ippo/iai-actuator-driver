@@ -2,7 +2,7 @@
 
 Drive IAI actuators from a PC over the unit's RS-485 port with Modbus RTU, with no PNP/NPN I/O wiring. Libraries for
 Python, C#, C and C++, a command line and a local web GUI share one C++ core, so the same checks hold in every
-language. Version 1.1.0.
+language. Version 1.1.1.
 
 > **UNOFFICIAL.** This is not an IAI product and is not supported, documented or endorsed by IAI. Driving an
 > ELECYLINDER over Modbus from a PC is not an officially supported use. The units it has been run on so far are listed
@@ -26,10 +26,10 @@ Download the files for Windows x64 or Linux x64 from the
 
 | You use | File | Then |
 |---|---|---|
-| Python 3.11+ | `iai_actuator_driver-1.1.0-py3-none-win_amd64.whl` or the `manylinux` wheel | `pip install <file>`; adds the `iai-actuator-driver` and `iai-check` commands |
-| C# / .NET | `IaiActuatorDriver.1.1.0.nupkg` | `dotnet add package IaiActuatorDriver --version 1.1.0 --source <folder>` |
-| C, LabVIEW, any C FFI | `iai_actuator_driver-sdk-1.1.0-win-x64.zip` or `-linux-x64.zip` | Unzip; its `README.txt` has the CMake and compile lines |
-| The GUI (Windows) | `iai-gui-1.1.0-win-x64.zip` | Unzip and run `iai-gui.exe`; nothing else to install |
+| Python 3.11+ | `iai_actuator_driver-1.1.1-py3-none-win_amd64.whl` or the `manylinux` wheel | `pip install <file>`; adds the `iai-actuator-driver` and `iai-check` commands |
+| C# / .NET | `IaiActuatorDriver.1.1.1.nupkg` | `dotnet add package IaiActuatorDriver --version 1.1.1 --source <folder>` |
+| C, LabVIEW, any C FFI | `iai_actuator_driver-sdk-1.1.1-win-x64.zip` or `-linux-x64.zip` | Unzip; its `README.txt` has the CMake and compile lines |
+| The GUI (Windows) | `iai-gui-1.1.1-win-x64.zip` | Unzip and run `iai-gui.exe`; nothing else to install |
 
 `iai-gui.exe` is not code-signed, so Windows SmartScreen may warn. To build from source, including the C++ classes,
 see [CONTRIBUTING.md](.github/CONTRIBUTING.md) and the language guides.

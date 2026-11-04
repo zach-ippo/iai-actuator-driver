@@ -17,7 +17,7 @@ Install the package from the [GitHub release](https://github.com/zach-ippo/iai-a
 the core for win-x64 and linux-x64:
 
 ```shell
-dotnet add package IaiActuatorDriver --version 1.1.0 --source <folder with the .nupkg>
+dotnet add package IaiActuatorDriver --version 1.1.1 --source <folder with the .nupkg>
 ```
 
 The library targets `netstandard2.0` and `net8.0`, so it also runs on .NET Framework 4.6.2+ (64-bit) and .NET 6. Close

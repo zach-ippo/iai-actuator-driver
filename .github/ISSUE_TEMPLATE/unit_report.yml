@@ -22,7 +22,7 @@ body:
     attributes:
       label: Driver version
       description: The output of `iai-actuator-driver --version`.
-      placeholder: "1.1.0"
+      placeholder: "1.1.1"
     validations:
       required: true
   - type: input

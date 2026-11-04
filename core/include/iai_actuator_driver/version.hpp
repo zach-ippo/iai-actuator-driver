@@ -7,7 +7,7 @@
 namespace iai_actuator_driver {
 
 /// Version of this C++ edition.
-inline constexpr const char* kVersion = "1.1.0";
+inline constexpr const char* kVersion = "1.1.1";
 
 /// Short label used by the CLI and in JSON output.
 inline constexpr const char* kEdition = "iai-actuator-driver-cpp";

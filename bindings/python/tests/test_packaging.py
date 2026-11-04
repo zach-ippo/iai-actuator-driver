@@ -43,7 +43,7 @@ def gui_pyproject() -> dict:
 class VersionAndEntryPointsTest(unittest.TestCase):
     def test_one_version_everywhere(self) -> None:
         version = pyproject()["project"]["version"]
-        self.assertEqual(version, "1.1.0")
+        self.assertEqual(version, "1.1.1")
         self.assertEqual(iai_actuator_driver.__version__, version)
         gui = gui_pyproject()["project"]
         self.assertEqual(gui["version"], version)

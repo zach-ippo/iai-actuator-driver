@@ -18,7 +18,7 @@ cmake_minimum_required(VERSION 3.14)
 if(POLICY CMP0091)
     cmake_policy(SET CMP0091 NEW)
 endif()
-project(iai_actuator_driver VERSION 1.1.0 LANGUAGES CXX)
+project(iai_actuator_driver VERSION 1.1.1 LANGUAGES CXX)
 
 option(IAI_ACTUATOR_DRIVER_BUILD_TESTS "Build the ec_tests executable" ON)
 option(IAI_ACTUATOR_DRIVER_BUILD_CLI "Build the iai-actuator-driver-cpp command line" ON)

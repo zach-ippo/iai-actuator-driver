@@ -28,7 +28,7 @@ layer (`IaiActuatorDriver.Interop`) of the same assembly and NuGet package. For 
 folder you downloaded it to:
 
 ```shell
-dotnet add package IaiActuatorDriver --version 1.1.0 --source <folder with the .nupkg>
+dotnet add package IaiActuatorDriver --version 1.1.1 --source <folder with the .nupkg>
 ```
 
 **From source.** You need the .NET 8 SDK and the core's library. The library project copies it next to every program

@@ -17,12 +17,12 @@ Download the wheel for your platform from the
 [GitHub release](https://github.com/zach-ippo/iai-actuator-driver/releases) and install it:
 
 ```shell
-pip install iai_actuator_driver-1.1.0-py3-none-win_amd64.whl
+pip install iai_actuator_driver-1.1.1-py3-none-win_amd64.whl
 iai-actuator-driver --version
 ```
 
 This adds `iai-actuator-driver` and `iai-check`, with the C++ core inside. For the GUI on Windows, unzip
-`iai-gui-1.1.0-win-x64.zip` and use `iai-gui.exe` wherever this page says `iai-gui`. From a clone instead,
+`iai-gui-1.1.1-win-x64.zip` and use `iai-gui.exe` wherever this page says `iai-gui`. From a clone instead,
 `pip install ./bindings/python ./apps/gui` also adds `iai-gui`; a clone install needs the core built or named
 ([where the library comes from](getting-started/python.md#where-the-native-library-comes-from)).
 

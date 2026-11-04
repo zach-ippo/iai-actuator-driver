@@ -87,6 +87,82 @@ namespace IaiActuatorDriver.Tests
         }
 
         [NativeFact]
+        public void Check_with_motion_stops_on_Ctrl_C_and_exits_130()
+        {
+            // ON-WIRE on a PCON-CB (driver 1.1.0): Ctrl+C did not reach check --motion: it moved out and back and exited 0
+            using var cts = new CancellationTokenSource();
+            CancelAtDirectMove? line = null;
+            var env = new CliEnvironment
+            {
+                ListPorts = () => Array.Empty<SerialPortInfo>(),
+                OpenSerial = (name, baud, timeout) => throw new InvalidOperationException("a test must never open a real serial port: " + name),
+                CreateSim = (profile, slaves, baud) => line = new CancelAtDirectMove(SimSupport.CreateLine(profile, slaves, baud), cts),
+            };
+            var report = TempFile("check_cancelled.json");
+            try
+            {
+                var output = new StringWriter();
+                var error = new StringWriter();
+                var code = CliApp.Run(new[] { "--sim", "slider", "check", "--motion", "--report", report }, output, error, env, cts.Token);
+                Assert.Equal(130, code);
+                Assert.Contains("interrupted", error.ToString());
+                Assert.NotNull(line);
+                Assert.Equal(1, line!.DirectMoves);  // motion_out only: no move back after Ctrl+C
+                Assert.Contains(line.StopCoilWrites, on => on);  // the decel STOP
+            }
+            finally
+            {
+                File.Delete(report);
+            }
+        }
+
+        /// <summary>The simulated line, with Ctrl+C (the token cancelled, on another thread) as the first 0x9900 move frame goes out.</summary>
+        private sealed class CancelAtDirectMove : ITransport
+        {
+            private readonly ITransport _inner;
+            private readonly CancellationTokenSource _cts;
+
+            public CancelAtDirectMove(ITransport inner, CancellationTokenSource cts)
+            {
+                _inner = inner;
+                _cts = cts;
+            }
+
+            public int DirectMoves { get; private set; }
+
+            public System.Collections.Generic.List<bool> StopCoilWrites { get; } = new System.Collections.Generic.List<bool>();
+
+            public int BaudRate { get => _inner.BaudRate; set => _inner.BaudRate = value; }
+
+            public TimeSpan ReadTimeout { get => _inner.ReadTimeout; set => _inner.ReadTimeout = value; }
+
+            public void Write(byte[] buffer, int offset, int count)
+            {
+                if (count > 5 && buffer[offset + 1] == 0x10 && buffer[offset + 2] == 0x99 && buffer[offset + 3] == 0x00 && ++DirectMoves == 1)
+                {
+                    ThreadPool.QueueUserWorkItem(_ => _cts.Cancel());
+                }
+
+                if (count > 5 && buffer[offset + 1] == 0x05 && ((buffer[offset + 2] << 8) | buffer[offset + 3]) == Registers.COIL_STOP)
+                {
+                    StopCoilWrites.Add(buffer[offset + 4] == 0xFF);
+                }
+
+                _inner.Write(buffer, offset, count);
+            }
+
+            public int Read(byte[] buffer, int offset, int count) => _inner.Read(buffer, offset, count);
+
+            public void ResetInputBuffer() => _inner.ResetInputBuffer();
+
+            public void SendBreak(TimeSpan duration) => _inner.SendBreak(duration);
+
+            public void Close() => _inner.Close();
+
+            public void Dispose() => _inner.Dispose();
+        }
+
+        [NativeFact]
         public void Backup_writes_the_file_and_summarises_what_it_holds()
         {
             var file = TempFile("backup.json");

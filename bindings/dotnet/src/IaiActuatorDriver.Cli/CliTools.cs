@@ -21,13 +21,17 @@ namespace IaiActuatorDriver.Cli
         /// <c>check [--motion] [--report FILE]</c>: the self-test (read-only unless <c>--motion</c>), each line printed as it is
         /// finished, then the JSON report written (default <c>iai-check-YYYYMMDD-HHMMSS.json</c>). Exit code 0 when no line failed, else 1.
         /// </summary>
-        public static int Check(Axis axis, string label, CliArgs args, TextWriter output, TextWriter error)
+        public static int Check(Axis axis, string label, CliArgs args, TextWriter output, TextWriter error, System.Threading.CancellationToken ct)
         {
             output.WriteLine(CliApp.Banner);
             output.WriteLine(string.Format(Inv, "compatibility check on {0}, slave {1}, strategy {2}", label, axis.Slave, axis.Strategy.Method.ToString().ToLowerInvariant()));
+            // Ctrl+C ends the test (a decel stop when it moves) and the tool exits with 130, no report (as the Python
+            // edition); before, check --motion kept moving and exited 0 (ON-WIRE on a PCON-CB)
             var report = axis.RunCheck(
                 new CheckOptions { Motion = args.Has("--motion"), PortLabel = label },
-                item => output.WriteLine(item.ToLine()));
+                item => output.WriteLine(item.ToLine()),
+                ct);
+            ct.ThrowIfCancellationRequested();  // a test the cancel ended returns its report (the motion line failed)
             var path = args.Value("--report") ?? string.Format(Inv, "iai-check-{0:yyyyMMdd-HHmmss}.json", DateTime.Now);
             var where = SaveReport(report, path, output, error);
             output.WriteLine(string.Format(Inv, "RESULT {0} - {1}", report.Passed ? "PASS" : "FAIL", where));

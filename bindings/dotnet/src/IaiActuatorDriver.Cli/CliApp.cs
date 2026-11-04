@@ -538,7 +538,7 @@ namespace IaiActuatorDriver.Cli
                 }
 
                 case "check":
-                    return CliTools.Check(axis, label, args, output, error);
+                    return CliTools.Check(axis, label, args, output, error, ct);
                 case "backup":
                     return CliTools.Backup(axis, label, positional, args, json, output, WriteJson);
                 case "recover":

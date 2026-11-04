@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Zip iai-gui.exe for the release, with its README and the licence files.
 
-    python .github/release/make_gui_zip.py --exe dist/gui/iai-gui.exe --version 1.0.0 --out dist
+    python .github/release/make_gui_zip.py --exe dist/gui/iai-gui.exe --version X.Y.Z --out dist
 
 writes <out>/iai-gui-<version>-win-x64.zip:
 
@@ -63,7 +63,7 @@ def make(exe: Path, version: str, out: Path, python_license: Path, root: Path = 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Zip iai-gui.exe with its README and the licence files.")
     parser.add_argument("--exe", type=Path, required=True, help="the iai-gui.exe PyInstaller wrote")
-    parser.add_argument("--version", required=True, help="PEP 440 form, e.g. 1.0.0")
+    parser.add_argument("--version", required=True, help="PEP 440 form, X.Y.Z or X.Y.ZaN")
     parser.add_argument("--out", type=Path, default=Path("dist"))
     parser.add_argument("--python-license", type=Path, default=Path(sys.base_prefix) / "LICENSE.txt",
                         help="LICENSE.txt of the Python inside the exe (default: of the Python running this script)")

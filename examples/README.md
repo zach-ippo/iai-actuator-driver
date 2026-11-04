@@ -77,7 +77,7 @@ dotnet run --project examples/csharp/MultiAxisCell -- --port COM3 --port COM4
 
 ## Building the C, C++ and C# examples
 
-All three need the native core. Run the commands from the repository folder.
+All three need the native core.
 
 **The native library.** On Windows without CMake or MSVC, with zig (`pip install ziglang`):
 
@@ -140,29 +140,11 @@ library elsewhere:
 
 ## On hardware
 
-- Close IA-OS (and any other program that has the port open) first: only one program can use a serial port.
-- Test a new setup unloaded, at mid-stroke and slowly. Every target, speed and force is checked against the unit's own
-  ranges before anything is sent; a value outside them is refused and nothing moves.
-- A home return runs the axis to its mechanical end: keep the travel clear. The examples home an axis that reports no
-  home, or every axis with `--home`.
-- A vertical axis without a brake can fall when its servo goes off. The first-move and cell examples switch the servo
-  off at the end; after Ctrl+C or an error they leave it as it is.
-- There is no communication watchdog: if the PC or the cable fails, a move in progress is completed and a push keeps
-  pushing. Design the machine so that this is safe.
+Follow the [safety rules](../docs/GETTING_STARTED.md#safety): close IA-OS first, a new setup unloaded, mid-stroke and
+slow. The examples home an axis that reports no home (every axis with `--home`): keep the travel clear. The first-move
+and cell examples switch the servo off at the end, and a vertical axis without a brake can fall then; after Ctrl+C or
+an error they leave it as it is. Only `python/parameters_and_backup.py --force` writes non-volatile memory (one commit
+of a value the unit already holds); the other examples write none.
 
-## Non-volatile memory
-
-The units' non-volatile memory lasts about 100,000 write cycles (IAI). The driver writes it for a parameter commit, a
-stored-row write and teaching, and skips a write that would change nothing unless forced. Moves, servo and reads do not
-write it. Only `python/parameters_and_backup.py --force` asks for such a write here: one commit of a value the unit
-already holds. The C, C++ and C# examples write none.
-
-## Simulator
-
-`--sim` uses the driver's simulator, which answers Modbus RTU byte for byte like a unit and moves in real time. The
-`slider` (EC-DS4H), `gripper` (EC-GRBP8M), `rod` (EC-R6S) and `pcon` (PCON-CB with an RCP6) profiles carry values read
-from the tested units; `rotary` and `unknown` are made up. A program that runs on the simulator agrees with what was
-observed on hardware.
-
-The C, C++ and C# examples are UNVERIFIED on hardware: they were run on `--sim` with every profile. What each language
-is verified on: [docs/COMPATIBILITY.md](../docs/COMPATIBILITY.md#which-editions-were-run-on-a-unit).
+The C, C++ and C# examples are UNVERIFIED on hardware: they were run on `--sim` with every simulator profile. What each
+language is verified on: [docs/COMPATIBILITY.md](../docs/COMPATIBILITY.md#which-editions-were-run-on-a-unit).

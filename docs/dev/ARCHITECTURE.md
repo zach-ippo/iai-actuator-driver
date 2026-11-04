@@ -74,9 +74,9 @@ The library's caps default to the unit's own maxima. The command line passes con
   requests are at least 5 ms apart. The axes of a shared port take turns; ports never wait for each other.
 - **Waits release the bus.** Moves, home, servo and the STOP hold sleep between status polls without the lock, so a
   STOP from another thread, a monitor poll or another axis of the same port gets the bus between two polls.
-- **No lock in the axis.** An `Elecylinder` keeps its state without a lock: run one command at a time per axis.
-  `stop()`, `pause()` and `resume()` may come from another thread while a command waits. The GUI workbench works this
-  way: commands run under a per-axis lock; STOP, pause and resume never take it.
+- **One command at a time per axis.** Each axis guards its own state in the core; run one command at a time per
+  axis. `stop()`, `pause()` and `resume()` may come from another thread while a command waits. The GUI workbench works
+  this way: commands run under a per-axis lock; STOP, pause and resume never take it.
 - **Cell.** Reads and command sends run per port in parallel threads (the axes of a port one after another);
   blocking waits run one thread per axis. Ctrl+C during a group move stops the axes before the threads are joined.
   `Port` has its own locks for its axes, the one-time baud detection and the one-time line detection.
@@ -212,12 +212,11 @@ this way.
 
 ## Evidence words and no model allow-list
 
-Every hardware claim in code comments, docstrings, command output, the GUI and these documents carries one of four
-words: **VERIFIED** (tried on hardware with this driver), **ON-WIRE** (seen in serial traffic), **DOC** (written in
-a public IAI manual) and **UNVERIFIED** (expected, not yet tried). The words describe features and paths, never a unit
-or a model. `registers.py` tags every register, bit and command,
-and also uses VERIFIED-LIVE (read live on a unit), BACKUP (present in a backup saved from the unit) and DOC-CON
-(documented for the CON family only).
+Every hardware claim in code comments, docstrings, command output, the GUI and these documents carries one of the
+four evidence words VERIFIED, ON-WIRE, DOC and UNVERIFIED
+([CONTRIBUTING.md](../../.github/CONTRIBUTING.md#evidence-words)). The words describe features and paths, never a unit
+or a model. `registers.py` tags every register, bit and command, and also uses VERIFIED-LIVE (read live on a unit),
+BACKUP (present in a backup saved from the unit) and DOC-CON (documented for the CON family only).
 
 There is no list of allowed models. Every range a command is checked against comes from the unit itself: the register
 directory at 0x0000 and the ID maps locate the areas, class 7 gives the limits and the support words give the
@@ -282,8 +281,8 @@ transport                SerialTransport (Win32, POSIX) | SimulatedUnit | SimLin
    the core's simulator.
 4. **A change goes core first.** Code and C++ test in `core/`, then the ABI (a new function or a reserved slot given a
    meaning is a minor version), then the bindings, then the documents. Behaviour can be worked out on hardware with
-   whichever language is quickest to script; the fix lands in the core. The Python package runs on the core only. The
-   Python tests remain the conformance suite: where the core disagrees with one, the core is fixed.
+   whichever language is quickest to script; the fix lands in the core. The Python tests remain the conformance suite:
+   where the core disagrees with one, the core is fixed.
 
 ### What stays in each language
 
@@ -360,7 +359,7 @@ One library per OS and CPU, built from `core/` with the C++ runtime linked stati
 |---|---|---|
 | Windows x64 | `iai_actuator_driver.dll` (+ import library) | imports only Windows' own DLLs and the UCRT (Windows 10 / 11; Windows 7 / 8.1 need KB2999226). Not code-signed yet |
 | Windows x86 | `iai_actuator_driver.dll` (32-bit) | for 32-bit LabVIEW and 32-bit applications; not built yet |
-| Linux x64 / arm64 | `libiai_actuator_driver.so` | linked against glibc 2.17 symbols (manylinux2014); `serial_posix.cpp` VERIFIED on a real port from 1.1.0 (the IAI USB adapter in WSL 2) |
+| Linux x64 / arm64 | `libiai_actuator_driver.so` | linked against glibc 2.17 symbols (manylinux2014); `serial_posix.cpp` VERIFIED on a real port ([COMPATIBILITY.md](../COMPATIBILITY.md)) |
 | macOS arm64 / x64 | `libiai_actuator_driver.dylib` | not built by the release; UNVERIFIED (no Mac in the test setup) |
 
 | Language | Where the binding finds it |
@@ -380,46 +379,20 @@ files.
 ### Versioning
 
 - **One release version** for the repository: tags `vX.Y.Z` (pre-releases `vX.Y.ZaN`, `bN`, `rcN`). The Python
-  package, the .NET assemblies (NuGet form, for example `1.0.0` or `1.1.0-beta.1`), the CMake project (`X.Y.Z` only)
+  package, the .NET assemblies (NuGet form, for example `X.Y.Z` or `X.Y.Z-beta.1`), the CMake project (`X.Y.Z` only)
   and `iad_library_version()` report it. `.github/release/check_version.py` checks every place, in CI and before a
   release. Each release ships the header, the libraries, the import library and the bindings built from the same
   commit.
 - **The ABI version is separate**: `IAD_ABI_VERSION_MAJOR` / `MINOR` in the header, `iad_abi_version()` in the
-  library. A binding checks it on load. It is 1.0, frozen within major 1: the rule is the same major and a library
-  minor at least the caller's (`IAD_ABI_COMPATIBLE`, `IAD_ABI_VERSION`), and a higher minor only adds. Result codes
+  library. A binding checks it on load. The header is at 1.1; 1.0 is frozen within major 1 and the bindings need only
+  1.0. The rule is the same major and a library minor at least the caller's (`IAD_ABI_COMPATIBLE`, `IAD_ABI_VERSION`), and a higher minor only adds. Result codes
   are never renumbered, output struct sizes are frozen within a major version, and a function whose signature must
   change gets a new name.
 
 ### Repository and CI
 
-| Folder | Contents | Tests |
-|---|---|---|
-| `core/` | the C++ core, the C ABI, `CMakeLists.txt`, `build.py`, `iai-actuator-driver-cpp` | `python build.py test` (zig) or `ctest`; `python build.py smoke` |
-| `bindings/python/` | `iai_actuator_driver`, its tests, `pyproject.toml`, `setup.py` (platform wheels) | `python -m unittest discover -s tests -q` |
-| `bindings/dotnet/` | `IaiActuatorDriver` (the core's binding inside, `Interop/`), `IaiActuatorDriver.Cli`, tests, `packaging/` | `dotnet test` |
-| `apps/gui/` | `iai-gui` | the GUI server, controller and API tests |
-| `examples/{python,csharp,cpp,c}/` | one task per program, simulator or unit | run on the simulator |
-| `docs/` | the documents; `docs/dev/` the maintainers' ones (this one and the C ABI) | packaging and wording checks |
-| `licenses/` | `NOTICE` and `NATIVE_THIRD_PARTY.txt`: the sources of the copies in `bindings/python/` (both) and `apps/gui/` (`NOTICE`), packed into every release asset; `LICENSE` stays at the root | packaging checks |
-| `.github/` | `workflows/ci.yml`, `workflows/release.yml`, `release/` (the release scripts), the issue forms, `CONTRIBUTING.md` | |
-
-One CI workflow (`ci.yml`), and no CI job opens a serial port. The GitHub workflows run only by hand or on a pull
-request, never on a push or a tag (Actions minutes are limited); `python tools/test.py` runs the tests on the
-development PC.
-
-- A pull request, or a run started by hand, runs one small job: the version check, the core built on Windows with zig,
-  the driver tests on that library.
-- The same runs start the full set with path filters (a run by hand: every area). Its first job checks the version. A
-  change under `core/` builds the library on Windows (zig) and Linux (CMake, gcc), runs the C++ tests and the C smoke
-  test, then the Python and .NET binding tests on that library: every binding depends on the core. A change under
-  `bindings/python/`, `bindings/dotnet/` or `apps/gui/` runs that part's tests.
-
-Releases are built locally with `.github/release/local_release.py`: the libraries for win-x64 and linux-x64 with their
-tests, the platform wheels and the sdist (source, needs the library), the NuGet package, the C/C++ SDK zips and `iai-gui.exe`, each
-tested on the simulator, collected with `SHA256SUMS.txt` and the CHANGELOG section. The script prints the
-`gh release create` command and never runs it. `release.yml` is the same build on GitHub's runners, with linux-arm64
-added: it runs by hand only, publishes nothing, and a pushed tag does not start it. It is UNVERIFIED on GitHub's
-runners.
+The folders, the test suites, CI and the release steps are in [CONTRIBUTING.md](../../.github/CONTRIBUTING.md). No CI
+job opens a serial port.
 
 ### Evidence across bindings
 
@@ -435,24 +408,3 @@ runners.
   the core's coordinated motion.
 - The public .NET `Cell` has the group commands only; the group extras it lacks are listed in
   [../bindings/dotnet/README.md](../../bindings/dotnet/README.md#state-of-this-edition).
-
-## Working on the driver
-
-Each command runs in its folder; no test opens a serial port.
-
-```shell
-python build.py test                                 # core/: the C++ tests (zig); python build.py smoke: the C program
-python -m unittest discover -s tests -q              # bindings/python/: driver tests, simulator only
-dotnet test                                          # bindings/dotnet/: the C# solution
-python -m unittest discover -s apps/gui -t apps -q   # repository root: GUI server, controller and API tests
-```
-
-`bindings/python/tests/test_packaging.py` checks the version, the entry points, the document links and the wording of
-everything shipped.
-
-- **A release** sets one version in `bindings/python/pyproject.toml`, `bindings/python/iai_actuator_driver/__init__.py`,
-  `apps/gui/pyproject.toml` (and its pin on the driver), `core/include/iai_actuator_driver/version.hpp`,
-  `core/CMakeLists.txt` and the `<Version>` of the C# projects (`python .github/release/check_version.py` lists
-  them), adds a CHANGELOG.md entry and builds the release with `.github/release/local_release.py`.
-- **A new public function** gets one line in DRIVER.md; its behaviour and evidence go into REFERENCE.md.
-- **Hardware tests** start slow and short, back a unit up before a non-volatile write and restore it afterwards.

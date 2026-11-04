@@ -37,14 +37,11 @@ packages = [
     "iai_actuator_driver",
     "iai_actuator_driver._native",  # the log bridge, the ABI tables and the native library's folder (_native/<rid>/)
     "iai_actuator_driver._shared",  # the Python parts of the driver modules (records, planner, tables)
-    "ec_driver",  # deprecated import alias (rename-project: keep)
+    "ec_driver",  # deprecated import alias
 ]
 
-# Release wheels: setup.py tags one wheel per platform (py3-none-<platform>) when IAD_WHEEL_PLATFORM is set; the
-# release workflow first copies the native library into iai_actuator_driver/_native/<rid>/ (win-x64, linux-x64,
-# linux-arm64). Without the variable the sdist and a local install carry no library: the package then needs one built
-# or named by IAI_ACTUATOR_DRIVER_NATIVE (the sdist is "source, needs the native library"). The libraries are never
-# committed.
+# Release wheels carry the native library of one platform in iai_actuator_driver/_native/<rid>/: see setup.py
+# (IAD_WHEEL_PLATFORM). The sdist and a local install carry none. The libraries are never committed.
 [tool.setuptools.package-data]
 # only the library files, never build leftovers of the folder
 iai_actuator_driver = ["_native/*/*.dll", "_native/*/*.so", "_native/*/*.dylib"]

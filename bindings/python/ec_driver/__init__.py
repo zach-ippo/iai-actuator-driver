@@ -4,8 +4,6 @@ Kept so existing code keeps working: ``import ec_driver`` and ``from ec_driver.<
 give the very same module objects as ``iai_actuator_driver`` (no copies), so for example
 ``ec_driver.ec.Elecylinder is iai_actuator_driver.ec.Elecylinder``. A DeprecationWarning is raised once, on the first
 import. Please import ``iai_actuator_driver`` instead; this alias will be removed in 2.0.
-
-rename-project: keep-file
 """
 
 import importlib

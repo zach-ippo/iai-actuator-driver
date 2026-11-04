@@ -1,5 +1,4 @@
-/* EC test GUI. Palette, type, buttons, inputs, cards, badges and toast are
-   copied from the IAIAI GUI (C:\AI\iai-agent\gui\styles.css) so both tools look alike. */
+/* IAI Actuator Driver GUI: palette, type, buttons, inputs, cards, badges and toast. */
 :root {
   --nav: #12283b;
   --ink: #172f40;
@@ -69,7 +68,7 @@ input.invalid {
   background: #fff1ec;
 }
 
-/* Header bar: IAIAI rail colours, laid out horizontally. Sticky so STOP is always on screen. */
+/* Header bar, laid out horizontally. Sticky so STOP is always on screen. */
 .appbar {
   position: sticky;
   top: 0;
@@ -317,7 +316,7 @@ button.stop small {
   background: var(--warn);
 }
 
-/* Status tiles (IAIAI .stats/.stat) */
+/* Status tiles (.stats/.stat) */
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -569,7 +568,7 @@ button.stop small {
   z-index: 9;
 }
 
-/* View tabs in the header: IAIAI rail buttons (STOP stays in the same sticky bar). */
+/* View tabs in the header (STOP stays in the same sticky bar). */
 .views {
   display: flex;
   gap: 6px;

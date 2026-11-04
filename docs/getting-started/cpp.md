@@ -4,8 +4,7 @@ The C++17 core (folder `core/`) is the driver itself: the bus, the checks before
 STOP, the non-volatile write guard, the multi-axis `Cell` and the simulator. Python and .NET call it through its C ABI;
 a C++ program can link it directly. Unofficial: not an IAI product ([README](../../README.md)).
 
-Design, scope and the Python-to-C++ names: [core/DESIGN.md](../../core/DESIGN.md) and
-[core/README.md](../../core/README.md).
+Design and scope: [core/DESIGN.md](../../core/DESIGN.md) and [core/README.md](../../core/README.md).
 
 ## Two ways to link
 
@@ -31,14 +30,8 @@ cmake --build core/build --config Release
 ctest --test-dir core/build -C Release        # simulator and scripted frames only; no test opens a serial port
 ```
 
-| Target | What it is |
-|---|---|
-| `iai_actuator_driver` | the static library (alias `iai_actuator_driver::iai_actuator_driver`); on Windows it links `winmm`, `setupapi` and `advapi32` by itself |
-| `ec_tests` | the core's tests |
-| `iai-actuator-driver-cpp` | the command line |
-| `iai_actuator_driver_shared` | the shared library (file name `iai_actuator_driver`), with `-DIAI_ACTUATOR_DRIVER_BUILD_SHARED=ON` |
-
-In your own project:
+In your own project (the target `iai_actuator_driver` is the static library, alias
+`iai_actuator_driver::iai_actuator_driver`; on Windows it links `winmm`, `setupapi` and `advapi32` by itself):
 
 ```cmake
 set(IAI_ACTUATOR_DRIVER_BUILD_TESTS OFF)      # optional: skip the core's tests and command line
@@ -47,17 +40,8 @@ add_subdirectory(path/to/iai-actuator-driver/core iai_actuator_driver)
 target_link_libraries(your_app PRIVATE iai_actuator_driver)
 ```
 
-On a Windows x64 PC without CMake or MSVC, `build.py` builds the same sources with zig's clang:
-
-```shell
-pip install ziglang
-cd core
-python build.py test          # library, tests and command line into core/build/, then every test
-python build.py shared        # the C ABI: core/build/iai_actuator_driver.dll + .lib
-python build.py smoke         # the DLL, then a C99 program against it
-```
-
-The first compile after a zig install takes longer while zig builds its libc++ cache.
+The other targets, the zig build for a Windows x64 PC without CMake or MSVC (`python build.py` in `core/`) and the
+shared library: [core/README.md](../../core/README.md#build).
 
 ## A simulated axis
 
@@ -80,18 +64,10 @@ int main() {
 }
 ```
 
-| `SimProfile` | Simulates |
-|---|---|
-| `Slider` (default) | the EC-DS4H slider |
-| `Gripper` | the EC-GRBP8M gripper |
-| `Rod` | the EC-R6S rod |
-| `Pcon` | the PCON-CB with an RCP6 |
-| `Rotary`, `Unknown` | made-up units for the generic paths (deg units; a unit the driver has no name for) |
-
+- Profiles: `SimProfile::Slider` (default), `Gripper`, `Rod`, `Pcon`, `Rotary`, `Unknown`
+  ([what each simulates](python.md#a-simulated-axis)).
 - Several units: `SimLine` puts several simulated units on one line. `Cell::open(SimLine::sim_ports(3))` gives a cell
   of three simulated ports ("SIM1:1" .. "SIM3:1").
-- The real profiles serve register blocks read from those units. A pass on the simulator shows the driver agrees with
-  what was observed on them, not that every unit behaves this way.
 - On hardware: `Axis::open("COM3")` (`"/dev/ttyUSB0"` on Linux). The baud rate is found in place. Close IA-OS first:
   only one program can use a serial port.
 
@@ -111,22 +87,19 @@ ax.move_by(-2.0, o);                              // relative to the measured po
 ax.servo(false);
 ```
 
-- Positions are in mm (deg on a rotary axis), speeds in units/s, accelerations in G.
-- Every target, speed, acceleration and band is checked against the unit's own ranges first. A value outside them
-  throws `SoftLimitError` and nothing moves. `ax.check_move(position, o)` runs the same checks without moving.
+- Positions in mm (deg on a rotary axis), speeds in units/s, accelerations in G. A value outside the unit's own
+  ranges throws `SoftLimitError` and nothing moves. `ax.check_move(position, o)` runs the same checks without moving.
 - The caps default to the unit's own maxima. Narrow them for a first test on hardware: `OpenOptions opt;
   opt.axis.max_speed_mm_s = 100; opt.axis.max_accel_g = 0.3; Axis::open("COM3", opt);`. A cap can only narrow the
   unit's range.
 - `o.wait = false` returns `std::nullopt` right after the command; then call `ax.wait_idle(target, band)`.
-- An incremental unit must be homed after every power-up and software reset.
 
-On hardware: unloaded, mid-stroke, 20 mm/s or less, a hand on the emergency stop. A vertical axis without a brake can
-fall when the servo goes off. Complete programs: [examples/cpp/](../../examples/cpp/).
+Before a move on hardware read [Safety](../GETTING_STARTED.md#safety). Complete programs:
+[examples/cpp/](../../examples/cpp/).
 
 ## Stop
 
-`ax.stop()` is a decelerate-stop over Modbus. It holds the STOP coil until the axis stands still, then releases it. It
-works with or without Modbus control and blocks for the deceleration. `ax.stop(true, 5.0)` throws
+`ax.stop()` is a decelerate-stop over Modbus ([how it works](python.md#stop)). `ax.stop(true, 5.0)` throws
 `MotionTimeoutError` if the axis still moves after 5 s.
 
 ```cpp
@@ -150,12 +123,10 @@ try {
 stopper.join();
 ```
 
-- `pause()` holds the move and keeps the remaining travel. `resume()` continues it. `cancel_paused_move()` drops it.
+- `pause()`, `resume()` and `cancel_paused_move()` hold, continue and drop a move.
 - `close()` (and the destructor) releases a STOP or pause the axis still holds, and closes the port when the axis owns
   it.
 - `Cell::stop_all()` sends STOP to every axis first, then waits for each.
-- STOP is VERIFIED on moves the PC commanded and UNVERIFIED on a move a PLC commanded over PIO. Stop those from the
-  PLC or with the hardware stop.
 - Not a safety function. There is no communication watchdog: if the PC or the cable fails, a move in progress is
   completed.
 
@@ -197,19 +168,16 @@ try {
 `e.message()` is the message alone and `e.notes()` the notes. Group commands take `return_exceptions = true` to
 return the failures in `CellResults` (`messages`, `errors`) instead of throwing a `CellError`.
 
-**Non-volatile writes.** `write_position_table`, `teach_position` and `write_parameter` need no opt-in: the `allow_*`
-fields of `NvWriteOptions` and `ParameterWriteOptions` are accepted and ignored (no longer needed), and a risky write
-goes through with a warning (`warnings`). They write the unit's non-volatile memory, which lasts about 100,000 write
-cycles (IAI). An unchanged value or row is not written again (`skipped`), `nonvolatile_writes()` counts the writes, and
-the core logs a warning above 60 writes an hour on one axis. For a target that changes every cycle use `move_to`: direct
-moves are RAM only (VERIFIED).
+**Non-volatile writes.** `write_position_table`, `teach_position` and `write_parameter` go straight through. A risky
+write gives a warning (`warnings`), an unchanged value or row is not written again (`skipped`) and
+`nonvolatile_writes()` counts the writes. For a target that changes every cycle use `move_to`. The rules:
+[Non-volatile writes](../TROUBLESHOOTING.md#non-volatile-writes).
 
 ## Threads
 
 - One bus mutex per port: axes that share a port take turns, axes on different ports run in parallel.
-- A cell takes every axis it finds (no total limit; `CellOptions::max_axes` caps it if given). One cable carries at most
-  16 axes (axis numbers 0..15, addresses 1..16), and the scan asks addresses 1..16 per port by default. One axis per USB
-  adapter runs fastest: axes on one cable take turns.
+- A cell takes every axis it finds (no total limit; `CellOptions::max_axes` caps it if given). One cable carries at
+  most 16 axes ([Several axes on one port](../HARDWARE_SETUP.md#several-axes-on-one-port)).
 - The `Axis` guards its own state. `stop()` and `pause()` may come from another thread while a move, home or
   `wait_idle()` waits on the same axis. The waiting call then ends with `MotionIncompleteError`.
 - `Cell` runs each port in its own thread inside a group command and returns when every axis is done. With
@@ -222,19 +190,9 @@ moves are RAM only (VERIFIED).
 ## The native library
 
 A C++ program built the CMake way above needs no native library: the core is linked in. The shared library is for
-other languages and for programs that should not depend on the core's compiler.
-
-| Build | Result |
-|---|---|
-| `python build.py shared` (zig, Windows x64) | `core/build/iai_actuator_driver.dll` and its import library `iai_actuator_driver.lib`; libc++ linked statically, so the DLL needs only Windows' own DLLs (Windows 10 / 11) |
-| CMake, `-DIAI_ACTUATOR_DRIVER_BUILD_SHARED=ON` | `iai_actuator_driver.dll` (MSVC import library `iai_actuator_driver_imp.lib`, C++ runtime linked statically) or `libiai_actuator_driver.so` (Linux, `-static-libstdc++`) |
-
-- `cmake --install` installs the headers (`iai_actuator_driver.h`, and `iai_actuator_driver_testing.h` with the test
-  hooks), the static library and, when built, the shared library.
-- The shared library's `SOVERSION` is the ABI major (`libiai_actuator_driver.so.1`). The Windows DLL has a version
-  resource with the core's version and both ABI versions.
-- The Linux CMake build runs in CI (gcc). The MSVC and MinGW CMake builds and CMake's Windows resource path have not
-  been run.
+other languages and for programs that should not depend on the core's compiler: [c.md](c.md#the-library).
+`cmake --install` installs the headers (`iai_actuator_driver.h`, and `iai_actuator_driver_testing.h` with the test
+hooks), the static library and, when built, the shared library.
 
 ## Command line
 
@@ -245,8 +203,7 @@ iai-actuator-driver-cpp --port COM3 status                     # read-only
 iai-actuator-driver-cpp --port COM3 move 20 --speed 10
 ```
 
-Exit codes: 0 done, 1 the command ran but reports a failure, 2 a driver or usage error, 130 interrupted (Ctrl+C sends
-a decel stop first). `--help` lists every command.
+`--help` lists every command; exit codes and the full list: [core/README.md](../../core/README.md#command-line).
 
 ## Evidence
 
@@ -254,7 +211,7 @@ a decel stop first). `--help` lists every command.
 |---|---|
 | `iai-actuator-driver-cpp` on the EC-GRBP8M gripper and the PCON-CB with an RCP6 | VERIFIED for the steps in [../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit) and [Hardware results](../COMPATIBILITY.md#hardware-results) |
 | Cell, teach, parameter writes, gateway lines on hardware | UNVERIFIED |
-| Linux serial port (`serial_posix.cpp`) | VERIFIED from 1.1.0 (the 1.0.1 code fails at the first read): `iai-actuator-driver-cpp` on the PCON-CB through the IAI USB adapter (`cp210x`, `/dev/ttyUSB0`) in WSL 2 with usbipd, a build of the 1.1.0 fix (2026-11-03) |
+| Linux serial port (`serial_posix.cpp`) | VERIFIED ([../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit)) |
 | macOS serial port | UNVERIFIED |
 
 ## Next

@@ -9,20 +9,17 @@ or a CON-family controller such as the PCON, any actuator kind.
   do not. See [Names in the other editions](#names-in-the-other-editions).
 - **Native library.** The package runs on the core and needs its library
   ([getting-started/python.md](getting-started/python.md#where-the-native-library-comes-from)).
-- **Evidence words.** **VERIFIED** (tried on hardware), **ON-WIRE** (seen in serial traffic), **DOC** (public IAI
-  manuals), **UNVERIFIED** (not yet tried). They describe features and paths, never a unit: every unit is driven the
-  same way. The details are in [REFERENCE.md](REFERENCE.md).
+- **Evidence words.** VERIFIED, ON-WIRE, DOC and UNVERIFIED describe features and paths, never a unit
+  ([Evidence levels](REFERENCE.md#evidence-levels)).
 
 Unofficial: not an IAI product. See the [README](../README.md).
 
 ## Quick start
 
-```shell
-pip install ./bindings/python ./apps/gui  # Python 3.11+, needs pyserial; adds iai-actuator-driver, iai-check, iai-gui
-```
-
-A clone install needs the core's library built or named
-([where it comes from](getting-started/python.md#where-the-native-library-comes-from)); a release wheel carries it.
+Install the release wheel (Python 3.11+; adds `iai-actuator-driver` and `iai-check`, the core's library inside):
+[GETTING_STARTED.md](GETTING_STARTED.md#1-install). From a checkout, `pip install ./bindings/python ./apps/gui` also
+adds `iai-gui` and needs the core's library built or named
+([where it comes from](getting-started/python.md#where-the-native-library-comes-from)).
 
 Close IA-OS first: only one program can use a serial port.
 
@@ -65,7 +62,7 @@ Address (slave) = axis number + 1.
 | `ax.unit_info(*, sections=None)` | Everything the unit reports about itself, as one dict. Read-only. | optional list of sections | `ax.unit_info()` |
 | `ax.limits()` | Every range the driver enforces, read from the unit, with its source. | none | `ax.limits()["speed"]["max"]` |
 | `ax.units` / `ax.kind` / `ax.product_family` / `ax.is_ec` | Unit (`"mm"`/`"deg"`), actuator kind (slider, rod, gripper, rotary...), family (`"EC"`, `"PCON"`...), EC or not. | properties | `ax.units` |
-| `Port(port, *, name=None, baudrate=None, timeout=0.2, retries=3, frame_logger=None, line="auto", position_unit_mm=None)` | Opens one port shared by several axes (gateway or daisy chain). | port name or transport; `name`: the port's name in a `Cell`; the rest as in `Axis.open` | `p = Port("COM5")` |
+| `Port(port, *, name=None, baudrate=None, timeout=0.2, retries=3, frame_logger=None, line="auto", position_unit_mm=None)` | Opens one port shared by several axes (gateway or daisy chain). | port name or transport; `name`: the port's name in a `Cell`; the rest as in `Axis.open` | `p = Port("COM4")` |
 | `Port.scan(slaves=1..16)` | Finds the addresses that answer on this port. Read-only. | addresses 1..16 | `p.scan()` |
 | `Port.axis(slave=1)` | The axis at that address on the shared port. | address 1..16 | `ax2 = p.axis(3)` |
 | `Cell.open(ports=None, slaves="scan", *, max_axes=None, baudrate=None, timeout=0.2, retries=3, scan_timeout=0.05, scan_slaves=1..16, identify=True, frame_logger=None, line="auto", position_unit_mm=None, on_fault=None, stop_on_fault=True, on_event=None, **axis_options)` | Opens ports, finds and identifies every axis. Read-only. | `ports`: `None` (every IAI adapter), a name, a list, or `{name: port}`; `slaves`: `"scan"`, a list, or `{port: [addresses]}`; `max_axes` `None` (no limit; an int caps the cell); `line` and `position_unit_mm`: one value or `{port: value}`; `axis_options` as in `Axis.open`, for every axis | `cell = Cell.open(["COM3", "COM4"])` |
@@ -308,9 +305,9 @@ Ports run in parallel; axes on one shared port take turns. Every `*_all` takes `
 
 ## Coordinated motion (alpha)
 
-Lines, arcs and circles over several axes, interpolated by the PC. Alpha: one real axis (the EC gripper) ran a
-line, a circle and a stop together with a simulated second axis ([Hardware results](#hardware-results)); two or more
-real axes together are UNVERIFIED.
+Lines, arcs and circles over several axes, interpolated by the PC. Alpha: one real axis (the EC gripper, the PCON-CB)
+ran a line, a circle and a stop together with a simulated second axis; two or more real axes together are UNVERIFIED.
+How a run works, what it checks, what stops it and its limits: [REFERENCE.md](REFERENCE.md#coordinated-motion).
 
 ### What it is
 
@@ -328,10 +325,7 @@ with Cell.open(["COM3", "COM4"]) as cell:
     print(result.summary(), result.max_deviation)
 ```
 
-In Python this runs on the core: the core plans, checks, runs and stops; the shape of the C ABI limits a few calls
-([On the core](#on-the-core)). The JSON calls of the C ABI are `coordinated_plan` / `coordinated_run` of `NativeCell`
-in `iai_actuator_driver.native` ([dev/NATIVE_ABI.md](dev/NATIVE_ABI.md)); the GUI's Coordinated tab uses them. The
-names below are in `iai_actuator_driver.coord` (the main ones also in `iai_actuator_driver`).
+The names below are in `iai_actuator_driver.coord` (the main ones also in `iai_actuator_driver`).
 
 - **Coordinates** are `{axis name: position}` in each axis's units (mm, or deg on a rotary axis). An axis a segment
   does not name holds its position.
@@ -350,153 +344,11 @@ names below are in `iai_actuator_driver.coord` (the main ones also in `iai_actua
 | `xy.plan(path, speed, accel_g=0.1, *, chord_error=0.05, mode="auto", min_step_s=None, band=None, blend=None, stream_accel_g=None)` | Dry run from the current positions against each axis's `limits()` and the line timing, both read now: returns a `MotionPlan`. A path starting elsewhere gets a straight lead-in, with a warning: one more segment of a sync path, `plan.lead_in` (a synchronized line, run first) for a streamed one. A path that moves no axis by a count from its own start is the lead-in alone. Reads only. | `mode`: `"auto"`, `"sync"` (lines), `"stream"`; `chord_error` > 0; `blend` (sync) > 0 | `p = xy.plan(path, 20, 0.3)` |
 | `plan_path(path, speed, accel_g=0.1, *, limits=None, timing=None, min_step_s=None, ...)` | The same planner, pure (`iai_actuator_driver.coord.plan`): `limits` `{axis: AxisRange or limits() dict}`. A refusal's `.max_speed` is the largest speed that passes every check (the checks re-run). | as above | `plan_path(path, 20, limits={"x": ax.limits()})` |
 | `MotionPlan` | `mode`, `axes`, `points`, `times`, per-step per-axis `speeds` / `accels` (0 = no frame), `duration`, `shortest_step_s`, `min_step_s`, `est_chord_error`, `est_timing_error_s`, `est_deviation`, `warnings`, `lead_in`, `summary()`, `table()`, `to_dict()`. | fields | `p.summary()` |
-| `xy.run(path, speed, accel_g=0.1, *, late_abort_s=None, timeout=None, **plan_kw)` / `xy.run_plan(plan, *, late_abort_s=None, timeout=None)` | Runs it (its `lead_in` first) as in [How it runs](#how-it-runs), after the checks of `run_plan()` below (a streamed plan this group made on the same line is held to the lower of the two line timings). The run's status monitors are held meanwhile (other axes' keep polling). A stop of one of its axes from the moment `run_plan` is called (lead-in included) ends it ([Stops and errors](#stops-and-errors)); a link fault stops the group before the cell's `on_fault` runs; one run at a time per axis. Returns a `CoordinatedResult`. | `late_abort_s`: default one step | `xy.run(Path.rectangle((10, 10), 30, 20), 20)` |
+| `xy.run(path, speed, accel_g=0.1, *, late_abort_s=None, timeout=None, **plan_kw)` / `xy.run_plan(plan, *, late_abort_s=None, timeout=None)` | Runs it (its `lead_in` first) as in [How it runs](REFERENCE.md#how-it-runs), after the [checks](REFERENCE.md#checks-before-anything-is-sent) of `run_plan()` (a streamed plan this group made on the same line is held to the lower of the two line timings). The run's status monitors are held meanwhile (other axes' keep polling). A stop of one of its axes from the moment `run_plan` is called (lead-in included) ends it ([Stops and errors](REFERENCE.md#stops-and-errors)); a link fault stops the group before the cell's `on_fault` runs; one run at a time per axis. Returns a `CoordinatedResult`. | `late_abort_s`: default one step | `xy.run(Path.rectangle((10, 10), 30, 20), 20)` |
 | `xy.line_to(point, speed, accel_g=0.1)` / `xy.circle(center, radius, speed, accel_g=0.1, *, plane=None, start_deg=None, turns=1, ccw=True)` | A synchronized line / a streamed circle from the current position (the circle starts where the axes are when they are on it, within 0.5 % of the radius). `line_to` where the axes already are: a completed result, nothing sent. | as `run` | `xy.circle((75, 75), 10, speed=20)` |
 | `xy.stop()` / `xy.positions()` / `xy.ranges()` / `xy.timing(names=None, *, measure=False)` | Decel stop on every axis of the group (a run in another thread ends with `CoordinatedMotionError`) / current positions / each axis's `AxisRange` (read now) / `timing()` raises `NotImplementedError`: the core measures the line for each plan and run itself; use `plan.timing`. | none | `xy.stop()` |
-| `CoordinatedResult` | `plan`, `samples` (per axis `(t, position)` from the status reads during the run), `trace`, `max_deviation` / `mean_deviation` (from the planned chords: an estimate from the samples, only where every axis was read within one read time), `sample_spacing_s`, `frames`, `skipped_frames`, `late_frames` (measured when a frame's call begins, not when it is on the wire), `worst_late_s`, `worst_skew_s`, `duration_s`, `completed`, `error`, `summary()`, `to_dict()` (JSON, for the GUI). | fields | `r.max_deviation` |
+| `CoordinatedResult` | `plan`, `samples` (per axis `(t, position)` from the status reads during the run), `trace`, `max_deviation` / `mean_deviation` (from the planned chords: an estimate from the samples, only where every axis was read within one read time), `sample_spacing_s`, `frames`, `skipped_frames`, `late_frames` (measured when a frame's call begins, not when it is on the wire), `worst_late_s`, `worst_skew_s`, `duration_s`, `completed`, `error`, `summary()`, `to_dict()` (JSON, for the GUI). The run reports when it ends: no samples while it runs. | fields | `r.max_deviation` |
 | `LineTiming(baudrate=115200, axes_on_port=1, response_ms=5, gap_s=0.005, ..., measured_write_s=None, measured_read_s=None)` | The shortest step one port can carry (a write and a status read per axis, x1.5): the model's value (below 38400 baud every reply taken as ~285 ms, VERIFIED at 9600), or what was measured when that is longer (on the EC gripper the measured step was longer than the model's, VERIFIED). | properties `write_s`, `read_s`, `min_step_s`, `model` | `LineTiming(230400).min_step_s` |
-
-### How it runs
-
-| Mode | Used for | How |
-|---|---|---|
-| `"sync"` | lines, polylines | One move per axis per segment, started on every port at once. Axis i gets speed `v * \|d_i\| / L` and acceleration = deceleration `a * \|d_i\| / L`, so every axis runs the same trapezoid in time and the point stays on the line. The next segment starts when every axis is done (with `blend=`, when each is within that distance). |
-| `"stream"` | arcs, circles, curves | The path is cut into chords (angle step `2 * acos(1 - e / r)` for chord error `e`). Each waypoint gets a time from a trapezoid speed profile, and at each time every axis is re-targeted one waypoint ahead with the speed that gets it there on time. One thread per port, one start time, 1 ms Windows timer. Status is read about every 20 ms while slack allows, and at least every 0.15 s (longer on a slow line). |
-| `"auto"` (default) | anything | sync for lines only, stream otherwise |
-
-A 0x9900 block re-sent during a move re-targets it, and a new speed takes effect mid-move (both VERIFIED on the EC
-gripper). About 15 re-targets per second on one EC are VERIFIED; several real axes doing it together are UNVERIFIED.
-
-**Start point.** A path that does not start where the axes are gets a straight lead-in. For a sync path it is one more
-segment; for a streamed path it is `plan.lead_in`, run first as its own synchronized line. `xy.circle()` needs no
-lead-in when the axes are already on the circle (within 0.5 % of the radius). `xy.line_to()` to where the axes already
-are returns a completed result at once (nothing sent). A path whose segments move no axis by a whole count runs as its
-lead-in alone, with a warning.
-
-#### Checks before anything is sent
-
-The planner checks:
-
-- every commanded waypoint against each axis's range (soft limits minus their 0.30 margin, within a configured
-  `stroke`; the start point is not checked);
-- every per-axis speed and acceleration against that axis's `limits()`;
-- the centripetal acceleration `v^2 / r` against the smallest axis acceleration;
-- the step time against what the line can carry.
-
-An infeasible path raises `SoftLimitError` with the reasons and the largest feasible speed (`.max_speed`; a plan at
-that speed passes); nothing is sent. A speed below an axis's documented minimum is a warning, never a refusal.
-Waypoints that change no axis by a whole count are merged away. A step too short for the line merges with its
-neighbour where the path is straight there (or the step is within the chord error).
-
-`run_plan()` checks again against the axes as they are then:
-
-- the ranges, read fresh (a narrowed `stroke` counts; a failed soft-limit read refuses);
-- each moving axis's lowest and highest waypoint, the way `move_to()` checks a target;
-- every axis of the plan, held ones too: ready (EMG, alarm, servo, homed, not paused, no home return), standing still
-  and at the start;
-- a streamed plan's steps against the line timing measured then.
-
-An axis in automatic servo OFF is switched back on the documented way just before it gets a frame (not by the 0x9900
-frame: that wake is UNVERIFIED on an EC). One coordinated run at a time per axis: a second one is refused (nothing
-sent).
-
-#### Stops and errors
-
-Any of these stops **every axis of the group** (decel stop) and raises `CoordinatedMotionError`, with the trace so far
-in `.result`:
-
-- an error, a fault alarm, EMG, servo off, a pause or a home return;
-- a link fault, or a frame later than one full step;
-- an outside stop: `xy.stop()`, `cell.stop_all()`, the cell's stop after a link fault, `ax.stop()`, `ax.pause()` or a
-  servo OFF from another thread. The run then sends no further frame and never releases a STOP it did not send. This
-  holds from the moment `run_plan()` is called.
-
-**Ctrl+C** stops every axis of the group the same way, then re-raises `KeyboardInterrupt` (result in
-`.coordinated_result`).
-
-Axes outside the group are not commanded, except on a link fault in a cell: three failed status reads in a row, both
-attempts of a frame lost, or the port failing. Then the group's STOP frames go out first, and the cell's
-`stop_on_fault` handling stops every other axis, as for `move_all`. One lost echo or a late frame is not a link fault:
-the group stops, but the cell's fault handling is not called.
-
-On the core, a stop counts from the moment the core's run is called, its planning included (`run`, `line_to`,
-`circle`, `run_plan`: the core checks the plan's start itself, see [On the core](#on-the-core)). `circle` without
-`start_deg` reads where the axes are just before that call, to choose its start.
-
-In C++, `CoordinatedGroup::run` (and `run_plan`, `line_to`, `circle`) throws `coord::CoordinatedMotionError` the same
-way. A caller that runs it on its own `std::thread` must catch it there: an exception that leaves a thread function
-ends the process.
-
-#### Timeout
-
-The run's timeout is the wait for the last waypoint; left out, it comes from the plan. In the core (C++
-`RunOptions::timeout_s`; `"timeout_s"` of the C ABI's JSON request, so `NativeCell.coordinated_run` and C#
-`CoordRunJson` too) it must be a finite number of seconds above 0. Zero, a negative value (-1 is "wait forever" in VB
-and LabVIEW) or infinity is refused before anything is sent (`SoftLimitError` in C++, `IAD_ERR_INVALID_ARGUMENT` for a
-request). A path that moves no axis is refused the same way. JSON has no NaN: leave the key out for the default. A
-stop's timeout is not checked: a STOP always goes out.
-
-#### On the core
-
-In Python, `cell.coordinated()` and `CoordinatedGroup({name: axis})` give the core's group
-(`iai_actuator_driver.coord.CoordinatedGroup`): `plan()` and every run go to the core (`iad_cell_coord_plan_json` /
-`iad_cell_coord_run_json`), on the cell's core cell, or on one opened over the axes for a group built directly. What
-to know about the core's group, from the shape of the C ABI:
-
-- `xy.run_plan(plan)` runs a plan the group made: the core plans the same path again from where the axes are, and they
-  must be at the plan's start (its lead-in's, if any; the request's `"expect_start"`), else `EcNotReadyError` and
-  nothing is sent; then it runs it, with every check of a run. `result.plan` is the plan that ran. A plan made
-  elsewhere (`plan_path`) raises `NotImplementedError`: plan it with `xy.plan()`, or run the path with `xy.run()`.
-- `xy.timing()` raises `NotImplementedError`: the core measures the line inside each plan and run; the timing a plan was
-  made with is `plan.timing`.
-- The run reports when it ends: no samples while it runs. Its status monitors are held from the core's run on; they
-  poll while it plans.
-- `result.worst_skew_s` and the late frames are measured when a frame's call begins, not when the frame is on the wire.
-
-The core's runner, from Python, is VERIFIED (2026-10-31, a development build of 569e836; 1.0.0 has no
-`Cell.coordinated` on the core) with one real axis (the EC gripper) and a simulated second axis for a sync line, a
-streamed circle r = 2 mm at 5 mm/s (deviation max 0.10 / mean 0.03 mm, no late frame) and `xy.stop()` mid-circle
-(`CoordinatedMotionError`; the gripper stood still, no alarm). Two real axes together are UNVERIFIED.
-
-### Limits of PC-side coordination
-
-- **No shared clock.** Axes meet in time only through the PC sending frames on schedule. Axes on separate ports start
-  within a few ms of each other. Axes sharing a port take turns, one transaction apart, and unit replies take tens of
-  ms (VERIFIED; up to about 285 ms at 9600 baud). That skew times the speed is a path error;
-  `plan.est_timing_error_s` and `plan.est_deviation` estimate it.
-- **Frame timing sets the smoothness.** Each axis runs at constant speed between waypoints. The shortest step comes
-  from `LineTiming` (baud rate, frame lengths, response delay, bus gap, axes per port, one status read per step,
-  x1.5). By the model alone that is about 60 ms at 38400 baud, 44 ms at 115200 and 40 ms at 230400 for one axis per
-  port. Below 38400 a stream is effectively ruled out. `plan()`,
-  `run()` and `run_plan()` also time status reads of every axis inside the core's plan or run, and the measured time
-  counts when it is longer. For shorter steps raise the rate: `Port.set_baudrate(230400)` on a cell port,
-  `ax.set_baudrate()` on an axis that owns its port (`ax.enable_fast()` on a cell axis keeps the rate). `min_step_s=`
-  overrides the estimate.
-- **Status monitors are held.** `run_plan()` holds the status monitors of its own axes and reads its own samples.
-  Other axes' monitors on the same ports keep polling; that traffic delays frames and shows as late frames.
-- **Chord error vs speed.** A smaller chord error means shorter steps at the same speed. When steps get shorter than
-  the line allows, the plan is refused with the largest feasible speed: raise `chord_error` or lower the speed.
-- **Lag.** Each axis gets the next waypoint one step ahead. With a low acceleration cap the axis brakes before each
-  waypoint and the path cuts inside; the plan warns when the cap bites.
-- **The PC is in the loop.** A busy or sleeping PC delays frames. Late frames are counted (`result.late_frames`;
-  `result.worst_skew_s` for a sync segment), and a frame that would reach the wire later than one full step is not sent
-  and aborts the run. A frame whose echo is lost is re-sent once; with steps shorter than that re-send the run stops as
-  a late frame. On Linux, 1.0.0 also lost frames to a backward step of the system clock during a run (an NTP step, a
-  VM's time sync: a WSL guest was seen stepping its clock back by up to about 1 s every 32 s): its waits took their
-  deadline from that clock, and the stream stopped with `LateFrame`. Since 1.0.1 every wait of the core runs on the
-  monotonic clock. A lost status reply is skipped; three in a row are a link fault. The unit has no watchdog: if the PC
-  or the cable fails mid-path, each axis completes the waypoint it was last sent.
-- **The deviation is an estimate.** `result.max_deviation` and `mean_deviation` come from status samples, interpolated
-  per axis. They are blind between samples (`result.sample_spacing_s` is the median spacing).
-
-### Hardware results
-
-The core's runner is VERIFIED with one real axis as x and a simulated y: [On the core](#on-the-core), and the runs on
-the 1.0.x branch in [COMPATIBILITY.md](COMPATIBILITY.md#runs-on-the-10x-branch). Two or more real axes together are
-UNVERIFIED. Deviations are estimates from status samples, and half the path is the simulated axis.
-
-On the simulator with replies 30 ms late, a fault alarm on one axis mid-circle put the other axis's STOP on the wire
-about 0.15 s later. With 10 ms replies, a dead link on one axis stopped the other within about 0.2 s.
 
 ### Demo
 
@@ -520,7 +372,7 @@ All derive from `EcDriverError`.
 | `ServoBlockedError` | The servo cannot come on (EMG input, drive power cut, enable switch released ...); `.reasons` lists them. A kind of `EcNotReadyError`. |
 | `EcAlarmError` | The unit has an alarm. |
 | `MotionTimeoutError` | A move or home did not finish in time (the axis is stopped). |
-| `ModbusTimeout` | No answer: check power, cable, address, and that IA-OS is closed. The message also names what is not supported: SEL-protocol controllers (XSEL, SSEL, ASEL, PSEL, MSEL, TTA table-top robots) and an EC on an RCON-EC / REC, whose serial port is disabled. |
+| `ModbusTimeout` | No answer: check power, cable, address, and that IA-OS is closed. The message also names the product lines that are [not supported](COMPATIBILITY.md#not-supported). |
 | `UnsafeCommandError` | A refused command or write: an IAI command off the safe list without `allow_unsafe`, one on the never-send list, a read-only or unconfirmed parameter. |
 | `LineRuleError` | The line the unit sits on does not carry the command (no coils, IAI commands or broadcast behind a gateway). Nothing was sent. A kind of `UnsafeCommandError`. |
 | `GatewayModeError` / `PositionUnitError` / `UnsupportedLineError` | RCON gateway not in MANU / an mm command on RCON before the position unit is stated / the line gives no axis access (ROBONET gateway mode, an EC behind an RCON-EC or REC). |
@@ -549,15 +401,9 @@ All derive from `EcDriverError`.
 ## Supported units
 
 Every IAI unit that speaks Modbus RTU on its RS-485 SIO port: any ELECYLINDER (EC) or CON-family controller, any
-actuator kind, RCON driver units through the gateway and ROBONET in through mode. Ranges and capabilities are read
-from the unit, so every unit is driven the same way and a new model needs no driver update.
-
-- Run on hardware so far (a record, not a gate): four ELECYLINDER types (slider, dust/drip-proof slider, rod,
-  gripper) and a PCON-CB with RCP6, one axis per COM port.
-- Not supported: controllers with IAI's SEL protocol (XSEL, SSEL, ASEL, PSEL, MSEL, TTA), an ELECYLINDER on an
-  RCON-EC / REC unit, and ROBONET in gateway mode.
-
-The details, with what can go wrong, are in [COMPATIBILITY.md](COMPATIBILITY.md).
+actuator kind, RCON driver units through the gateway and ROBONET in through mode. Ranges are read from the unit, so a
+new model needs no driver update. What has run on hardware, what is not supported and what can go wrong:
+[COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## Names in the other editions
 
@@ -597,20 +443,4 @@ coordinated motion yet (the core has them): see
 ## Command line
 
 `iai-actuator-driver --port COM3 <command>` (or `python -m iai_actuator_driver`; `--sim` for the simulator, `--json`
-for machine-readable output). Every command is listed in [REFERENCE.md](REFERENCE.md#command-line-reference); these
-take more than a name:
-
-| Command | What it does | Ranges and example |
-|---|---|---|
-| `move POS --change-speed V [--change-accel G] [--change-after S]` | Starts a move, then changes the running move's speed / acceleration after `S` seconds. | speed 0.01 .. unit max; `move 100 --speed 20 --change-speed 60 --change-after 1.5` |
-| `pause` / `resume` / `cancel-pause` | Holds a move / continues it / drops the remaining travel. The pause stays set after the command ends. | `cancel-pause` needs a paused axis |
-| `teach N [--method table\|coil] [--force]` | Stores the current position as stored row `N` (permanent); a row that already holds it is not written (`--force` writes it), whatever the speed cap. `--allow-nonvolatile` is still accepted and ignored. | row 0 .. rows - 1; on an EC a row its position mode does not run (2-position: row 2) is written with a warning; `teach 1` |
-| `backup [FILE] [--rows used\|all\|0,1,2]` | Read-only JSON backup of the unit. | `backup unit1.json` |
-| `line [--monitor]` | The line, its rules, the gateway status, and on RCON this axis's gateway monitor record. Read-only. | `--line rcon --position-unit 0.01 line --monitor` |
-| `status` | Also prints the condition flags (EMG input, drive power cut, enable switch ...). | `status` |
-| `servo on` | Refused with the reasons when the status shows the servo cannot come on. | `servo on` |
-| `stop-all [--ports COM3,COM4] [--broadcast]` | STOP on every axis of the ports; `--broadcast` adds one broadcast STOP on a daisy chain (UNVERIFIED). | `iai-actuator-driver stop-all --ports COM3,COM4` |
-| `--line auto\|direct\|rcon\|robonet`, `--position-unit 0.01\|0.001`, `--retries N` | State the line / the RCON position unit / the retries (default 3). | `--line rcon --position-unit 0.001` |
-| `move POS --fast` / `jog DELTA --fast` | Fast completion with the status monitor for this command; the baud rate is kept (`baud 230400` raises it). | `move 50 --fast` |
-| `monitor --watch [--duration S] [--interval S]` | Runs the status monitor: a line per status change (at most one per `--interval`) and every link event (link lost, unit restarted) until Ctrl+C or `S` seconds. Read-only. | `monitor --watch --duration 60` |
-| `recover [--backup FILE [--rows used]] [--target POS] [--restore-baud RATE] [--no-control] [--wait S]` | Brings the axis back after a power or link loss: checks it is the same unit (the backup's identity; its rows and parameters compared), restores PC control, baud rate and message-level alarms, and reports HEND, alarm, uptime and position. Never moves (VERIFIED on the EC gripper after a power cycle and a line break, and on the PCON-CB after a line break). Every row the backup holds is compared, 768 on an EC for a `backup --rows all` file (about 25 s at 38400 baud, VERIFIED on the EC gripper); `--rows used` (this command line only) compares only the rows `backup --rows used` holds, and a change in any other row is not noticed. | `recover --backup unit1.json --target 50 --restore-baud 115200` |
+for machine-readable output). Every command and option is in [REFERENCE.md](REFERENCE.md#command-line-reference).

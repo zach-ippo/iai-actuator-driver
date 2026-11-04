@@ -1,7 +1,6 @@
 # Changelog
 
-Unofficial: not an IAI product. Versions follow PEP 440. Evidence words: VERIFIED (hardware), ON-WIRE (observed
-serial traffic), DOC (public IAI manuals), UNVERIFIED.
+Unofficial: not an IAI product. Versions follow PEP 440.
 
 ## Unreleased
 
@@ -13,9 +12,6 @@ serial traffic), DOC (public IAI manuals), UNVERIFIED.
   both bindings still need only 1.0, so they accept a 1.0 or a 1.1 library. 7 data bits, parity and 2 stop bits are
   UNVERIFIED on hardware.
 - C++: the non-volatile write tracker (`NvWriteTracker`) has a public header, `iai_actuator_driver/nonvolatile.hpp`.
-- SEL protocol (internal, UNVERIFIED on a controller): the core gains a SEL frame codec, the phase-1 message codecs,
-  a simulator and a link with a no-blind-resend retry policy. There is no customer API yet: nothing SEL is in the
-  C ABI, Python or C#.
 
 ### Changed
 
@@ -25,21 +21,14 @@ serial traffic), DOC (public IAI manuals), UNVERIFIED.
   during the step, so a clock step shows apart from a slow PC or line.
 - Examples: an alarm or warning bit with code 0 prints "warning (no code)" or "alarm (no code)", not "warning
   0x000".
-- C ABI documentation: the keys each JSON request reads are listed in `core/abi/json_keys.json` and checked against
-  the parsers; the coordinated request lists `expect_start`.
-- Hardware test harness: the message-level alarm 0x069 a unit shows right after power-up is taken as its normal
-  state at the start; any other start alarm is still refused.
-- Release script: a load-sensitive test that fails once is re-run once, as `tools/test.py` does.
 
 ## 1.1.1 - 2026-11-03
 
-A maintenance release over 1.1.0: bug fixes only. The C ABI stays 1.0. The bugs marked "seen on the PCON-CB" were
-seen on a PCON-CB with an RCP6 actuator in a hardware test on 2026-11-03 (VERIFIED); the others were found while
-fixing them. Three fixes were checked on the same PCON-CB with the 1.1.1 code (VERIFIED): a 1 % override ran an
-840 mm/s row at 9.80 mm/s (1.1.0: 13.1), a wait ended 98 ms after another thread's `stop()` with no STOP of its own
-(1.1.0: about 3.1 s), and a scan of slaves 57-59 sent nothing to slave 58 and raised no alarm. The other fixes are
-checked on the simulator only. Some fixes change behaviour a program may rely on; those bullets say so ("Behaviour
-change").
+A maintenance release over 1.1.0: bug fixes only, C ABI 1.0; "seen on the PCON-CB" means seen on a PCON-CB with an
+RCP6 in a hardware test on 2026-11-03 (VERIFIED), and "Behaviour change" marks a fix a program may rely on. Three
+fixes were checked on that PCON-CB with the 1.1.1 code (VERIFIED: a 1 % override ran an 840 mm/s row at 9.80 mm/s,
+1.1.0 13.1; a wait ended 98 ms after another thread's `stop()`, 1.1.0 about 3.1 s; a scan of slaves 57-59 sent
+nothing to 58), the others on the simulator only.
 
 ### Fixed
 
@@ -148,62 +137,39 @@ change").
 
 ## 1.1.0 - 2026-11-03
 
-A minor release from main: everything of 1.0.1, plus the changes below. The C ABI stays 1.0. No hardware result is
-claimed here for the 1.1.0 files themselves: they are checked after the build.
+A minor release. The C ABI stays 1.0.
 
 ### Fixed
 
 - On Linux the serial transport took a 0 from `read()` (the port is set VMIN = VTIME = 0, and Linux returns 0 while no
   byte has arrived) for a pulled adapter, so the first read after every request failed with `the port vanished
-  (unplugged?)` on a real port, the first status read included, and nothing moved. The 1.0.1 Linux wheel, SDK and
-  NuGet runtime have it. A read now waits for the reply: a 0 means nothing yet, and only a 0 right after `poll()` said
-  readable, or POLLHUP / POLLERR, is a vanished port. New tests on a pseudo terminal (a late reply is read, nothing
-  sent is a timeout, the other end closed is a vanished port). VERIFIED on a PCON-CB with the IAI USB adapter passed
-  into WSL 2 with usbipd (2026-11-03, a build of the fix): the harness's Python and C++ command-line editions and the
-  SDK's C example.
+  (unplugged?)` on a real port, the first status read included, and nothing moved. A read now waits for the reply: a 0
+  means nothing yet, and only a 0 right after `poll()` said readable, or POLLHUP / POLLERR, is a vanished port. New
+  tests on a pseudo terminal (a late reply is read, nothing sent is a timeout, the other end closed is a vanished port).
+  VERIFIED on a PCON-CB with the IAI USB adapter passed into WSL 2 with usbipd (2026-11-03, a build of the fix): the
+  harness's Python and C++ command-line editions and the SDK's C example.
 
 ### Changed
 
-- Removed: the pure-Python fallback (`iai_actuator_driver/_pure/`); 1.0.x is the last release with it. The Python
-  package runs on the core only: without a usable native library the import raises `ImportError` saying where it
-  looked, and `IAI_DRIVER_BACKEND=python` raises a one-line `ImportError`. The sdist is source that needs the library.
+- The Python package runs on the native core: without a usable native library the import raises `ImportError` saying
+  where it looked. The sdist is source that needs the library.
 - The `ec_driver` import name is deprecated and will be removed in 2.0: import `iai_actuator_driver`.
-- The driver no longer labels units by model: every IAI unit that speaks Modbus RTU on its serial port is supported
-  and driven the same way, with no driver update for a new model. A unit is reported as what it says it is (the
-  family name when the driver has one, else the product family and its codes). Gone: the "UNVERIFIED for this model"
-  parameter note and write warning, the connect and identify notes about a unit code not in the driver's table or not
-  tried on hardware, and the UNVERIFIED wording of the rotary, unknown-family range and RCON / ROBONET line texts.
-  An AKID kind without a name now reads "AKID kind <n>: commanded as a linear axis in mm".
-  `unit_known` now only says the driver has a family name for the unit code (the PCON-CB reads false); `verified`
-  and `verified_for_model` equal `known` (an IA-OS parameter list is recorded for the unit code); `seen_on` is always
-  empty; `allow_unverified_model` is accepted and ignored. Every name, JSON key and the C ABI are unchanged; some
-  values are not: `UNIT_CODES_CONFIRMED` and `MODEL_PARAMETERS_SEEN_ON` (Python and C#) and the Python
-  `UNITS_SEEN_ON_HARDWARE` are empty, `OPT_IN_NOTE` is `""`, and a parameter row has no `note` key where the note
-  held only that label. The documents list the units run so far as a record, not a gate.
-- Writes to the unit need no opt-in any more. Stored-row writes and teach (both methods), home parameters (EC P3 / P4,
-  CON No.5 / No.22), dangerous parameters (motor / encoder, lead, gains, PIO / fieldbus / baud setup, a wider soft
-  limit, raw items), a parameter the unit's list does not show and a baud code not VERIFIED are written. A row past
-  the unit's rows, a row the EC's position mode does not run, a row at an UNVERIFIED directory layout, a push on the
-  middle row and unknown or changed control-flag bits are written too. A risky write logs a WARNING and adds a line to
-  the result's warnings. `allow_nonvolatile`, `allow_dangerous`, `allow_home_params`, `allow_unlisted`,
-  `allow_unverified_code` and `allow_unsafe` on row writes and teach (C# `allowNonvolatile` ..., the C ABI fields)
-  are accepted and ignored; their command-line options (`--allow-nonvolatile`, `--allow-dangerous`,
-  `--allow-home-params`, `--allow-unlisted`, `--allow-unverified-code`) still parse but are gone from the help. The
-  GUI asks one plain OK / Cancel before a permanent write, with no tick box. What stays: an unchanged value is not
-  written (`force` writes it), writes are counted with the hourly warning, the never-send list of raw IAI commands
-  (firmware update, parameter initialisation, alarm-list clear, axis number, ...) needs `allow_never_send`, IAI
-  commands off the safe list need `allow_unsafe`, and the range checks (stroke, speed, push power, load threshold)
-  refuse a value outside the unit's range. Push power and load threshold are now checked even with `allow_unsafe`. A
-  row the table cannot address raises `NonVolatileWriteError`; rows 256-267 stay refused. A baud rate with no IAI code
-  is still refused. A parameter's `writable` flag no longer needs `listed`, so the GUI offers Edit for a parameter
-  the unit's list does not show and names that in the confirm.
+- The driver no longer labels units by model: every IAI unit that speaks Modbus RTU on its serial port is driven the
+  same way and reported as what it says it is. The "UNVERIFIED for this model" notes and warnings are gone and
+  `allow_unverified_model` is accepted and ignored. Names, JSON keys and the C ABI are unchanged; `unit_known` only
+  says the driver has a family name, `verified` / `verified_for_model` equal `known`, `seen_on` and the model-list
+  constants (`UNIT_CODES_CONFIRMED`, `MODEL_PARAMETERS_SEEN_ON`, `UNITS_SEEN_ON_HARDWARE`, `OPT_IN_NOTE`) are empty.
+- Writes to the unit need no opt-in: stored rows, teach, home and dangerous parameters, unlisted parameters and
+  unverified baud codes are written; a risky write logs a WARNING and adds a line to the result's warnings. The old
+  flags (`allow_nonvolatile`, `allow_dangerous`, `allow_home_params`, `allow_unlisted`, `allow_unverified_code`, and
+  `allow_unsafe` on row writes and teach) and their command-line options are accepted and ignored; Python names in
+  docs/DRIVER.md, command-line options in docs/REFERENCE.md. What stays: an unchanged value is not written (`force`
+  writes it), the hourly write warning, `allow_never_send` and `allow_unsafe` for raw IAI commands, and the range
+  checks (push power and load threshold now even with `allow_unsafe`). The GUI asks one OK / Cancel before a permanent
+  write.
 - A `Cell` takes every axis it finds or is given: no total cap by default (it was 16 axes and 16 ports). `max_axes`
   still caps it when given (Python `Cell.open(max_axes=N)`, C# `CellOptions.MaxAxes`, the C ABI's
   `iad_cell_options.max_axes`, whose default is now 0 = no limit; a negative value is refused). One cable still
   carries at most 16 axes (axis numbers 0-15, addresses 1-16), and the scan asks addresses 1-16 per port by default;
   one axis per USB adapter is fastest, because the axes on one cable take turns. `MAX_PORTS` / `PortManager.MaxPorts`
   stay public at 16 for compatibility and no longer limit anything.
-
-## Earlier
-
-1.0.0 (2026-10-31) and 1.0.1 (2026-11-03): the first releases; no longer published.

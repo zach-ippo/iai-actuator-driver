@@ -1,17 +1,12 @@
 __pycache__/
 *.pyc
 .venv/
-venv/
 *.egg-info/
 dist/
 build/
-.pytest_cache/
 # captures can be large; keep decoded text
 *.pcap
 *.pcapng
-*.db
-*.sqlite
-.env
 # unit backups and local files stay out of the repository
 backups/
 bindings/dotnet/**/bin/

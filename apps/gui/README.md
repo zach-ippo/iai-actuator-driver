@@ -67,24 +67,23 @@ page) or **PIO** (the unit follows its PIO inputs, for example a PLC). Pressing 
   read, the buttons are disabled and a request is refused (PMSL ON during a move stops it). Press STOP first. A pause at
   a standstill with the servo off does not block PC; a pause with the servo on does (a PLC holding a stop input on a
   move). A PCON in PIO mode with nothing on its PIO connector pauses and switches its servo off (VERIFIED on the
-  PCON-CB, 2026-11-02); 1.0.1 taking PC control there: VERIFIED with the driver (PCON-CB, 2026-11-02), UNVERIFIED
-  from this page.
+  PCON-CB); the driver taking PC control there: VERIFIED (PCON-CB), UNVERIFIED from this page.
 - With PIO chosen here, the page sends no motion command: they are refused with the reason until PC is chosen (the
   workbench also refuses group moves and a coordinated run). STOP always works.
 - PIO found at connect, as after every power-up, is not a choice: the first command takes PC control at rest.
 - Disconnect leaves a unit as found: PIO that had control at connect gets it back; PIO chosen here stays.
 - API: `POST /api/control {"mode": "pc" | "pio"}` (single-axis page); the workbench calls its
   `enable_modbus_control` / `disable_modbus_control` functions. The single-axis switch is VERIFIED on the EC-GRBP8M
-  gripper with `iai-gui.exe` 1.0.0 (2026-10-31): PC to PIO to PC, and a move sent in PIO was refused. The workbench's
-  switch is UNVERIFIED on hardware (tested on the simulator).
+  gripper (PC to PIO to PC; a move sent in PIO was refused); the workbench's switch is UNVERIFIED on hardware (tested
+  on the simulator).
 
 ## Known limits
 
 - Unofficial, not an IAI product. STOP is a Modbus decelerate-stop, not a safety function.
 - A unit has no communication watchdog: a move in progress completes if the PC or the cable fails.
 - Coordinated motion is experimental: one real axis with a simulated second VERIFIED through the Python package
-  (EC-GRBP8M gripper, 2026-10-31; PCON-CB, 2026-11-02), not through this GUI; two real axes together UNVERIFIED. The
-  Coordinated tab shows the measured trace when the run ends, not while it runs.
+  (EC-GRBP8M gripper, PCON-CB), not through this GUI; two real axes together UNVERIFIED. The Coordinated tab shows the
+  measured trace when the run ends, not while it runs.
 - Several axes on one port: UNVERIFIED.
 - The GUI listens on 127.0.0.1 only.
 - Backups of an installed package go to your own data folder (`%LOCALAPPDATA%/IAI Actuator Driver/backups` on

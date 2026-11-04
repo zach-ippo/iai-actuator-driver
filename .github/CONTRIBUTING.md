@@ -16,8 +16,8 @@ pip install ziglang                    # then, in core/: python build.py shared
 ```
 
 The editable install adds pyserial (the only dependency) and the commands `iai-actuator-driver`, `iai-check` and
-`iai-gui`, all running from the source tree. The Python package runs on the C++ core: it loads the library from
-`core/build/` (or `IAI_ACTUATOR_DRIVER_NATIVE`) and does not import without it.
+`iai-gui`, all running from the source tree. The Python package loads the C++ core from `core/build/` (or
+`IAI_ACTUATOR_DRIVER_NATIVE`) and does not import without it.
 
 ## Run the tests
 
@@ -34,14 +34,8 @@ python tools/test.py --suites core,gui  # these suites (core, smoke, python, gui
   `tools/test.py` picks the suites; a path it does not name selects every suite.
 - **Before merging to main:** `python tools/test.py --all`, and the suites on Linux once (CMake and gcc, the
   sanitizer builds of the C++ tests, the Python and .NET suites against the `.so`).
-- **A change to the library's file name or SONAME:** run the two release steps that build and test the Linux library
-  and its SDK. They need WSL 2 and the Linux test kit (`--wsl-kit` in `--help`):
-
-  ```sh
-  python .github/release/local_release.py --only linux-native,linux-sdk-smoke
-  ```
-
-  `--only` continues the output folder of an earlier run of the same commit. With none, run the script without it.
+- **A change to the library's file name or SONAME:** run the release steps `linux-native,linux-sdk-smoke` (`--only`);
+  they run in WSL 2 through a kit, see `python .github/release/local_release.py --help`.
 - **A release:** `python .github/release/local_release.py` (see [Release](#release)).
 
 `-j N` sets the number of worker processes. A few tests measure short delays, such as a STOP within 50 ms, so run the
@@ -58,8 +52,7 @@ simulator clock (`step_s`) or the virtual clock (`testing.virtual_clock`) instea
 | .NET | `dotnet test` | `bindings/dotnet/` |
 | Release scripts | `python .github/release/test_local_release.py` | the root |
 
-The Python package runs on the core only, so its tests need the native library (`core/build/`, or
-`IAI_ACTUATOR_DRIVER_NATIVE`).
+The Python tests need the native library (`core/build/`, or `IAI_ACTUATOR_DRIVER_NATIVE`).
 
 The tests never open a serial port, and a new test must not either. Use the simulator (`SimulatedEC`, `sim_line()`,
 `sim_ports()`) and the helpers in `bindings/python/tests/ec_testutil.py`.
@@ -67,7 +60,8 @@ The tests never open a serial port, and a new test must not either. Use the simu
 [CI](workflows/ci.yml) does not run on a push (GitHub Actions minutes are limited): run the tests above before
 you push. It runs on a pull request and by hand (Actions, CI, Run workflow). Both start one small job, the core built on
 Windows with zig and then the driver tests on the core with Python 3.13, and the full set on Windows and Linux with
-Python 3.11 and 3.13, one job per changed area (a manual run: every job). When every job that ran has passed, CI builds the sdists and wheels as the `dist` artifact.
+Python 3.11 and 3.13, one job per changed area (a manual run: every job). When every job that ran has passed, CI
+builds the sdists and wheels as the `dist` artifact. Releases are built locally ([Release](#release)).
 
 ## Try a change without hardware
 
@@ -94,25 +88,9 @@ The simulator answers Modbus RTU byte for byte and mimics what the hardware test
 | `licenses/` | `NOTICE` and `NATIVE_THIRD_PARTY.txt`: the sources of the copies in `bindings/python/` (both) and `apps/gui/` (`NOTICE`), packed into every release asset; `LICENSE` stays at the root |
 | `.github/` | CI, the release workflow and the release scripts, the issue forms and `CONTRIBUTING.md` |
 
-In `bindings/python/iai_actuator_driver/`:
-
-| Module | Contents |
-|---|---|
-| `modbus.py`, `registers.py` | Modbus RTU master and the IAI 0x45 / 0x48 commands; the register map, each entry with its evidence word |
-| `ec.py` | `Axis` (also named `Elecylinder`): every axis command and the non-volatile write guard |
-| `cell.py`, `gateway.py` | Port discovery, address scan and `Cell`; line rules (direct, RCON, ROBONET) and gateway status |
-| `info.py`, `con_params.py` | Unit information, parameters and backup; the CON-family parameter numbers |
-| `alarms.py`, `errors.py` | Alarm names and levels; the exception hierarchy |
-| `monitor.py`, `recovery.py` | Status monitor and fast completion; power and link loss (`recover()` never moves the axis) |
-| `values.py`, `_protocol.py` | The records the driver returns (`Status`, `DeviceInfo` ...); CRC, frames and codes |
-| `sim.py`, `sim_fixtures.py`, `sim_line.py` | The simulator, its register data, several simulated units on one line |
-| `check.py`, `cli.py` | The `iai-check` self-test and the `iai-actuator-driver` command line |
-| `native.py`, `_backend.py` | The ctypes binding of the C ABI; the library loaded at import (`backend_info()`) |
-| `_native/` | The log bridge, the ABI's table calls and the folder of the library a platform wheel carries |
-| `_shared/` | The Python parts of the modules: records, constants, the coordinated-motion planner, `info`, `check` |
-
-Every module above is a binding over the shared C++ core: the core decides, the module converts arguments and results.
-`bindings/python/tests/test_packaging.py` checks the version, the entry points, the links and the wording.
+The modules of the Python package, each a binding over the C++ core, are described in
+[docs/dev/ARCHITECTURE.md](../docs/dev/ARCHITECTURE.md#layers). `bindings/python/tests/test_packaging.py` checks the
+version, the entry points, the links and the wording.
 
 ## Rules
 
@@ -147,50 +125,19 @@ The driver adapts to whatever unit is connected. Ranges and capabilities are rea
 
 ### No opt-ins for writes
 
-The users are experienced: a write to the unit needs no flag. Stored rows, teaching, parameters (home direction and
-offset, motor and encoder type, lead, gains, PIO, fieldbus and baud setup, a wider soft limit, a parameter the unit's
-list does not show) and baud codes not VERIFIED are written; a risky one logs a WARNING and adds a note to the
-result. The old flags (`allow_nonvolatile`, `allow_dangerous`, `allow_home_params`, `allow_unlisted`,
-`allow_unverified_code`, and `allow_unsafe` on row writes and teach) are accepted and ignored, and their CLI options
-still parse but are hidden from the help.
-
-What stays:
-
-- The never-send list of raw IAI commands (firmware update, parameter initialisation, alarm-list clear, axis number,
-  ...): `allow_never_send=True` only. IAI 0x45 / 0x48 commands outside the allow-list need `allow_unsafe=True`.
-- Range checks: a value outside the unit's range (stroke, speed, push power, load threshold) is refused.
-- Read-only, unconfirmed and not-offered parameters, the simple-data rows 256-267 and rows the table cannot address.
-- The non-volatile write guard below, and one plain OK / Cancel in the GUI before a permanent write.
-
-Never add a permission flag for a write, a read, a routine command or one model; a risky write gets a warning.
+A write to the unit needs no flag; a risky one logs a WARNING and adds a note to the result. Never add a permission
+flag for a write, a read, a routine command or one model. What stays (the never-send list, range checks, the
+non-volatile guard): [docs/dev/ARCHITECTURE.md](../docs/dev/ARCHITECTURE.md#evidence-words-and-no-model-allow-list).
 
 ### Non-volatile memory
 
-The units' non-volatile memory lasts about 100,000 write cycles (IAI). A parameter commit, a stored-row write and
-teaching write it; direct moves (`move_to`, the 0x9900 block) are RAM only (VERIFIED). Every path that writes
-non-volatile memory follows the guard of the core (`core/src/axis_nv.cpp`):
-
-- It writes nothing when the value or the row would not change, and reports `skipped`. `force=True` writes anyway.
-- It counts each write (`ax.nonvolatile_writes`, `ax.nonvolatile_writes_last_hour`)
-  and logs one WARNING per hour while more than `NV_WARN_PER_HOUR` (60) writes fall in the last hour on one axis.
-- It never refuses a write for the rate: the driver warns, the integrator decides.
-
-A new write path gets its test in `bindings/python/tests/test_nv_guard.py`.
+Every path that writes non-volatile memory goes through the core's guard (`core/src/axis_nv.cpp`) and gets a test in
+`bindings/python/tests/test_nv_guard.py`. The rules: [docs/REFERENCE.md](../docs/REFERENCE.md#safety-notes).
 
 ### Hardware tests
 
-The test suites never touch hardware. Runs on a real unit are done by hand:
-
-- Close IA-OS, and anything else that holds the COM port, first.
-- Start read-only: `iai-check --port COM3`, then `iai-actuator-driver --port COM3 status` and `limits`.
-- Start slow and short: unloaded, mid-stroke, at 20 mm/s or less, with a hand on the emergency stop. A vertical axis
-  can fall when its servo goes off.
-- Never pull a locking cable.
-- Back up the unit before any non-volatile write (`iai-actuator-driver --port COM3 backup unit1.json`, read-only) and
-  restore the original values afterwards. Keep such writes few: each one uses a write cycle.
-
-[tools/hw](../tools/hw/README.md) runs these checks: a read-only backup, short moves mid-stroke at a capped speed, then
-the unit is put back as found. Rehearse with `--sim` first.
+The test suites never touch hardware. Runs on a real unit follow the [README](../README.md#safety) (and never pull a
+locking cable) and go through [tools/hw](../tools/hw/README.md); rehearse with `--sim` first.
 
 ## Code style
 
@@ -223,14 +170,12 @@ One version for the whole repository.
    `core/CMakeLists.txt` (`project(... VERSION X.Y.Z)`, without the pre-release part) and the `<Version>` of the C#
    projects in `bindings/dotnet/src/` (NuGet form, for example `1.1.0-beta.1`).
 2. Add a `## <version> - <date>` section at the top of `CHANGELOG.md`. The release notes are taken from it.
-3. Update the version in `README.md` (the intro and the file names under Install) and the expected version in
-   `bindings/python/tests/test_packaging.py`.
+3. Update the version in the `README.md` intro and the expected version in `bindings/python/tests/test_packaging.py`.
 4. Run `python .github/release/check_version.py` (it fails on a mismatch), then the test suites.
 5. Run `python .github/release/local_release.py`. It builds the wheels and sdist, the NuGet package, the C/C++ SDK zips
    and `iai-gui.exe` for win-x64 and linux-x64, tests them on the simulator and prints the `gh release create` command
    that creates the tag `v<version>` and attaches them to the GitHub release; it never runs `gh`, pushes or tags.
-   Releases are not built by GitHub: a pushed tag starts no workflow, and `.github/workflows/release.yml` runs by hand
-   only (Actions, Release, Run workflow), a dry run that publishes nothing.
+   GitHub builds no release: a pushed tag starts no workflow.
 
 A local build of the Python packages (no native library inside: the driver then needs one named to import):
 

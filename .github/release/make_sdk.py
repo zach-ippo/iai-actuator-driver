@@ -2,7 +2,7 @@
 """Zip the C/C++ SDK of one platform: the C ABI header, the prebuilt shared library (+ import library on Windows), the
 command line, a CMake package config and the documents.
 
-    python .github/release/make_sdk.py --rid win-x64 --version 1.0.0 --native build/native/win-x64/dist --out dist
+    python .github/release/make_sdk.py --rid win-x64 --version X.Y.Z --native build/native/win-x64/dist --out dist
 
 writes dist/iai_actuator_driver-sdk-<version>-<rid>.zip, holding one folder of the same name:
 
@@ -113,7 +113,7 @@ def render(template: Path, values: dict[str, str]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Zip the C/C++ SDK of one platform.")
     parser.add_argument("--rid", required=True, choices=sorted(OS_OF))
-    parser.add_argument("--version", required=True, help="PEP 440 form, e.g. 1.0.0 or 1.1.0a1")
+    parser.add_argument("--version", required=True, help="PEP 440 form, X.Y.Z or X.Y.ZaN")
     parser.add_argument("--native", type=Path, required=True, help="the dist/ folder of build_native.py")
     parser.add_argument("--root", type=Path, default=Path("."), help="repository root")
     parser.add_argument("--out", type=Path, default=Path("dist"))

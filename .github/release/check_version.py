@@ -13,6 +13,8 @@ Sources compared (a missing file is reported and skipped; a version that differs
     core/CMakeLists.txt                   project(... VERSION X.Y.Z)    (X.Y.Z only: CMake has no pre-release)
     bindings/dotnet/Directory.Build.props <Version>, else every bindings/dotnet/src/*/*.csproj <Version>
                                           (NuGet form allowed: 0.12.0-alpha.1 equals 0.12.0a1)
+    README.md, docs/GETTING_STARTED.md    every version in a release file name, after --version and in
+                                          "Version X.Y.Z" (DOC_VERSION; a document that names none passes)
 
 Outputs (also written to $GITHUB_OUTPUT on GitHub Actions):
     version        0.12.0a1        Python wheels and sdist, file names, the GUI zip, the SDK zips
@@ -35,6 +37,11 @@ VERSION_RE = re.compile(
     r"^(\d+)\.(\d+)\.(\d+)(?:[-._]?(a|alpha|b|beta|rc|c|pre|preview)[-._]?(\d+))?$", re.IGNORECASE)
 PRE_CANON = {"a": "a", "alpha": "a", "b": "b", "beta": "b", "rc": "rc", "c": "rc", "pre": "rc", "preview": "rc"}
 NUGET_PRE = {"a": "alpha", "b": "beta", "rc": "rc"}
+# the documents that name the release, and how they name it: the asset file names, "--version X.Y.Z" (dotnet add
+# package) and "Version X.Y.Z"
+DOCS = ("README.md", "docs/GETTING_STARTED.md")
+DOC_VERSION = re.compile(r"(?:iai_actuator_driver(?:-sdk)?-|IaiActuatorDriver\.|iai-gui-|--version |\bVersion )"
+                         r"(\d+\.\d+\.\d+(?:(?:a|b|rc)\d+|-(?:alpha|beta|rc)\.\d+)?)")
 
 
 def parse(text: str) -> tuple[int, int, int, str, int] | None:
@@ -93,6 +100,14 @@ def read_sources(root: Path) -> tuple[list[tuple[str, str, bool]], list[str]]:
                 found.append((proj.relative_to(root).as_posix(), m.group(1), False))
     else:
         notes.append("bindings/dotnet: missing, skipped")
+
+    for rel in DOCS:
+        doc = root / rel
+        if not doc.is_file():
+            notes.append(f"{rel}: missing, skipped")
+            continue
+        for text in sorted(set(DOC_VERSION.findall(doc.read_text(encoding="utf-8")))):
+            found.append((rel, text, False))
     return found, notes
 
 

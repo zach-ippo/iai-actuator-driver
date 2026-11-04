@@ -4,15 +4,14 @@ How to connect a PC to an IAI unit: the adapter, the port, power and emergency s
 one port, with a checklist for the first connection. For the first run in software see
 [GETTING_STARTED.md](GETTING_STARTED.md); for the supported units see [COMPATIBILITY.md](COMPATIBILITY.md).
 
-Unofficial: not an IAI product, not supported by IAI. Evidence words: **VERIFIED** (tried on hardware with this
-driver), **ON-WIRE** (seen in observed serial traffic), **DOC** (written in a public IAI manual), **UNVERIFIED**
-(expected, not yet tried), for features and paths, never for a unit.
+Unofficial: not an IAI product, not supported by IAI. The evidence words (VERIFIED, ON-WIRE, DOC, UNVERIFIED) are
+defined in [REFERENCE.md](REFERENCE.md#evidence-levels).
 
 ## What you need
 
 | Item | Notes |
 |---|---|
-| PC | Python 3.11 or newer with pyserial (`pip install ./bindings/python ./apps/gui` installs it). Windows is the tested system, and Linux x64 in WSL 2 from 1.1.0; macOS is UNVERIFIED. A C#, C++ or C program needs no Python ([getting-started/](getting-started/)). |
+| PC | Python 3.11 or newer with the driver installed ([Install](GETTING_STARTED.md#1-install)); pyserial comes with it. Windows x64 or Linux x64 ([Linux](#linux)); macOS is UNVERIFIED. A C#, C++ or C program needs no Python ([getting-started/](getting-started/)). |
 | Unit | An ELECYLINDER, or a CON-family controller (PCON, ACON, DCON, SCON) with its actuator: every IAI unit that speaks Modbus RTU on its serial port is driven the same way. Units run so far: [COMPATIBILITY.md](COMPATIBILITY.md#run-on-hardware-so-far). |
 | Adapter | The IAI USB adapter with its cable to the unit's SIO port (the RS-485 teaching port). It is a Silicon Labs CP210x bridge, USB ID 10C4:81D7, listed by Windows as "IAI USB to UART Bridge Controller" (VERIFIED). |
 | Power | The unit's own supply: 24 V on the ELECYLINDERs tested. |
@@ -43,24 +42,21 @@ no communication watchdog, so the move goes on (see [Power and emergency stop](#
 
 ### Linux
 
-The IAI USB adapter appears as `/dev/ttyUSB0` through the kernel's `cp210x` driver (VERIFIED, from 1.1.0: the 1.0.1
-Linux files fail at the first read). The next adapter is expected as `/dev/ttyUSB1`, and so on.
-`iai-actuator-driver ports` lists it with its USB ID. Pass the device name to the commands, for example
-`iai-actuator-driver --port /dev/ttyUSB0 status`. Your user needs read and write access to the device; on Debian and
-Ubuntu that means membership of the `dialout` group (`sudo usermod -aG dialout $USER`, then log in again).
+The IAI USB adapter appears as `/dev/ttyUSB0` through the kernel's `cp210x` driver (Linux serial port: VERIFIED,
+[COMPATIBILITY.md](COMPATIBILITY.md#which-editions-were-run-on-a-unit)). The next adapter is expected as
+`/dev/ttyUSB1`, and so on. `iai-actuator-driver ports` lists it with its USB ID. Pass the device name to the commands,
+for example `iai-actuator-driver --port /dev/ttyUSB0 status`. Your user needs read and write access to the device;
+on Debian and Ubuntu that means membership of the `dialout` group (`sudo usermod -aG dialout $USER`, then log in
+again).
 
-In WSL 2 (VERIFIED with Ubuntu 24.04 and usbipd-win 5.3), pass the adapter into Linux with usbipd on Windows (the
-bind from an administrator PowerShell). While it is attached, Windows programs cannot use it:
+In WSL 2 (VERIFIED with Ubuntu 24.04 and usbipd-win 5.3), pass the adapter in with usbipd from an administrator
+PowerShell; it is then `/dev/ttyUSB0`, and Windows programs cannot use it until `usbipd detach --busid <BUSID>`:
 
 ```text
 usbipd list                          # find the adapter's BUSID (USB ID 10C4:81D7)
 usbipd bind --busid <BUSID>          # once; add --force where a USB filter such as USBPcap is installed
-usbipd attach --wsl --busid <BUSID>  # again after every replug and every WSL restart
+usbipd attach --wsl --busid <BUSID>  # again after every replug and every WSL restart; keep a WSL shell open
 ```
-
-In WSL it is then `/dev/ttyUSB0`. WSL shuts its VM down when no command runs, which drops the attach: keep a WSL
-shell open during a session. `usbipd detach --busid <BUSID>` gives the adapter back to Windows, which may name it
-with a new COM number after a `bind --force` (`usbipd unbind` undoes the bind).
 
 ## Close IA-OS and other masters
 
@@ -92,13 +88,15 @@ The driver is not a safety function. Before the first move:
   among them `EMG-INPUT`, `DRIVE-POWER-CUT` and `ENABLE-SWITCH-OFF` (DOC; their meaning on an EC is UNVERIFIED). A
   servo ON that the status shows cannot work is refused before anything is sent, with the reasons
   (`ServoBlockedError`).
-- **Clear the travel.** A home return moves to the mechanical end. Start unloaded, mid-stroke, at 20 mm/s or less.
-  The command line caps speed at 100 mm/s, acceleration at 0.3 G and push force at 70 % unless `--unit-max` is given.
-- **Vertical axes.** Servo OFF, a servo-off alarm, an emergency stop or a software reset releases position control:
-  without a brake the axis falls. The speed and acceleration limits a unit reports are horizontal, light-load values.
-  Test vertical axes unloaded and slow.
-- **Home after power-up.** Incremental units (no battery-less absolute option) must be homed after every power-up and
-  software reset.
+- **The rest** (start slow, the command line's caps, vertical axes, homing): [Safety](GETTING_STARTED.md#safety).
+
+**What a power cycle resets.**
+
+| Back at the power-up state (RAM only, VERIFIED) | Kept (non-volatile, VERIFIED) |
+|---|---|
+| Baud rate, PC control (PMSS), safety speed, the action mode, a parameter written with `param set --no-commit` | Committed parameters, stored position rows |
+
+How often the non-volatile memory may be written: [Non-volatile writes](TROUBLESHOOTING.md#non-volatile-writes).
 
 ## Baud rate
 
@@ -131,24 +129,14 @@ iai-actuator-driver --port COM3 baud 230400  # 115200 or 230400; 38400 is checke
 In Python, `ax.set_baudrate(230400)`, or `ax.enable_fast()`, which also turns on fast completion and the status
 monitor. The next connection finds the new rate by itself. To get back to 38400, power-cycle the unit.
 
-**What a power cycle resets.**
-
-| Back at the power-up state (RAM only, VERIFIED) | Kept (non-volatile, VERIFIED) |
-|---|---|
-| Baud rate, PC control (PMSS), safety speed, the action mode, a parameter written with `param set --no-commit` | Committed parameters, stored position rows |
-
-The non-volatile memory lasts about 100,000 write cycles (IAI). The driver skips a write that would not change
-anything and logs a warning above 60 writes an hour on one axis. For a target that changes every cycle, use a direct
-move (`move_to`), which is RAM only (VERIFIED).
-
 ## Several axes on one port
 
 Several units can share one port by axis number: address (slave) = axis number + 1. The scan asks addresses 1 to 16.
-The tested setup is one unit per adapter; every shared-line setup below is UNVERIFIED on hardware.
+Every shared-line setup below is UNVERIFIED on hardware.
 
 ```shell
-iai-actuator-driver scan --ports COM5             # every address 1-16 on COM5 (read-only)
-iai-actuator-driver --port COM5 --axis 2 status   # axis 2, the same as --slave 3
+iai-actuator-driver scan --ports COM3             # every address 1-16 on COM3 (read-only)
+iai-actuator-driver --port COM3 --axis 2 status   # axis 2, the same as --slave 3
 ```
 
 In Python a `Port` opens the line once and a `Cell` drives every axis on it ([DRIVER.md](DRIVER.md)). The axes of one
@@ -159,12 +147,12 @@ port take turns on it, and their moves still run at the same time.
 - Each unit needs its own axis number. The driver reads it (`identify` prints `axis no.`) but never changes it: set it
   with IAI's tools before connecting.
 - A baud change is a broadcast, so every unit on the line switches.
-- `iai-actuator-driver stop-all --ports COM5 --broadcast` sends one broadcast STOP before the per-axis STOP.
+- `iai-actuator-driver stop-all --ports COM3 --broadcast` sends one broadcast STOP before the per-axis STOP.
 
 **RCON gateway (DOC, UNVERIFIED).**
 
 - One gateway port carries up to 16 driver units at axis number + 1; the gateway itself answers at address D0h. The
-  driver finds it when the port opens (two read-only probes). `iai-actuator-driver --port COM5 line` shows the line
+  driver finds it when the port opens (two read-only probes). `iai-actuator-driver --port COM3 line` shows the line
   and its rules.
 - Set the gateway's AUTO/MANU switch to MANU: Modbus control works only in MANU (`GatewayModeError` otherwise).
 - State the units' position unit, parameter No.207 (0.01 or 0.001 mm), which cannot be read over Modbus:
@@ -185,37 +173,15 @@ port take turns on it, and their moves still run at the same time.
 
 ## First connection checklist
 
-1. The unit is powered. The emergency stop is wired, tested and released. The axis is unloaded and its travel clear.
-2. IA-OS and every other program on the port are closed. No teaching pendant or wireless session is connected.
+1. The unit is powered; the emergency stop is wired, tested and released; the axis is unloaded, its travel clear.
+2. IA-OS, every other program on the port, teaching pendants and wireless sessions are closed or disconnected.
 3. `iai-actuator-driver ports` lists the adapter with `IAI yes`.
-4. `iai-actuator-driver scan` finds the unit and prints its port, address, axis number, baud rate, family and
-   firmware. Exit code 0: found; 1: nothing answered; 2: an error, or no IAI adapter.
-5. `iai-check --port COM3` (read-only) prints PASS, FAIL, WARN or SKIP per item and writes
-   `iai-check-<timestamp>.json`. It exits 0 without a FAIL and 1 with one. Clear every FAIL before a move:
-   - `link`: no answer.
-   - `status`: emergency stop active.
-   - `alarm`: an active alarm; `iai-actuator-driver --port COM3 info --section alarms` shows how to reset it.
-   - `soft_limits`: a `--stroke` that does not overlap the unit's limits.
-6. `iai-actuator-driver --port COM3 limits` shows every range the driver will enforce, read from the unit.
-7. `iai-actuator-driver --port COM3 backup unit1.json` saves the unit before anything is written (read-only).
-8. First motion, with a hand on the emergency stop: home first if `status` shows the axis not homed. Then run
-   `iai-check --port COM3 --motion` (a move of at most 5 mm, and at most a quarter of the stroke, at 10 mm/s and back;
-   the servo and control state are restored afterwards) or the slow move in [GETTING_STARTED.md](GETTING_STARTED.md).
-9. If the model is not in [COMPATIBILITY.md](COMPATIBILITY.md), send the result with the `iai-check` report
-   ([how](COMPATIBILITY.md#sending-a-report)).
+4. `iai-actuator-driver scan` finds the unit.
+5. `iai-check --port COM3` shows no FAIL ([Check your unit](GETTING_STARTED.md#5-check-your-unit)).
+6. `iai-actuator-driver --port COM3 limits` shows the ranges the driver will enforce.
+7. `iai-actuator-driver --port COM3 backup unit1.json` saves the unit (read-only).
+8. Home if `status` shows the axis not homed, then `iai-check --port COM3 --motion` (at most 5 mm and a quarter of the
+   stroke, at 10 mm/s and back) or the [first move](GETTING_STARTED.md#6-first-move), a hand on the emergency stop.
+9. A model not in [COMPATIBILITY.md](COMPATIBILITY.md): send the report ([how](COMPATIBILITY.md#sending-a-report)).
 
-## Common problems
-
-| What you see | What to check |
-|---|---|
-| "access denied" when the port opens | Another program holds the port: close IA-OS, iai-gui, terminal programs. |
-| "does not exist or the USB adapter is unplugged" | `iai-actuator-driver ports`; the adapter and the port name. |
-| No answer at any rate (`ModbusTimeout`) | The unit's supply, the cable, the address (axis number + 1), another master. Controllers with IAI's SEL protocol (XSEL, SSEL, ASEL, PSEL, MSEL, TTA) never answer Modbus; an ELECYLINDER on an RCON-EC / REC is silent. |
-| The unit was set to 14400, 28800 or 76800 | Not probed: `--baud RATE`, or power-cycle back to 38400. |
-| `GatewayModeError` | The RCON gateway is in AUTO: set MANU. |
-| `PositionUnitError` | RCON: give `--position-unit 0.01` or `0.001`. |
-| `UnsupportedLineError` | ROBONET in gateway mode: set SW2 ON and use `--line robonet`. |
-| `ServoBlockedError` | Its reasons name the EMG input, a drive power cut or a released enable switch. |
-| Moves refused because the stroke is unknown | A unit without a readable register directory: state `--stroke MIN MAX`. |
-
-`--log-frames` prints every Modbus frame to stderr. More cases: [COMPATIBILITY.md](COMPATIBILITY.md#possible-trouble).
+Symptoms and messages: [TROUBLESHOOTING.md](TROUBLESHOOTING.md). `--log-frames` prints every Modbus frame to stderr.

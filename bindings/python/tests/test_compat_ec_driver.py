@@ -1,7 +1,4 @@
-"""The deprecated ``ec_driver`` import name gives the same module objects as ``iai_actuator_driver``.
-
-rename-project: keep-file
-"""
+"""The deprecated ``ec_driver`` import name gives the same module objects as ``iai_actuator_driver``."""
 
 from __future__ import annotations
 

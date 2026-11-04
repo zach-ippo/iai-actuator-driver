@@ -2,13 +2,12 @@
 """Build, test and collect the win-x64 and linux-x64 deliverables of a release on this PC, without GitHub Actions.
 
     python .github/release/local_release.py                  (the version of bindings/python; output: see --out)
-    python .github/release/local_release.py --out D:\\release\\1.0.0
+    python .github/release/local_release.py --out D:\\release\\X.Y.Z
     python .github/release/local_release.py --resume          (after a failed step: continue the run of this commit)
     python .github/release/local_release.py --only wheel,nuget     (run these steps again, and those after them)
     python .github/release/local_release.py --targets win-x64      (Windows only: no WSL needed)
 
-It does what .github/workflows/release.yml does for win-x64 and linux-x64, with the same scripts of this folder, and
-stops at the first failure:
+It does what .github/workflows/release.yml does, with the same scripts of this folder, and stops at the first failure:
 
     export        the committed tree (git archive HEAD) into <out>/work/src: everything below builds from it, so
                   nothing untracked or left over from earlier builds reaches a package. The working tree must be clean.
@@ -17,74 +16,62 @@ stops at the first failure:
                   and the C smoke test, which run
     library       check_package.py binary: target, exports, no C++ runtime of its own
     sdk           make_sdk.py: the C/C++ SDK zip; sdk-smoke: unpacks it and builds and runs the C smoke test and the
-                  frozen C program of ABI 1.0 (core/abi/1.0, built with its own 1.0 header) against it with CMake
-                  (find_package), the compiler being zig cc (release.yml uses MSVC on its runner)
-    linux-native  build_native.py --target linux-x64 (zig cross-compiles on this PC: libiai_actuator_driver.so, the
-                  command line, the C++ tests and the C smoke test), then ec_tests, c_smoke and the command line run in
-                  WSL
+                  frozen C program of ABI 1.0 (core/abi/1.0, with its own 1.0 header) against it with CMake
+                  (find_package), the compiler being zig cc (release.yml uses MSVC)
+    linux-native  build_native.py --target linux-x64 (zig cross-compiles here: x86_64-linux-gnu.2.17), then ec_tests,
+                  c_smoke and the command line run in WSL
     linux-library check_package.py binary: ELF x86-64, exports, no C++ runtime of its own, glibc 2.17 at most, timed
                   waits on the monotonic clock (pthread_cond_timedwait only with pthread_condattr_setclock)
-    linux-sdk     make_sdk.py for linux-x64; linux-sdk-smoke: unpacked in WSL, the C smoke test and the frozen ABI 1.0
-                  program built against it with CMake (find_package, gcc as on release.yml's ubuntu runner), and the
-                  C smoke test with the compile line of its README
+    linux-sdk     make_sdk.py for linux-x64; linux-sdk-smoke: in WSL, the C smoke test and the frozen ABI 1.0 program
+                  built against it with CMake (find_package, gcc), and the C smoke test with the compile line of its
+                  README
     sdist         the sdist (source, needs the native library: none inside), checked, installed in a new environment;
                   without a library its import is refused, and with the DLL its command line runs on the simulator
     wheel         the py3-none-win_amd64 wheel with the DLL inside, checked, installed in a new environment, the whole
-                  Python suite run against it with the source package moved out of the way (tests/run_backend.py, the
-                  runner of tools/test.py: see the load-sensitive tests below)
-    linux-wheel   in WSL: the py3-none-manylinux_2_17_x86_64 wheel with the .so inside, checked, auditwheel show, installed
-                  in a new venv, the whole Python suite run against it with the source package moved out of the way
-                  (tests/run_backend.py too)
+                  Python suite run against it with the source package moved out of the way (tests/run_backend.py)
+    linux-wheel   the same in WSL for the py3-none-manylinux_2_17_x86_64 wheel with the .so inside, plus auditwheel show
     nuget         the C# tests against the DLL, then the NuGet package IaiActuatorDriver with runtimes/win-x64/native
-                  and runtimes/linux-x64/native (the arm64 runtime is not built here), checked
+                  and runtimes/linux-x64/native, checked
     nuget-smoke   new net8.0 and net48 programs reference the package from a local feed and load the packaged library
     linux-nuget-smoke  in WSL: a new net8.0 program does the same with the package's linux-x64 library
-    gui           what the gui job of release.yml does: a new environment with the win-x64 wheel just built and the pinned
-                  PyInstaller, PyInstaller with apps/gui/iai-gui.spec, a check that the bundle carries
-                  iai_actuator_driver.dll, iai-gui.exe --version, a short --sim-only --no-browser run on a free port that
-                  answers HTTP 200 and is stopped (POST /api/quit), then iai-gui-<version>-win-x64.zip (make_gui_zip.py:
-                  iai-gui.exe, README.txt and the licence files) in <out>/work/dist/gui. The exe embeds the Python its
-                  environment is made from: --gui-python, else --python, else the one that runs this script, not
-                  release.yml's PYTHON_VERSION (3.12): the summary says which. The GUI tests of release.yml's gui job
-                  run only with --gui-tests (about 6 minutes; tools/unittest_jobs.py, the runner of tools/test.py; a
-                  few of them are timing-sensitive and fail on a busy PC). Skipped with a note when this is not Windows
-                  or apps/gui/iai-gui.spec does not exist (release.yml skips the job then too)
-    collect       collect_release.py: the assets and SHA256SUMS.txt in <out>/release, the notes (the CHANGELOG.md
-                  section of the version and an asset table) in <out>/release-notes.md
+    gui           the gui job of release.yml: a new environment with the win-x64 wheel just built and the pinned
+                  PyInstaller, apps/gui/iai-gui.spec, a check that the bundle carries iai_actuator_driver.dll,
+                  iai-gui.exe --version, a short --sim-only --no-browser run on a free port that answers HTTP 200 and is
+                  stopped (POST /api/quit), then iai-gui-<version>-win-x64.zip (make_gui_zip.py) in <out>/work/dist/gui.
+                  The exe embeds the Python its environment is made from (--gui-python, else --python, else the one that
+                  runs this script; the summary says which). The GUI tests run only with --gui-tests (about 6 minutes;
+                  a few are timing-sensitive). Skipped with a note when this is not Windows or there is no spec
+    collect       collect_release.py: the assets in <out>/release, the notes (the CHANGELOG.md section of the version
+                  and an asset table) in <out>/release-notes.md
 
 Then it prints the gh release create command that would publish them. It never runs gh, never pushes and never tags.
 No step opens a serial port: every test runs on the simulator.
 
-The Python and GUI suites run through the runners tools/test.py uses, so they honour tools/load_sensitive.txt as it
-does: a listed test (throughput or real-time latency is its subject) runs after the others, alone, and once more when it
-failed; its second outcome counts, and the summary names a test that passed only on that retry (tools/test.py reads the
-runners' output). release.yml runs them with python -m unittest discover, without that retry.
+The Python and GUI suites run through the runners of tools/test.py and honour tools/load_sensitive.txt as it does: a
+listed test runs after the others, alone, and once more when it failed; the summary names a test that passed only on
+that retry.
 
---targets win-x64,linux-x64 chooses what is built (default: both when WSL is available, else win-x64 and a note says
-why). The steps of a target that is not chosen are left out. The linux-x64 library is cross-built with zig on Windows
-(x86_64-linux-gnu.2.17, as release.yml does on its ubuntu runner); everything that has to run on Linux runs inside a WSL
-distro, through the Linux test kit (--wsl-kit, default C:\\AI\\linux-vm): its run.ps1 copies the folder
-<out>/work/iai-release-linux into ~/work/ of the distro and runs .github/release/local_release_wsl.sh there. The
+--targets chooses what is built (default: both when WSL and the Linux test kit are available, else win-x64 and a note
+says why). The linux-x64 steps that must run on Linux run in a WSL 2 distro through the kit (see --wsl-kit); the
 distro needs python3 with venv, gcc, cmake, rsync and the .NET 8 SDK, and network access for pip and NuGet packages.
 
-Output (--out, default C:\\AI\\_builds\\release-local\\<version>; an existing folder of an earlier run is replaced):
-    release/            the files to attach: wheels, sdist, nupkg, SDK zips, SHA256SUMS.txt
+Output (--out, default build/release-local/<version> in the repository; an existing folder of an earlier run is
+replaced):
+    release/            the files to attach: wheels, sdist, nupkg, SDK zips, the GUI zip
     release-notes.md    the release notes
     logs/               one log per command; summary.txt, gh-release-create.txt
     work/               the exported tree, build folders and environments (can be deleted after the release)
 
 A step that passed is recorded in <out>/state.json with the commit and the targets. --resume skips the recorded steps, so
-a failure late in the run (some tests are timing-sensitive and can fail on a busy PC: C++ coordinated-motion and
-sequence tests, C# monitor and parallel-move tests) costs only the failed step and those after it. Running a step again
-drops the record of the steps after it. The command is printed only when every step has passed for the commit.
-A commit made after the failure may change .github/release/ (the fix of the script that failed) and nothing else: --resume,
---only and --skip then go on with the steps that passed, refresh work/src/.github/release from the new commit, and the
-summary says which commit those steps were built at. Any other change since the recorded commit needs a clean run.
+a failure late in the run (some C++, C# and timing-sensitive tests can fail on a busy PC) costs only the failed step and
+those after it. Running a step again drops the record of the steps after it. A commit made after the failure may change
+.github/release/ only (the fix of the script that failed): --resume, --only and --skip then refresh
+work/src/.github/release and the summary says which commit the earlier steps were built at. The command is printed only
+when every step has passed for the commit.
 
-Not built here: the Linux arm64 library, wheel, SDK and NuGet runtime (release.yml builds them). The notes say which
-platforms the release has and, if the gui step was skipped, that the GUI is not in it.
+The notes say so when the release has one platform only and, if the gui step was skipped, that the GUI is not in it.
 Needs: Windows x64, Python 3.11 or later, git, the .NET 8 SDK (and .NET Framework 4.8 for the net48 smoke), and network
-access for pip and NuGet packages; for linux-x64 also WSL 2 with the distro and kit above.
+access for pip and NuGet packages; for linux-x64 also WSL 2 with the distro and the kit.
 """
 
 from __future__ import annotations
@@ -131,8 +118,8 @@ LINUX_WHEEL_PLATFORM = "manylinux_2_17_x86_64.manylinux2014_x86_64"  # release.y
 LINUX_LIB = "libiai_actuator_driver.so"
 LINUX_CLI = "iai-actuator-driver-cpp"
 TARGET_NAMES = [RID, LINUX_RID]
-DEFAULT_OUT_ROOT = Path(r"C:\AI\_builds\release-local")
-DEFAULT_WSL_KIT = Path(r"C:\AI\linux-vm")  # run.ps1 of the Linux test kit
+DEFAULT_OUT_ROOT = REPO / "build" / "release-local"  # build/ is ignored by git
+WSL_KIT_ENV = "IAD_LINUX_VM"  # the Linux test kit when --wsl-kit is not given
 DEFAULT_WSL_DISTRO = "Ubuntu-24.04"
 WSL_SCRIPT = ".github/release/local_release_wsl.sh"
 STAGE_NAME = "iai-release-linux"  # the folder run.ps1 copies into the distro (~/work/<this name>)
@@ -158,13 +145,11 @@ GUI_STOP_SECS = 30
 # what the child programs must not inherit: they would point a test at another library or another backend
 DROP_ENV = {"IAI_ACTUATOR_DRIVER_NATIVE", "IAI_DRIVER_BACKEND", "PYTHONPATH", "PYTHONHOME", "VIRTUAL_ENV",
             "IAD_WHEEL_PLATFORM", "IAD_BUILD_DIR"}
-# the note of the release notes: which platforms this release has (release.yml builds all of them)
+# the note of the release notes when it has one platform only
 PLATFORM_NOTES = {
-    (RID,): ("Windows x64 only: this release has no Linux x64 or Linux arm64 wheel, SDK or NuGet runtime. "
+    (RID,): ("Windows x64 only: this release has no Linux x64 wheel, SDK or NuGet runtime. "
              "The NuGet package carries `runtimes/win-x64/native` only."),
-    (RID, LINUX_RID): ("Windows x64 and Linux x64 only: this release has no Linux arm64 wheel, SDK or NuGet runtime. "
-                       "The NuGet package carries `runtimes/win-x64/native` and `runtimes/linux-x64/native` only."),
-    (LINUX_RID,): ("Linux x64 only: this release has no Windows x64 or Linux arm64 wheel, SDK or NuGet runtime. "
+    (LINUX_RID,): ("Linux x64 only: this release has no Windows x64 wheel, SDK or NuGet runtime. "
                    "The NuGet package carries `runtimes/linux-x64/native` only."),
 }
 
@@ -175,8 +160,7 @@ class Failure(Exception):
 
 @dataclass(frozen=True)
 class Wsl:
-    """The WSL distro and the Linux test kit the linux-x64 steps use. The kit's run.ps1 copies a folder into the distro
-    (~/work/<folder name>) and runs a script there; the script's exit code is run.ps1's."""
+    """The WSL distro and the Linux test kit (see --wsl-kit) the linux-x64 steps use."""
     kit: Path
     distro: str
 
@@ -392,11 +376,13 @@ def last(text: str, pattern: str, flags: int = 0) -> re.Match | None:
 
 # ------------------------------------------------------------------------------------------------------------------ WSL
 
-def find_wsl(kit: Path, distro: str) -> tuple[Wsl | None, str]:
+def find_wsl(kit: Path | None, distro: str) -> tuple[Wsl | None, str]:
     """The distro and kit when the linux-x64 steps can use them; otherwise None and the reason."""
     wsl_exe = shutil.which("wsl.exe")
     if not wsl_exe:
         return None, "wsl.exe is not installed (WSL 2 is not set up on this PC)"
+    if kit is None:
+        return None, f"no Linux test kit given (--wsl-kit or {WSL_KIT_ENV})"
     if not shutil.which("powershell.exe"):
         return None, "powershell.exe was not found (the kit's run.ps1 needs Windows PowerShell)"
     if not (kit / "run.ps1").is_file():
@@ -427,7 +413,7 @@ def wsl_path(ctx: Ctx, path: Path) -> str:
 
 
 def linux_stage(ctx: Ctx, inputs: dict[str, Path], consumer: bool = False) -> Path:
-    """The folder run.ps1 copies into the distro (~/work/iai-release-linux): src/ (the exported tree), in/ (the files this
+    """The folder the kit copies into the distro: src/ (the exported tree), in/ (the files this
     step takes from the steps before it, by the names given), consumer/ (the NuGet smoke program) and release.env (the
     values local_release_wsl.sh reads). Everything but src/ is made again for every step."""
     stage = ctx.work / STAGE_NAME
@@ -463,8 +449,8 @@ def linux_stage(ctx: Ctx, inputs: dict[str, Path], consumer: bool = False) -> Pa
 
 
 def run_wsl(ctx: Ctx, label: str, step: str, timeout: int = 1800) -> str:
-    """Run one step of local_release_wsl.sh in the distro, through the kit's run.ps1 (which copies the staged folder
-    into ~/work/iai-release-linux first). Returns the output; the kit's own log of the run is named in it."""
+    """Run one step of local_release_wsl.sh in the distro through the kit. Returns the output; the kit's own log of the
+    run is named in it."""
     assert ctx.wsl is not None
     cmd = ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(ctx.wsl.run_ps1), "-Project",
            str(ctx.work / STAGE_NAME), "-Profile", str(ctx.src / WSL_SCRIPT), "-ProfileArgs", step, "-Distro",
@@ -489,16 +475,17 @@ def release_yml_pin(name: str) -> str:
 
 def choose_targets(args: argparse.Namespace) -> tuple[list[str], Wsl | None, list[str]]:
     """The targets to build, the WSL distro and kit when linux-x64 is one of them, and what the summary says about the
-    choice. Without --targets: both when WSL is available, else win-x64 and the reason."""
-    kit, distro = Path(args.wsl_kit).resolve(), args.wsl_distro  # absolute: run_wsl starts powershell.exe in <out>/work
+    choice. Without --targets: both when WSL and the kit are available, else win-x64 and the reason."""
+    # absolute: run_wsl starts powershell.exe in <out>/work
+    kit, distro = (Path(args.wsl_kit).resolve() if args.wsl_kit else None), args.wsl_distro
     if args.targets is not None:
         targets = [t for t in TARGET_NAMES if t in args.targets.split(",")]
         if not targets:
             raise Failure(f"--targets {args.targets!r} names no target; targets: {', '.join(TARGET_NAMES)}")
         wsl, why = find_wsl(kit, distro) if LINUX_RID in targets else (None, "")
         if LINUX_RID in targets and not wsl:
-            raise Failure(f"--targets {args.targets} needs WSL for {LINUX_RID}, but {why}. Set WSL up (the kit's "
-                          f"README.md), or build Windows only with --targets {RID}.")
+            raise Failure(f"--targets {args.targets} needs WSL for {LINUX_RID}, but {why}. Set WSL and the kit up "
+                          f"(--wsl-kit), or build Windows only with --targets {RID}.")
         return targets, wsl, []
     wsl, why = find_wsl(kit, distro)
     if wsl:
@@ -541,8 +528,9 @@ def preflight(args: argparse.Namespace) -> Ctx:
         if not gui_python:
             raise Failure(f"--gui-python {args.gui_python}: no such program (a path to python.exe)")
     root = Path(args.out).resolve() if args.out else (DEFAULT_OUT_ROOT / version)
-    if root == REPO or REPO in root.parents or root in REPO.parents:
-        raise Failure(f"--out {root} must not be inside or above the repository")
+    ignored = REPO / "build"  # inside the repository, only build/ (ignored by git) may hold the output
+    if root == REPO or root in REPO.parents or (REPO in root.parents and ignored not in root.parents):
+        raise Failure(f"--out {root} must not be above the repository, or inside it outside build/")
     tools = Path(args.tools).resolve() if args.tools else root.parent / "_tools"
 
     targets, wsl, notes = choose_targets(args)
@@ -935,8 +923,8 @@ def step_nuget(ctx: Ctx) -> str:
 
     dist = ctx.work / "dist" / "nuget"
     rmtree(dist)
-    # the package carries the libraries of the chosen targets (work/native/<rid>); the Linux arm64 one is not built
-    # here, so it is packed without IadRequireNative (release.yml: true)
+    # the package carries the libraries of the chosen targets (work/native/<rid>): packed without IadRequireNative,
+    # check_package.py --rids checks that each of them is in it
     run(ctx, "dotnet-pack", ["dotnet", "pack", "bindings/dotnet/src/IaiActuatorDriver/IaiActuatorDriver.csproj",
                              "--configuration", "Release", "--output", str(dist), f"-p:Version={ctx.nuget_version}",
                              f"-p:IadNativeDir={(ctx.work / 'native').as_posix()}/", "-p:IadRequireNative=false"],
@@ -1240,10 +1228,12 @@ def step_collect(ctx: Ctx) -> str:
     release = ctx.out / "release"
     rmtree(release)
     notes = ctx.out / "release-notes.md"
-    count = str(len(ctx.targets))  # a wheel and an SDK per target (collect_release.py expects three of each)
+    count = str(len(ctx.targets))  # a wheel and an SDK per target (collect_release.py expects two of each)
     cmd = [ctx.tools_python, ".github/release/collect_release.py", "--artifacts", str(artifacts), "--out",
            str(release), "--version", ctx.version, "--tag", ctx.tag, "--minimum", f"Python wheels={count}", "--minimum",
-           f"C/C++ SDK={count}", "--note", PLATFORM_NOTES[tuple(ctx.targets)]]
+           f"C/C++ SDK={count}"]
+    if tuple(ctx.targets) in PLATFORM_NOTES:
+        cmd += ["--note", PLATFORM_NOTES[tuple(ctx.targets)]]
     if not gui_zips:
         # the notes say it is not in this release
         cmd += ["--optional", "GUI"]
@@ -1325,7 +1315,7 @@ def finish(ctx: Ctx) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build, test and collect the win-x64 and linux-x64 release on this PC.")
-    parser.add_argument("--out", help=f"output folder (default: {DEFAULT_OUT_ROOT}\\<version>)")
+    parser.add_argument("--out", help="output folder (default: build/release-local/<version> in the repository)")
     parser.add_argument("--tools", help="the tools environment (default: _tools next to the output folder)")
     parser.add_argument("--python", help="the Python the tools and test environments are made from (default: this one)")
     parser.add_argument("--gui-tests", action="store_true",
@@ -1338,10 +1328,12 @@ def main(argv: list[str] | None = None) -> int:
                              "again (the step that failed, and those after it, run). A commit that differs from the "
                              f"recorded one in {RELEASE_SCRIPTS} only is accepted too")
     parser.add_argument("--targets", help=f"the platforms to build, comma separated ({', '.join(TARGET_NAMES)}; default: "
-                                          f"both when WSL is available, else {RID} and a note says why)")
-    parser.add_argument("--wsl-kit", default=os.environ.get("IAD_LINUX_VM") or str(DEFAULT_WSL_KIT),
-                        help="the Linux test kit whose run.ps1 runs the linux-x64 checks in WSL (default: "
-                             f"%%IAD_LINUX_VM%% or {DEFAULT_WSL_KIT})")
+                                          f"both when WSL and the kit are available, else {RID} and a note says why)")
+    parser.add_argument("--wsl-kit", default=os.environ.get(WSL_KIT_ENV) or None,
+                        help=f"the Linux test kit of the linux-x64 steps (default: %%{WSL_KIT_ENV}%%; without either, "
+                             "only win-x64 is built): a folder with a run.ps1 that takes -Project <folder> -Profile "
+                             "<script> -ProfileArgs <step> -Distro <name>, copies <folder> to ~/work/<folder name> in "
+                             "that WSL distro, runs <script> <step> there and exits with the script's exit code")
     parser.add_argument("--wsl-distro", default=DEFAULT_WSL_DISTRO, help=f"the WSL distro (default: {DEFAULT_WSL_DISTRO})")
     parser.add_argument("--only", help=f"run only these steps, comma separated ({', '.join(STEPS)})")
     parser.add_argument("--skip", help="skip these steps, comma separated")
@@ -1359,8 +1351,7 @@ def main(argv: list[str] | None = None) -> int:
         unknown = [s for s in named if s not in TARGET_NAMES]
         if unknown or not named:  # "" and "," name no target at all
             what = f"unknown target {unknown}" if unknown else f"--targets {args.targets!r} names no target"
-            parser.error(f"{what}; targets: {', '.join(TARGET_NAMES)} "
-                         "(the Linux arm64 library is built by release.yml only)")
+            parser.error(f"{what}; targets: {', '.join(TARGET_NAMES)}")
     try:
         sys.stdout.reconfigure(errors="replace", line_buffering=True)
         sys.stderr.reconfigure(errors="replace")

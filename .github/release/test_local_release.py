@@ -96,6 +96,14 @@ class WslKit(unittest.TestCase):
             with self.assertRaises(local_release.Failure):
                 self.choose(wsl_kit="no-such-kit", targets=local_release.LINUX_RID)
 
+    def test_no_kit_given_builds_windows_only(self) -> None:
+        """There is no default kit: without --wsl-kit or IAD_LINUX_VM only win-x64 is built, and the note says why."""
+        found, wsl, notes = self.choose(wsl_kit=None)
+        self.assertEqual((found, wsl), ([local_release.RID], None))
+        self.assertIn("--wsl-kit", notes[0])
+        with self.assertRaises(local_release.Failure):
+            self.choose(wsl_kit=None, targets=local_release.LINUX_RID)
+
 
 class Targets(unittest.TestCase):
     def test_a_list_without_a_target_is_refused(self) -> None:
@@ -615,8 +623,8 @@ class DefaultTargets(unittest.TestCase):
 
 
 class CiPathFilters(unittest.TestCase):
-    """.github/workflows/ci.yml: the Python package runs on the core only (the pure-Python edition was removed after
-    1.0.x), so there is no pure-Python job or area, and every job that imports the package gets a native library."""
+    """.github/workflows/ci.yml: its path filters, and every job that imports the Python package gets a native
+    library."""
 
     PACKAGE = "bindings/python/iai_actuator_driver/"
 
@@ -642,12 +650,6 @@ class CiPathFilters(unittest.TestCase):
         used = set(re.findall(r"needs\.changes\.outputs\.(\w+)", self.text))
         self.assertLessEqual(used, declared)
         self.assertEqual(declared, set(self.areas))
-
-    def test_no_pure_python_job_or_area(self) -> None:
-        self.assertNotIn("pure", self.areas)
-        self.assertNotIn("python", self.ci["jobs"])  # the job of the pure-Python suite
-        self.assertNotIn("--backend python", self.text)
-        self.assertNotIn("_pure", self.text)
 
     def test_every_job_that_imports_the_package_gets_a_library(self) -> None:
         jobs = self.ci["jobs"]
@@ -706,7 +708,7 @@ class CiPathFilters(unittest.TestCase):
 
 class WorkflowTriggers(unittest.TestCase):
     """Nothing starts on GitHub by itself on a push or a tag: ci.yml runs on a pull request or by hand, release.yml by hand
-    only (its release job replaces the assets of a published release). Releases are built with local_release.py."""
+    only, and it publishes nothing. Releases are built with local_release.py."""
 
     def workflow(self, name: str) -> dict:
         try:
@@ -733,11 +735,13 @@ class WorkflowTriggers(unittest.TestCase):
     def test_release_runs_by_hand_only(self) -> None:
         self.assertEqual(self.triggers("release.yml"), {"workflow_dispatch"})
 
-    def test_a_manual_release_run_publishes_nothing(self) -> None:
-        """Only a tag push reaches the release job; a manual run of a tag does not."""
-        condition = self.workflow("release.yml")["jobs"]["release"]["if"]
-        self.assertIn("github.event_name == 'push'", condition)
-        self.assertIn("github.ref_type == 'tag'", condition)
+    def test_a_release_run_publishes_nothing(self) -> None:
+        """Read-only everywhere: no job asks for more permissions, and no step runs gh release."""
+        workflow = self.workflow("release.yml")
+        self.assertEqual(workflow["permissions"], {"contents": "read"})
+        for name, job in workflow["jobs"].items():
+            self.assertNotIn("permissions", job, name)
+        self.assertNotIn("gh release", (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8"))
 
     def test_ci_runs_on_a_pull_request_or_by_hand(self) -> None:
         self.assertEqual(self.triggers("ci.yml"), {"pull_request", "workflow_dispatch"})
@@ -1102,8 +1106,8 @@ def fake_elf(imports: tuple[str, ...], exports: tuple[str, ...] = ("iad_version"
 class MonotonicWaits(unittest.TestCase):
     """The Linux library's timed waits run on the monotonic clock. Built against glibc 2.17 (manylinux2014), libc++ has
     no pthread_cond_clockwait: std::condition_variable waits with a timeout on an absolute CLOCK_REALTIME deadline
-    (pthread_cond_timedwait), which a backward step of the system clock stretches (1.0.0: a coordinated stream stopped
-    with LateFrame in WSL). check_package.py's gate refuses a library that imports pthread_cond_timedwait without
+    (pthread_cond_timedwait), which a backward step of the system clock stretches (a coordinated stream stopped with
+    LateFrame in WSL). check_package.py's gate refuses a library that imports pthread_cond_timedwait without
     pthread_condattr_setclock or pthread_cond_clockwait; the core waits on its own condition variable
     (core/src/monotonic_cv.hpp), never on std::condition_variable or another timed wait of the standard library."""
 
@@ -1120,7 +1124,7 @@ class MonotonicWaits(unittest.TestCase):
         self.assertEqual(sorted(info["exports"]), ["iad_open", "iad_version"])
 
     def test_the_gate_refuses_a_wall_clock_timed_wait(self) -> None:
-        # the 1.0.0 library: libc++ (glibc 2.17) waits on pthread_cond_timedwait and nothing sets the clock
+        # libc++ on glibc 2.17: it waits on pthread_cond_timedwait and nothing sets the clock
         errors = self.clock_check(("pthread_cond_wait", "pthread_cond_timedwait", "pthread_cond_broadcast"))
         self.assertEqual(len(errors), 1)
         self.assertIn("timed waits on the monotonic clock", errors[0])

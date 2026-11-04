@@ -7,9 +7,8 @@ controls engineer asks are at the end, under [Questions](#questions).
 Unofficial: not an IAI product ([README](../README.md)). The driver is not a safety function: keep the hardware
 emergency stop within reach while you troubleshoot, and test with the axis unloaded and slow.
 
-Evidence words: **VERIFIED** (tried on hardware), **ON-WIRE** (seen in serial traffic), **DOC** (public IAI manual),
-**UNVERIFIED** (expected, not yet tried). They describe features and paths, never a unit: every unit is driven the
-same way.
+The evidence words (VERIFIED, ON-WIRE, DOC, UNVERIFIED) are defined in [REFERENCE.md](REFERENCE.md#evidence-levels).
+They describe features and paths, never a unit: every unit is driven the same way.
 
 ## How errors look
 
@@ -59,12 +58,12 @@ iai-actuator-driver --port COM3 --log-frames status    # the same status, with e
 
 ## Native library
 
-The C++ core is a shared library (`iai_actuator_driver.dll`, `libiai_actuator_driver.so`). Every language needs it,
-the Python package too. Nothing here touches the unit.
+The C++ core is a shared library (`iai_actuator_driver.dll`, `libiai_actuator_driver.so`) that every language loads.
+Nothing here touches the unit.
 
 | Symptom | Likely cause | What to do |
 |---|---|---|
-| `ImportError: iai_actuator_driver needs its native library, which is not usable: ...` | The library was not found (the message lists where it looked) or has another ABI version. A plain `pip install` of the folder copies only the Python files. | Install a platform wheel, set `IAI_ACTUATOR_DRIVER_NATIVE` to the library file, or build it (`python build.py shared` in `core/`). |
+| `ImportError: iai_actuator_driver needs its native library, which is not usable: ...` | The library was not found (the message lists where it looked) or has another ABI version. A plain `pip install` of the folder copies only the Python files. | Install a platform wheel, set `IAI_ACTUATOR_DRIVER_NATIVE` to the library file, or build it ([how](../core/README.md#build)). |
 | `NativeLibraryError: cannot load the native library ...` (32-bit / 64-bit) | The library is for another CPU or bitness. | Use the library for this platform (`win-x64`, `linux-x64`, `linux-arm64`). Windows has x64 only. |
 | C#: `DllNotFoundException` naming the runtime identifier | The library is not next to the application, or under `runtimes/<rid>/native/` in the package. | Copy or build it. `IAI_ACTUATOR_DRIVER_NATIVE` names one file to load. |
 | C#: `NotSupportedException` at the first call; C: `iad_abi_version()` differs from the header | Library and binding or header come from different releases. The ABI major must match (1) and the library's minor be at least the caller's (`IAD_ABI_COMPATIBLE`). | Use the library, header and binding of one release. |
@@ -75,22 +74,21 @@ the Python package too. Nothing here touches the unit.
 
 | Symptom | Likely cause | What to do |
 |---|---|---|
-| `is not recognized` when you type `iai-actuator-driver`, `iai-check` or `iai-gui` | Not installed, or pip's Scripts folder is not on the PATH. | `pip install ./bindings/python ./apps/gui` in the project folder. Or use `python -m iai_actuator_driver ...` (`... --port COM3 check` for `iai-check`) and, from a checkout, `python apps/gui/server.py`. |
+| `is not recognized` when you type `iai-actuator-driver`, `iai-check` or `iai-gui` | Not installed, or pip's Scripts folder is not on the PATH. | Install the wheel ([Install](GETTING_STARTED.md#1-install)); from a checkout `pip install ./bindings/python ./apps/gui`. Or use `python -m iai_actuator_driver ...` (`... --port COM3 check` for `iai-check`) and, from a checkout, `python apps/gui/server.py`. |
 | `error: one of the arguments --port --sim is required` | The command needs a port. | Add `--port COM3` before the command. `ports`, `scan` and `stop-all` need none. |
 | `error: unrecognized arguments: --baud 9600` (also `--axis`, `--unit-max`, `--line` ...) | Connection options came after the command. | Put them before it: `iai-actuator-driver --port COM3 --axis 2 status`. |
 | `could not open port 'COM3'` with the note `COM3 is in use by another program ...`; Windows adds `Access is denied` | Only one program can own a serial port. | Close IA-OS or disconnect it from the port. Stop the other `iai-actuator-driver` or `iai-gui`, and close terminal programs. A port connected in `iai-gui` stays busy until you disconnect it there. |
-| `could not open port 'COM7'` with the note `COM7 does not exist or the USB adapter is unplugged` | Wrong port name, or the adapter is unplugged. | `iai-actuator-driver ports` lists the ports. The IAI adapter shows as "IAI USB to UART Bridge Controller" (USB ID 10C4:81D7, VERIFIED) and is listed first. |
-| `ports` prints `no serial port found` | No adapter plugged in, or pyserial is missing. | Plug the adapter in. `pip install ./bindings/python ./apps/gui` installs pyserial. |
-| `no IAI USB adapter found; name the ports with --ports COM3,COM4`, or `no IAI USB adapter found (list_ports)` from `Cell.open()` | Ports are picked automatically only by the IAI adapter's USB ID, or a maker name that starts with "IAI". | Name the port: `scan --ports COM5`, `Cell.open(["COM5"])`. Other RS-485 adapters are UNVERIFIED. |
+| `could not open port 'COM4'` with the note `COM4 does not exist or the USB adapter is unplugged` | Wrong port name, or the adapter is unplugged. | `iai-actuator-driver ports` lists the ports. The IAI adapter shows as "IAI USB to UART Bridge Controller" (USB ID 10C4:81D7, VERIFIED) and is listed first. |
+| `ports` prints `no serial port found` | No adapter plugged in, or pyserial is missing. | Plug the adapter in. Reinstall the wheel, which brings pyserial ([Install](GETTING_STARTED.md#1-install)). |
+| `no IAI USB adapter found; name the ports with --ports COM3,COM4`, or `no IAI USB adapter found (list_ports)` from `Cell.open()` | Ports are picked automatically only by the IAI adapter's USB ID, or a maker name that starts with "IAI". | Name the port: `scan --ports COM4`, `Cell.open(["COM4"])`. Other RS-485 adapters are UNVERIFIED. |
 | `PMSL was written but DSSE.PMSS is still 0; the EC may be in Monitor mode (set Teach mode)` | IA-OS left the unit in Monitor mode, where it takes no moves from another program (VERIFIED). A teaching pendant or a wireless session is expected to do the same (UNVERIFIED). With `The unit's mode switch is in AUTO`, the PIO has control. | Set Teach mode in IA-OS before you disconnect it, or power-cycle the unit: the mode is gone after a power cycle (VERIFIED). Disconnect pendants and wireless sessions. Set a mode switch to MANU. |
-| `EcNotReadyError: the axis is moving: switching Modbus control (PMSL) on now would stop the move` | A PLC or another program is moving the axis. Switching PC control on mid-move stops the move (VERIFIED), so the driver takes it only at rest. The same message comes while a pause (DSS1 STP) is held with the servo on, even with the axis standing still: a PLC holding a stop input on a move. | Wait until the axis stands still, or stop the move from the PLC. For a held pause, release the stop input from the PLC: waiting does not clear it. A pause with the servo off at a standstill (a PCON with nothing on its PIO connector) is no refusal from 1.0.1 on. Reading works meanwhile. |
+| `EcNotReadyError: the axis is moving: switching Modbus control (PMSL) on now would stop the move` | A PLC or another program is moving the axis. Switching PC control on mid-move stops the move (VERIFIED), so the driver takes it only at rest. The same message comes while a pause (DSS1 STP) is held with the servo on, even with the axis standing still: a PLC holding a stop input on a move. | Wait until the axis stands still, or stop the move from the PLC. For a held pause, release the stop input from the PLC: waiting does not clear it. A pause with the servo off at a standstill (a PCON with nothing on its PIO connector) is not refused. Reading works meanwhile. |
 | The PLC's PIO commands are ignored after your PC program ended | PC control (PMSS = 1) stays on after the port is closed, and the unit then ignores its PIO inputs. | Hand control back before you close: `ax.disable_modbus_control()` or `iai-actuator-driver --port COM3 mode pio`. A power cycle also does it (PMSS is 0 after every power-up, VERIFIED). |
 
 ## Baud rate
 
-Every tested unit answered at 38400 baud after power-up (VERIFIED). Without `--baud`, the driver finds the rate on the
-open port, trying 115200, 38400, 9600, 230400, 57600 and 19200, and the command line prints
-`note: COM3 at 38400 baud (auto-detected)`. `--baud N` (`baudrate=N`) skips the search.
+Without `--baud` the driver finds the rate on the open port ([how](HARDWARE_SETUP.md#baud-rate)) and the command line
+prints `note: COM3 at 38400 baud (auto-detected)`. `--baud N` (`baudrate=N`) skips the search.
 
 | Symptom | Likely cause | What to do |
 |---|---|---|
@@ -146,7 +144,7 @@ completed and a push keeps pushing. Only the hardware emergency stop stops the a
 | `EcAlarmError: alarm 0x0c1 is active; call reset_alarm()`; flag `ALARM` | An alarm switched the servo off and blocks motion. | See [Alarms](#alarms). |
 | `servo did not turn on within 3.0 s: the mode switch is in AUTO ...`, or `... Modbus control is off (DSSE PMSS = 0) ...` | The PIO has control: a mode switch in AUTO, IA-OS's Monitor mode, or a PLC. | Set the switch to MANU or close IA-OS, then retry. The driver takes PC control at rest. |
 | `servo did not turn on within ... s: the excitation detection of a first servo ON is still running ...`, or `(the status shows no known cause)`; flag `EXCITATION-RUNNING` | A CON controller runs an excitation detection at the first servo ON after power-up (DOC PCON p.4-24). The driver waits as long as parameters No.29 / No.30 give (about 13 s when unreadable). | Read `status` and repeat `servo on`. If it never comes on, send the `iai-check` report. |
-| `servo did not turn on within 3 s: DSSE b12 reads 0 with Modbus control already on (PMSS = 1): the unit ignores servo ON until the PMSL coil goes OFF ...` (1.1.0 and earlier: `servo did not turn on within 3 s (the status shows no known cause)`) on a PCON in PC mode, no alarm, DSSE bit 12 at 0 (for example 0x23C2 where the unit read 0x33C2 before) | A 0x45 cmd 0x0C action-mode command with op1 = 1 (PC) cleared DSSE bit 12, and the unit takes no servo ON until a PMSL coil OFF (VERIFIED on the PCON-CB, 2026-11-02). The 1.0.0 `set_action_mode(True, ...)` sent it, and another program can too. From 1.0.1 on `set_action_mode(True)` and `mode pc` take PC control with the PMSL coil instead. | At rest, with nothing on the PIO connector that would act: `ax.disable_modbus_control()`, then `ax.enable_modbus_control()` (PMSL OFF, then ON), then `servo on` (VERIFIED on the PCON-CB). PMSL OFF hands control to the PIO for that moment. |
+| `servo did not turn on within 3 s: DSSE b12 reads 0 with Modbus control already on (PMSS = 1): the unit ignores servo ON until the PMSL coil goes OFF ...` (1.1.1 and earlier: `servo did not turn on within 3 s (the status shows no known cause)`) on a PCON in PC mode, no alarm, DSSE bit 12 at 0 (for example 0x23C2 where the unit read 0x33C2 before) | A 0x45 cmd 0x0C action-mode command with op1 = 1 (PC) cleared DSSE bit 12, and the unit takes no servo ON until a PMSL coil OFF (VERIFIED on the PCON-CB, 2026-11-02). Another program can send it; the driver's `set_action_mode(True)` and `mode pc` take PC control with the PMSL coil instead. | At rest, with nothing on the PIO connector that would act: `ax.disable_modbus_control()`, then `ax.enable_modbus_control()` (PMSL OFF, then ON), then `servo on` (VERIFIED on the PCON-CB). PMSL OFF hands control to the PIO for that moment. |
 | `the servo did not come back on after the automatic servo OFF ...`; flag `AUTO-SERVO-OFF` | The unit switched its servo off after a standstill. The driver switches it back on before the next move (UNVERIFIED on hardware). | Read the reasons, then `servo on` and retry. |
 | `EcNotReadyError: servo turned off during motion` | An alarm, the emergency-stop input or a drive power cut. | `status` shows which. |
 | `EcNotReadyError: servo is off; call servo(True)` | A move or home was sent with the servo off. | `servo on` first. |
@@ -278,14 +276,14 @@ gateway rule are DOC and UNVERIFIED on hardware. The address is the axis number 
 
 | Symptom | Likely cause | What to do |
 |---|---|---|
-| `scan` finds fewer axes than are wired | Two units share an axis number, or an axis is outside the scanned addresses (default 1 to 16). | Give each unit its own axis number, or scan wider: `scan --ports COM5 --slaves 1-32`. |
-| Alarm 0x05E "Delimiter error" on every unit after a wide scan (an older driver) | A request to slave 58 (0x3A = ':') starts like a Modbus ASCII frame (ON-WIRE on a PCON-CB). | Reset the alarm. The driver now skips 58 in scans and refuses it; no IAI unit can use address 58. |
+| `scan` finds fewer axes than are wired | Two units share an axis number, or an axis is outside the scanned addresses (default 1 to 16). | Give each unit its own axis number, or scan wider: `scan --ports COM3 --slaves 1-32`. |
+| Alarm 0x05E "Delimiter error" on every unit after a wide scan (1.1.0) | A request to slave 58 (0x3A = ':') starts like a Modbus ASCII frame (ON-WIRE on a PCON-CB). | Reset the alarm. The driver skips 58 in scans and refuses it; no IAI unit can use address 58. |
 | Commands reach the wrong axis | `--slave` is the address, `--axis` the axis number: `--axis 2` is `--slave 3`. | Use one consistently; `scan` lists `axis N` per address. |
 | A `Cell` opens without one of its ports; log `port COM4 skipped: ...` | With `slaves="scan"`, a port that fails or has no answer is skipped and kept in `cell.port_errors`. | Read `cell.port_errors`. List the slaves (`slaves={"COM4": [1]}`) to make it raise instead. |
 | `CellError: move_all (check; nothing started) failed on 1 axis/axes: ...` | A group move is checked on every axis before any starts. | Fix that axis's target. `.errors` and `.results` are keyed by axis name; `return_exceptions=True` returns per-axis results. When one axis fails during `move_all`, `home_all` or `wait_all`, the others are stopped. |
-| `coordinated move stopped (axis x: LateFrame: the frame of step 28 would reach the wire 702 ms late (limit 98 ms) ...)` | A frame would have left the PC more than one step late: a busy or sleeping PC, or other traffic on the port (another axis's status monitor). On Linux with 1.0.0 also a backward step of the system clock during the run (an NTP step, a VM's time sync, as in WSL). The message ends with how far the system clock moved against the steady clock over that step: about 0 ms when the PC or the line was late; about as large as the lateness when a step of the system clock delayed the frame (negative for a backward step: `-700 ms` against `702 ms late`; positive for a forward jump, for example after a suspend). | Keep the PC free and the ports quiet during the run, or allow longer steps (a lower speed, `min_step_s=`). On Linux use 1.0.1 or later: its waits run on the monotonic clock. |
-| `COM5:2 is not at rest: baud change refused (nothing sent)` | A baud change switches every unit on the line. | Bring every axis of the port to rest first. |
-| Log `COM5: slaves [3] did not answer at 115200 baud after the broadcast` | One unit did not follow; several units switching at once is UNVERIFIED. | Power-cycle that unit (back at 38400) and connect again. |
+| `coordinated move stopped (axis x: LateFrame: the frame of step 28 would reach the wire 702 ms late (limit 98 ms) ...)` | A frame would have left the PC more than one step late: a busy or sleeping PC, or other traffic on the port (another axis's status monitor). The message ends with how far the system clock moved against the steady clock over that step: about 0 ms when the PC or the line was late, about as large as the lateness when the system clock stepped (negative backward, positive forward). | Keep the PC free and the ports quiet during the run, or allow longer steps (a lower speed, `min_step_s=`). See [REFERENCE.md](REFERENCE.md#limits-of-pc-side-coordination). |
+| `COM3:2 is not at rest: baud change refused (nothing sent)` | A baud change switches every unit on the line. | Bring every axis of the port to rest first. |
+| Log `COM3: slaves [3] did not answer at 115200 baud after the broadcast` | One unit did not follow; several units switching at once is UNVERIFIED. | Power-cycle that unit (back at 38400) and connect again. |
 | `GatewayModeError: the RCON gateway is in AUTO mode ...` | The RCON gateway accepts Modbus control in MANU mode only (DOC ME0413 p.6-1). | Set its AUTO/MANU switch to MANU. |
 | `RCON line without an answering gateway (D0h) ...`, or `the RCON gateway (0xD0) did not answer its status read` | The gateway's own status address does not answer. | Check the gateway's power and wiring. |
 | `PositionUnitError: slave 1: RCON driver units may count positions in 0.01 mm or 0.001 mm ...`; `line` prints `NOT STATED` | No.207 cannot be read over Modbus. | State it: `--position-unit 0.01` or `0.001` (`position_unit_mm=`, `Port.set_position_unit()`). |
@@ -331,7 +329,7 @@ speed, the baud rate, servo, alarm reset and every read. Back a unit up before a
 
 | Symptom | Likely cause | What to do |
 |---|---|---|
-| `NonVolatileWriteError: rows 256-267 are the EC's internal simple-data store and are never written; nothing written`, or `... position N not written` | The row is the EC's internal store, or the table cannot address it. Stored-row writes and teach need no opt-in otherwise. | Write a row of the unit's table (`max_positions()`). |
+| `NonVolatileWriteError: rows 256-267 are the EC's internal simple-data store and are never written; nothing written`, or `... position N not written` | The row is the EC's internal store, or the table cannot address it. | Write a row of the unit's table (`max_positions()`). |
 | Log WARNING `position N: ... written anyway` (also in the C++ result's `warnings`, `iad_axis_last_result_json` and `NativeAxis.last_result()`) | The row was written although the unit does not run it (past its rows, unused in this position mode, a push on the middle row) or the control flags hold unknown or changed role bits. | Nothing if you meant it; otherwise write the row again from `read_position_table(N)`. |
 | `teach` refused: `row 0 stored speed 108.5 mm/s is above this axis's max_speed_mm_s 100 mm/s ...` | Teaching keeps the row's speed and acceleration, which must fit the caps when the row changes. | Add `--unit-max` before the command: `iai-actuator-driver --port COM3 --unit-max teach 0`. |
 | `unchanged: nothing written (one non-volatile write cycle saved); --force writes it anyway`; `result.skipped` | The unit already holds that value. | Nothing. Use `--force` (`force=True`) only after another program changed the value in RAM: the driver compares with the unit's RAM. |
@@ -344,10 +342,8 @@ speed, the baud rate, servo, alarm reset and every read. Back a unit up before a
 
 ## Sending a report
 
-`iai-check --port COM3` (read-only) writes `iai-check-<timestamp>.json` with the model, firmware, limits and every raw
-value read. Open an issue on [GitHub Issues](https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose)
-and attach it with the `--log-frames` output of the failing command and, if you are willing to share it, a backup
-(`backup unit1.json`). See [COMPATIBILITY.md](COMPATIBILITY.md#sending-a-report).
+Attach the `iai-check --port COM3` report, the `--log-frames` output of the failing command and, if you are willing to
+share it, a backup (`backup unit1.json`) to an issue: [how](COMPATIBILITY.md#sending-a-report).
 
 ## Questions
 
@@ -389,111 +385,27 @@ final position matters. Windows is not a real-time system: measure the cycle on 
 ### How many axes can one PC drive?
 
 A `Cell` takes every axis it finds, on any number of COM ports run in parallel: there is no total limit, and
-`max_axes` caps the cell if you give it. One axis per COM port, each on its own IAI USB adapter, is the VERIFIED layout
-and runs fastest. Several axes can share a port by axis number (SIO daisy chain or RCON gateway): one cable carries at
-most 16 axes (axis numbers 0..15, addresses 1..16), and the scan asks addresses 1..16 per port by default. Axes on one
-cable take turns, and this is UNVERIFIED on hardware. `Cell.open()` finds every IAI
-adapter and answering address by itself.
+`max_axes` caps the cell if you give it. `Cell.open()` finds every IAI adapter and answering address by itself. One
+axis per COM port, each on its own IAI USB adapter, runs fastest. Several axes can share a port by axis number: one
+cable carries at most 16 axes (axis numbers 0..15, addresses 1..16), and they take turns on it
+([Several axes on one port](HARDWARE_SETUP.md#several-axes-on-one-port)).
 
-### Which units work?
+### Also asked
 
-Every IAI unit that speaks Modbus RTU on its serial port, driven the same way, with no driver update for a new model.
-
-| | |
-|---|---|
-| Supported | every ELECYLINDER type (24 V and 200 V), CON-family controllers (PCON-CB, ACON-CB, DCON-CB, SCON-CB), RCON driver units behind the RCON gateway, ROBONET in SIO through mode |
-| Run on hardware so far | EC-DS4H slider, EC-GRBP8M gripper, EC-R6S rod, EC-S6HH slider, PCON-CB with an RCP6 (a record, not a list of allowed units) |
-| Not supported | SEL-protocol controllers (XSEL, SSEL, ASEL, PSEL, MSEL, TTA), an ELECYLINDER on an RCON-EC / REC connection unit, ROBONET in gateway mode |
-
-Every range is read from the unit, so the driver keeps no model list. Results from other units are welcome: run
-`iai-check` and send the result ([how](COMPATIBILITY.md#sending-a-report)). Details:
-[COMPATIBILITY.md](COMPATIBILITY.md).
-
-### Is the driver a safety function?
-
-No. Keep a hardware emergency stop and guarding as for any machine. `stop` is a decelerate-stop sent over Modbus, not
-an emergency stop. The limit checks keep wrong numbers away from the unit; they do not make the machine safe. A
-vertical axis without a brake falls when its servo goes off. Test every new setup unloaded, mid-stroke and at 20 mm/s
-or less.
-
-### Can IA-OS stay open while I use the driver?
-
-Not on the same port: only one program can own a COM port. Close IA-OS, or disconnect it from the port, first.
-Afterwards the unit may run at 115200 baud (the driver finds the rate) or have safety speed on (`mode pc` switches it
-off). It may also be in IA-OS's Monitor mode, where it takes no moves from another program (VERIFIED): set Teach mode
-in IA-OS before you disconnect it, or power-cycle the unit.
-
-### What happens when the unit loses power?
-
-A move cut off by the power loss is not resumed. At the next power-up the unit is at 38400 baud, PC control and safety
-speed are off, its uptime counter restarts and its alarm history gets a 0x0FFF power-up record. An incremental unit
-has lost its home, and a PCON-CB raises the message alarm 0x069 (all VERIFIED). Stored rows and committed parameters
-are kept; parameter values written without a commit are lost (VERIFIED).
-
-The link watch reports `unit_restarted`. `ax.recover()` or `iai-actuator-driver --port COM3 recover` re-syncs the
-axis without moving it (VERIFIED on the EC-GRBP8M gripper after a power cycle, and on the PCON-CB after a line break).
-Home again when the report says `needs_home`.
-
-### What happens when the PC, the program or the cable fails?
-
-The unit has no communication watchdog (VERIFIED): it completes the move in progress, and a push keeps pushing. Design
-the machine so that this is safe, and use the hardware emergency stop. When the link comes back, `recover()` reports
-what changed, including a move still running; it neither stops nor resumes a move. In a `Cell`, a link fault on one
-axis stops the other axes by default (`stop_on_fault=True`).
-
-### Does writing positions or parameters wear the unit out?
-
-The non-volatile memory lasts about 100,000 write cycles (IAI; the CB-series CON manuals state no limit, DOC
-ME0342-4H p.2-11). Parameter commits, stored-row writes and teaching each use a cycle. Direct moves (`move_to`) are RAM
-only (VERIFIED) and cost nothing, so a target that changes every cycle belongs in `move_to`.
-
-The driver skips writes that would not change the value, counts writes per axis (`ax.nonvolatile_writes`) and logs
-one WARNING per hour while more than 60 fall in the last hour on one axis. At 60 writes an hour, 100,000 cycles last
-about 69 days. A write is never refused for the rate.
-
-### Do I have to home after every power-up?
-
-On an incremental unit (no `WA` option, such as the EC-R6S rod): yes, and after every software reset (VERIFIED).
-Absolute units (`WA`) keep their home, except after a change of home direction or offset: the unit then raises alarm
-0x0EE, and an alarm reset plus a home return clears it (VERIFIED on the EC-GRBP8M gripper). `status().homed` tells
-you; a move on an axis that is not homed is refused.
-
-### Do I need to set anything on the unit first?
-
-Not for one unit per port. Every tested unit answered at address 1 (axis number 0) and 38400 baud after power-up, and
-the driver takes PC control by itself at rest. Close IA-OS, connect the IAI USB adapter to the unit's SIO / teaching
-port and run `iai-actuator-driver scan`. Several units on one line each need their own axis number. Other RS-485
-adapters are UNVERIFIED: name their port yourself (`--port`, `Cell.open(["COM5"])`).
-
-### Can I try everything without hardware?
-
-Yes: `iai-actuator-driver --sim ...`, `Axis.open(SimulatedEC())` or `Cell.open(sim_ports(3))` in Python, and
-`iai-gui --sim-only`, which opens no serial port. The simulator answers Modbus RTU byte for byte with values copied
-from the units run so far. Passing against it shows that your code agrees with what was seen on hardware.
-
-### Does the Python package run on the C++ core?
-
-Yes, always: a platform wheel carries its library, and without one the import raises `ImportError`.
-
-### Does it run on Linux?
-
-Yes, from 1.1.0. The core is built for Linux x64 and arm64 too. Its serial port code is VERIFIED on a real port: a
-PCON-CB through the IAI USB adapter (`cp210x`, `/dev/ttyUSB0`) in WSL 2 with usbipd, with a build of the 1.1.0 fix
-(2026-11-03). The 1.0.1 Linux files fail at the first read after a request ("the port vanished (unplugged?)"): use
-1.1.0. Linux on arm64 and macOS serial ports are UNVERIFIED. Name the port as Linux shows it, such as `/dev/ttyUSB0`;
-[HARDWARE_SETUP.md](HARDWARE_SETUP.md#linux) has the setup.
-
-### Is there a C#, C++ or C version?
-
-Yes, in this repository under one version. The driver is implemented once in C++ (`core/`) behind a C ABI
-(`iai_actuator_driver.dll`, `libiai_actuator_driver.so`). C# uses it through the .NET library in `bindings/dotnet/`
-(with the `iai-actuator-driver-cs` command line), C++ programs link the core, and C or LabVIEW call the ABI directly.
-Each language has a guide in [getting-started/](getting-started/);
-[DRIVER.md](DRIVER.md#names-in-the-other-editions) lists the same calls in each language. These documents describe
-the Python package: VERIFIED here means tried on hardware with it. Which editions ran on which unit is in
-[COMPATIBILITY.md](COMPATIBILITY.md).
-
-### Is the driver supported by IAI?
-
-No. It is unofficial and not an IAI product ([README](../README.md)). When something does not work, look it up on
-this page, then send the `iai-check` report to GitHub Issues ([Sending a report](#sending-a-report)).
+- Which units work? Every IAI unit that speaks Modbus RTU on its serial port: [COMPATIBILITY.md](COMPATIBILITY.md).
+- Is the driver a safety function? No: [Safety](GETTING_STARTED.md#safety). The limit checks keep wrong numbers away
+  from the unit; they do not make the machine safe.
+- Can IA-OS stay open? Not on the same port: [Close IA-OS](HARDWARE_SETUP.md#close-ia-os-and-other-masters).
+- What happens when the unit loses power? [Power loss](#power-loss-and-a-pulled-cable) and
+  [what a power cycle resets](HARDWARE_SETUP.md#power-and-emergency-stop).
+- What happens when the PC, the program or the cable fails? [Power loss](#power-loss-and-a-pulled-cable).
+- Does writing positions or parameters wear the unit out? [Non-volatile writes](#non-volatile-writes).
+- Do I have to home after every power-up? On an incremental unit, yes: [Homing](#homing).
+- Do I need to set anything on the unit first? Not for one unit per port: [HARDWARE_SETUP.md](HARDWARE_SETUP.md).
+- Can I try everything without hardware? Yes, on the simulator:
+  [Getting started](GETTING_STARTED.md#4-try-the-gui-without-hardware) and [the language guides](getting-started/).
+- Does it run on Linux? Linux x64, yes; macOS is UNVERIFIED: [Linux](HARDWARE_SETUP.md#linux).
+- Is there a C#, C++ or C version? Yes, one core behind a C ABI: [getting-started/](getting-started/) and
+  [names per language](DRIVER.md#names-in-the-other-editions).
+- Is the driver supported by IAI? No, it is unofficial ([README](../README.md)): look the problem up on this page, then
+  [send a report](#sending-a-report).

@@ -1,14 +1,12 @@
-# IAI Actuator Driver C++ edition: design
+# IAI Actuator Driver C++ core: design
 
 How the C++17 core is laid out and the conventions it follows. The core is the one implementation of the driver;
 Python and C# are thin bindings over its C ABI (`include/iai_actuator_driver.h`,
 [docs/dev/NATIVE_ABI.md](../docs/dev/NATIVE_ABI.md)). Unofficial: not an IAI product.
 
-The Python package (`bindings/python/iai_actuator_driver/`) is the specification: the core does what its tests
-require, with the matching tests ported as C++ tests against the C++ simulator. Behaviour the core ports is "VERIFIED
-in the Python edition" where the Python documentation says so; the core's own command line was run on two real units
-([README.md](README.md#status)); everything else is UNVERIFIED. Evidence words as in the other editions: VERIFIED,
-ON-WIRE, DOC, UNVERIFIED.
+The Python package's tests are the conformance specification: the core does what they require, and the matching C++
+tests run against the C++ simulator. Hardware evidence (VERIFIED, ON-WIRE, DOC, UNVERIFIED) is in
+[README.md](README.md#status) and [docs/COMPATIBILITY.md](../docs/COMPATIBILITY.md).
 
 ## Scope
 
@@ -20,17 +18,17 @@ ON-WIRE, DOC, UNVERIFIED.
   guards, software reset, set_baud_rate), the non-volatile write guard, Cell (every axis found, ports in parallel, stop
   on fault), the simulator (slider / gripper / rod / pcon / rotary / unknown + SimLine) and the
   `iai-actuator-driver-cpp` CLI.
-- **The areas below**, ported with the Python edition as the specification: the same checks before any frame, the
-  same completion rules, messages and evidence words.
+- **The areas below**, with the same checks before any frame, the same completion rules, messages and evidence words
+  as the rest.
 
-| Area | Headers | Sources | Python |
-|---|---|---|---|
-| Motion extras: push, command-profile moves (FC17 0x0F00 + PCRF), acceleration patterns, change_speed / change_accel, move_sequence | `motion.hpp` (+ `axis.hpp`) | `axis_motion_extras.cpp`, `sim_profile.cpp` | ec.py |
-| Fast path: Completion, AxisMonitor, MoveHandle, enable_fast, suspend_bus | `monitor.hpp`, `move_handle.hpp` | `monitor.cpp`, `move_handle.cpp`, `axis_fast.cpp` | monitor.py, ec.py |
-| Power / link-loss recovery: track, check_link, LinkMonitor, recover, Cell recover_all; simulator power / unplug faults | `recovery.hpp` | `recovery.cpp`, `sim_faults.cpp` | recovery.py, cell.py |
-| Unit info, backup, the compatibility check | `info.hpp`, `check.hpp` | `info.cpp`, `check.cpp` | info.py, check.py |
-| Gateway lines: rules and request guard, RCON / ROBONET gateways, line detection, simulated gateways | `line.hpp`, `gateway.hpp`, `sim_gateway.hpp` | `line.cpp`, `gateway.cpp`, `model_gateway.cpp`, `sim_gateway.cpp` | gateway.py, sim_line.py |
-| Command line: info, monitor (--watch), line, backup, check, recover, push, move --decel / --accel-pattern / --fast / --change-speed, stop-all | `cli/cli.hpp` | `cli/cli_extra.cpp`, `cli/cli_commands.cpp` | cli.py |
+| Area | Headers | Sources |
+|---|---|---|
+| Motion extras: push, command-profile moves (FC17 0x0F00 + PCRF), acceleration patterns, change_speed / change_accel, move_sequence | `motion.hpp` (+ `axis.hpp`) | `axis_motion_extras.cpp`, `sim_profile.cpp` |
+| Fast path: Completion, AxisMonitor, MoveHandle, enable_fast, suspend_bus | `monitor.hpp`, `move_handle.hpp` | `monitor.cpp`, `move_handle.cpp`, `axis_fast.cpp` |
+| Power / link-loss recovery: track, check_link, LinkMonitor, recover, Cell recover_all; simulator power / unplug faults | `recovery.hpp` | `recovery.cpp`, `sim_faults.cpp` |
+| Unit info, backup, the compatibility check | `info.hpp`, `check.hpp` | `info.cpp`, `check.cpp` |
+| Gateway lines: rules and request guard, RCON / ROBONET gateways, line detection, simulated gateways | `line.hpp`, `gateway.hpp`, `sim_gateway.hpp` | `line.cpp`, `gateway.cpp`, `model_gateway.cpp`, `sim_gateway.cpp` |
+| Command line: info, monitor (--watch), line, backup, check, recover, push, move --decel / --accel-pattern / --fast / --change-speed, stop-all | `cli/cli.hpp` | `cli/cli_extra.cpp`, `cli/cli_commands.cpp` |
 
 Two process-wide hooks connect the areas without link cycles:
 
@@ -39,8 +37,8 @@ Two process-wide hooks connect the areas without link cycles:
   periodic 22-word link check.
 - The Axis reports deliberate changes (target, PC control, homing, software reset) through `recovery::hooks`.
 
-Where this edition is shaped differently from the Python one is listed in the
-[README](README.md#differences-from-the-python-edition).
+Where the C++ API differs from the Python package is listed in the
+[README](README.md#differences-from-the-python-package).
 
 ## Layout
 
@@ -72,7 +70,7 @@ tests alone: `python build.py test --unit bus|model|sim`. The model layer never 
 - **Names.** Namespace `iai_actuator_driver` (register constants in `iai_actuator_driver::reg`). Types `PascalCase`,
   functions `snake_case`, constants `kName`. LF line endings. No third-party dependencies.
 - **Units.** Positions in mm (deg on a rotary axis), speeds in units/s, accelerations in G, times in seconds
-  (`double`). Field names keep the editions' `_mm`, `_mm_s`, `_g`, `_s` suffixes.
+  (`double`). Field names keep the bindings' `_mm`, `_mm_s`, `_g`, `_s` suffixes.
 - **Ownership.** Transports and buses are `std::shared_ptr` (a test keeps its `SimulatedUnit` while the bus uses it).
   `Axis`, `Cell`, `ModbusRtu`, `Port`, `SerialTransport`, `SimulatedUnit` and `SimLine` hide their state behind a
   pimpl. `Axis` and `Cell` are movable, not copyable; a Cell hands out `Axis&`.
@@ -86,43 +84,8 @@ tests alone: `python build.py test --unit bus|model|sim`. The model layer never 
   The simulator is thread-safe. Cell runs one thread per port per group command.
 - **Retries.** 3 on every bus (IAI's recommendation, DOC ME0162-12A p.4-2). Never retried: exception responses, IAI
   rejections, TransportError.
-
-## Non-volatile write guard
-
-The units' non-volatile memory lasts about 100,000 write cycles (IAI). Before a parameter commit, a position-table
-write or a teach, the Axis compares with what the unit holds.
-
-- Equal: nothing is written or committed, the result has `skipped = true` and the note "unchanged: nothing written
-  (one non-volatile write cycle saved)".
-- A parameter commit still runs when this axis has uncommitted RAM writes from `commit = false` calls (then only PARW
-  is sent). `force = true` writes anyway.
-- Each Axis counts `nonvolatile_writes()` and keeps a one-hour window: above 60 writes per hour it logs one warning
-  per hour pointing to `move_to` (direct moves are RAM only). It never refuses a write because of the rate.
-
-Constants and texts: `results.hpp`.
-
-## Python -> C++ names
-
-| Python | C++ |
-|---|---|
-| `ModbusRTU`, `SerialTransport`, `scan`, `Port`, `Cell` | `ModbusRtu`, `SerialTransport`, `scan_port` / `Port::scan_units`, `Port`, `Cell` |
-| `Elecylinder` / `Axis.open(port, baudrate=...)` | `Axis::open(port, OpenOptions{...})` |
-| `ax.move_to(mm, speed_mm_s=20)` | `ax.move_to(mm, 20.0)` or `ax.move_to(mm, MoveOptions{...})` |
-| `wait=False` -> `MoveHandle` | `start_move_to(...)` -> `MoveHandle` (or `options.wait = false` -> `std::nullopt`, then `wait_idle()`) |
-| `ec.push(mm, band, pct, direction)` | `ax.push(mm, band, pct, PushOptions{...})` -> `std::optional<PushResult>` |
-| `ec.start_monitor(on_change=...)` | `ax.start_monitor(MonitorOptions{...})` -> `std::shared_ptr<AxisMonitor>` |
-| `recovery.track(ec)`, `ec.recover()` | `recovery::track(ax)`, `recovery::recover_axis(ax)` |
-| `ec.unit_info()`, `info.backup(ec, path)`, `check.run_check(ec)` | `info::unit_info(ax)`, `info::backup(ax, rows, path)`, `run_check(ax)` |
-| `Port(..., line="rcon", position_unit_mm=0.01)` | `PortOptions{..., LineOptions{"rcon", 0.01}}`, `OpenOptions::line` |
-| `ec.status().to_dict()` | `to_json(ax.status()).dump()` |
-| `write_parameter(key, value, commit=..., force=...)` | `write_parameter(key, ParamValue::parse(text), ParameterWriteOptions{...})` |
-| `write_position_table(n, entry)` | `write_position_table(n, entry, NvWriteOptions{})` -> `PositionWriteResult` |
-| `SimulatedEC(profile=...)`, `sim_ports(3)` | `SimulatedUnit(SimProfile::Gripper)`, `SimLine::sim_ports(3)` |
-
-## Build
-
-`python build.py test` builds the library, the tests and the CLI into `build/` and runs every test (simulator only; no
-test opens a serial port). `python build.py check` syntax-checks every header. Customers: `cmake -S . -B build`.
+- **Non-volatile writes.** One guard (`src/axis_nv.cpp`) before every parameter commit, row write and teach;
+  constants and texts in `results.hpp`, the rules in the [README](README.md#non-volatile-memory).
 
 ## Implementation units
 

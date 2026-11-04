@@ -18,14 +18,14 @@ and C++ libraries, a command line and a local web GUI share one C++ core. Versio
 ## Install
 
 Download the files from the [releases](https://github.com/zach-ippo/iai-actuator-driver/releases) page (Windows x64,
-Linux x64):
+Linux x64; `<version>` is the release number):
 
 | You use | File | Then |
 |---|---|---|
-| Python 3.11+ | `iai_actuator_driver-1.1.1-py3-none-win_amd64.whl` or the `manylinux` wheel | `pip install <file>` |
-| C# / .NET | `IaiActuatorDriver.1.1.1.nupkg` | `dotnet add package IaiActuatorDriver --version 1.1.1 --source <folder>` |
-| C, LabVIEW, any C FFI | `iai_actuator_driver-sdk-1.1.1-win-x64.zip` or `-linux-x64.zip` | Unzip; see its `README.txt` |
-| The GUI (Windows) | `iai-gui-1.1.1-win-x64.zip` | Unzip and run `iai-gui.exe` |
+| Python 3.11+ | `iai_actuator_driver-<version>-py3-none-win_amd64.whl` or the `manylinux` wheel | `pip install <file>` |
+| C# / .NET | `IaiActuatorDriver.<version>.nupkg` | `dotnet add package IaiActuatorDriver --version <version> --source <folder>` |
+| C, LabVIEW, any C FFI | `iai_actuator_driver-sdk-<version>-win-x64.zip` or `-linux-x64.zip` | Unzip; see its `README.txt` |
+| The GUI (Windows) | `iai-gui-<version>-win-x64.zip` | Unzip and run `iai-gui.exe` |
 
 ## Quick start
 

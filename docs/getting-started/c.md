@@ -12,9 +12,11 @@ The header documents each function. The model (handles, errors, threads, JSON, v
 
 | Source | Files |
 |---|---|
-| A release (the C/C++ SDK zip) | the header, the library and (Windows) its import library, all from the same commit |
-| Windows, zig (`pip install ziglang`, then `python build.py shared` in `core/`) | `core/build/iai_actuator_driver.dll` and the import library `core/build/iai_actuator_driver.lib` (COFF: MSVC's and MinGW's linkers take it) |
-| CMake (`cmake -S core -B core/build -DIAI_ACTUATOR_DRIVER_BUILD_SHARED=ON`, `cmake --build core/build`) | target `iai_actuator_driver_shared`: `libiai_actuator_driver.so` on Linux; on MSVC `iai_actuator_driver.dll` with the import library `iai_actuator_driver_imp.lib` |
+| A release (the C/C++ SDK zip) | the header, the library and (Windows) its import library, all of the same release |
+| Windows, zig (`python build.py shared` in `core/`) | `core/build/iai_actuator_driver.dll` and the import library `core/build/iai_actuator_driver.lib` (COFF: MSVC's and MinGW's linkers take it) |
+| CMake with `-DIAI_ACTUATOR_DRIVER_BUILD_SHARED=ON` | target `iai_actuator_driver_shared`: `libiai_actuator_driver.so` on Linux; on MSVC `iai_actuator_driver.dll` with the import library `iai_actuator_driver_imp.lib` |
+
+The build commands: [core/README.md](../../core/README.md#build).
 
 - The zig build links libc++ statically, so the DLL imports only Windows' own DLLs. Nothing to install on Windows
   10 / 11; Windows 7 / 8.1 need the Universal CRT update KB2999226.
@@ -87,13 +89,8 @@ int main(void) {
 }
 ```
 
-| Profile | Simulates |
-|---|---|
-| `"slider"` (NULL) | the EC-DS4H slider |
-| `"gripper"` | the EC-GRBP8M gripper |
-| `"rod"` | the EC-R6S rod |
-| `"pcon"` | the PCON-CB with an RCP6 |
-| `"rotary"`, `"unknown"` | made-up units for the generic paths |
+Profiles: `"slider"` (also NULL), `"gripper"`, `"rod"`, `"pcon"`, `"rotary"`, `"unknown"`
+([what each simulates](python.md#a-simulated-axis)).
 
 On hardware, open the port instead: `iad_axis_open("COM3", NULL, NULL, &ax)` (`"/dev/ttyUSB0"` on Linux). The baud
 rate is found in place. Close IA-OS first: only one program can use a serial port.
@@ -101,30 +98,27 @@ rate is found in place. Close IA-OS first: only one program can use a serial por
 Several axes: `iad_cell_open("COM3,COM4", NULL, NULL, &cell)` or
 `iad_cell_open_sim("slider,gripper", 1, &sim, NULL, NULL, &cell)`, then `iad_cell_servo_all`, `iad_cell_home_all`,
 `iad_cell_move_all`, `iad_cell_stop_all`. A cell takes every axis it finds (no total limit; `max_axes` in
-`iad_cell_options` caps it if given, 0 = no limit). One cable carries at most 16 axes (axis numbers 0..15, addresses
-1..16), and the scan asks addresses 1..16 per port by default. One axis per USB adapter runs fastest: axes on one cable
-take turns.
+`iad_cell_options` caps it if given, 0 = no limit). One cable carries at most 16 axes
+([Several axes on one port](../HARDWARE_SETUP.md#several-axes-on-one-port)).
 
 - Positions are in mm (deg on a rotary axis), speeds in units/s, accelerations in G, times in seconds.
 - `NAN` in a `double` input means "not set" (the default the header names). In an output it means "not known".
 - The axis commands take an options struct as the moves do (`iad_servo_options`, `iad_home_options`,
   `iad_stop_options`, `iad_wait_idle_options`, `iad_change_options`, `iad_cancel_paused_move_options`). Fill it with
   its `_init` function and change what you need, or pass NULL for the defaults.
-- Every target, speed, acceleration and band is checked against the unit's own ranges first. A value outside them
-  returns `IAD_ERR_SOFT_LIMIT` and nothing moves. `iad_axis_check_move` runs the same checks without moving.
+- A value outside the unit's own ranges returns `IAD_ERR_SOFT_LIMIT` and nothing moves. `iad_axis_check_move` runs
+  the same checks without moving.
 - Caps for a first test on hardware: `iad_axis_options_init(&ao); ao.max_speed_mm_s = 100; ao.max_accel_g = 0.3;`
   and pass `&ao` to `iad_axis_open`. A cap can only narrow the unit's range.
 - `move.wait = 0` returns right after the command and leaves the status output unwritten. Then call
   `iad_axis_wait_idle` (its options: a target and band to check, the timeout, the completion rule).
 
-On hardware: unloaded, mid-stroke, 20 mm/s or less, a hand on the emergency stop. A vertical axis without a brake can
-fall when the servo goes off.
+Before a move on hardware read [Safety](../GETTING_STARTED.md#safety).
 
 ## Stop
 
-`iad_axis_stop(ax, NULL, &st)` is a decelerate-stop over Modbus. It holds the STOP coil until the axis stands still,
-then releases it. It works with or without Modbus control and blocks for the deceleration. With `iad_stop_options`
-`wait` = 1 it returns `IAD_ERR_MOTION_TIMEOUT` if the axis still moves after `timeout_s` (NaN = 5 s).
+`iad_axis_stop(ax, NULL, &st)` is a decelerate-stop over Modbus ([how it works](python.md#stop)). With
+`iad_stop_options` `wait` = 1 it returns `IAD_ERR_MOTION_TIMEOUT` if the axis still moves after `timeout_s` (NaN = 5 s).
 
 `iad_axis_stop`, `iad_axis_pause` and `iad_cell_stop_all` may be called from another thread while a thread waits in a
 move, home or `iad_axis_wait_idle` on the same handle. That is how a stop button, a watchdog thread or a Ctrl+C
@@ -132,10 +126,7 @@ handler stops a blocking move. The waiting call then returns `IAD_ERR_MOTION_INC
 target). `iad_axis_cancel` (`iad_cell_cancel` for a cell) ends the waiting call instead: it sends a decel stop and
 returns `IAD_ERR_CANCELLED`.
 
-- `iad_axis_pause` holds the move and keeps the remaining travel. `iad_axis_resume` continues it.
-  `iad_axis_cancel_paused_move` drops it.
-- STOP is VERIFIED on moves the PC commanded and UNVERIFIED on a move a PLC commanded over PIO. Stop those from the
-  PLC or with the hardware stop.
+- `iad_axis_pause`, `iad_axis_resume` and `iad_axis_cancel_paused_move` hold, continue and drop a move.
 - Not a safety function. There is no communication watchdog: if the PC or the cable fails, a move in progress is
   completed.
 
@@ -179,12 +170,10 @@ if (text != NULL && iad_axis_limits_json(ax, text, need, &need) == IAD_OK) puts(
 free(text);
 ```
 
-**Non-volatile writes.** `iad_axis_write_position_table`, `iad_axis_teach_position` and `iad_axis_write_parameter` need
-no opt-in: the `allow_*` fields of `iad_nv_write_options` and `iad_param_write_options` are accepted and ignored (no
-longer needed), and a risky write goes through with a warning (`warning_count`). They write the unit's non-volatile
-memory, which lasts about 100,000 write cycles (IAI). An unchanged value or row is not written again (`skipped` in the
-result), and `iad_axis_nonvolatile_writes` counts the writes. For a target that changes every cycle use
-`iad_axis_move_to`: direct moves are RAM only (VERIFIED).
+**Non-volatile writes.** `iad_axis_write_position_table`, `iad_axis_teach_position` and `iad_axis_write_parameter` go
+straight through. A risky write gives a warning (`warning_count`), an unchanged value or row is not written again
+(`skipped` in the result) and `iad_axis_nonvolatile_writes` counts the writes. For a target that changes every cycle
+use `iad_axis_move_to`. The rules: [Non-volatile writes](../TROUBLESHOOTING.md#non-volatile-writes).
 
 ## Handles and threads
 
@@ -207,61 +196,23 @@ result), and `iad_axis_nonvolatile_writes` counts the writes. For a target that 
 
 ## Versions, input structs and stability
 
-The C ABI is 1.1 (1.0 is frozen within major 1; 1.1 only adds). Check the library before the first other call (the example above does):
+The header is at C ABI 1.1; 1.0 is frozen within major 1, and a minor only adds. Check the library before the first
+other call (the example above does): the same major and a library minor at least the header's.
 
 ```c
 if (!IAD_ABI_COMPATIBLE(iad_abi_version())) { /* the library is too old or of another major: do not call it */ }
 ```
 
-- The rule: the same major and a library minor at least the header's (the header is at C ABI 1.1; 1.0 is frozen
-  within major 1).
-- Within a major version nothing you call is removed, renamed or changed in meaning. A minor only adds. Every non-zero
-  result is a failure.
-- The shared library's `SOVERSION` is the ABI major. The Windows DLL carries a version resource with the core's
-  version and both ABI versions.
-
-**Input structs.** Every input struct starts with its own size, so a later minor can add fields at the end.
-
-- An options struct: set `struct_size = sizeof`, then call its `_init` function (defaults and size). A zeroed struct
-  is read as the first size. A `struct_size` that was never set is your error; an input holding a garbage one is
-  refused with `IAD_ERR_INVALID_ARGUMENT`.
-- A struct without an `_init` function (`iad_axis_move`, `iad_sequence_point`): zero it and set its size. A zero
-  speed, acceleration, band or timeout in it is the default.
-
-```c
-iad_axis_move moves[2];                  /* <string.h> for memset and strcpy */
-iad_cell_result results[2];
-size_t count = 0;
-memset(moves, 0, sizeof moves);
-moves[0].struct_size = moves[1].struct_size = (uint32_t)sizeof moves[0];   /* every element: the same size */
-moves[0].position = 10.0;  strcpy(moves[0].axis, "COM3:1");               /* the speed and the rest: defaults */
-moves[1].position = 20.0;  strcpy(moves[1].axis, "COM4:1");
-iad_cell_move_each(cell, moves, 2, 1, NAN, 1, results, 2, &count);        /* wait, timeout NaN, stop others on error */
-```
-
-- A library that does not know a field you filled (a newer header than the library) refuses the call with
-  `IAD_ERR_UNSUPPORTED` instead of ignoring it.
-- Output structs have a fixed size for the whole major version. Ignore their `reserved` fields.
-- The fields of every JSON output are only ever added.
-- Parts marked `[EXPERIMENTAL]` in the header (`IAD_METHOD_IAI2`, `IAD_TEACH_COIL`, the 0x48 function code,
-  `iad_bus_broadcast_iai_command`, `blend_band`) stay declared for the whole major version, but a minor may change
-  their behaviour or answer `IAD_ERR_UNSUPPORTED`.
-- `iai_actuator_driver_testing.h` holds the test hooks of the same library (a virtual clock, simulator faults). It has
-  no stability promise and a version of its own, and is never needed in production.
+Every input struct starts with its own size. An options struct: set `struct_size = sizeof`, then call its `_init`
+function. A struct without one (`iad_axis_move`, `iad_sequence_point`): zero it and set its size; a zero in it is the
+default. The full rules (garbage sizes, unknown fields, output structs, JSON fields, `[EXPERIMENTAL]` parts, the
+testing header): [../dev/NATIVE_ABI.md](../dev/NATIVE_ABI.md#the-10-contract).
 
 ## LabVIEW and other FFIs
 
-- Call Library Function Node on `iai_actuator_driver.dll`, calling convention C, "Run in any thread". (A 32-bit
-  Windows build, which is not made, would use `__stdcall`.)
-- Structs have no implicit padding, so they map to clusters field by field, also on 32-bit LabVIEW.
-- Strings in are "C String Pointer". JSON out is a `uint8` array of 65536 elements and its length.
-- The Import Shared Library wizard needs `IAD_API=` and `IAD_CALL=` as preprocessor definitions (not on 32-bit
-  Windows).
-- A tribool input is 0 false, 2 unknown, any other value true.
-- A zeroed `iad_axis_move` or `iad_sequence_point` with its `struct_size` set is all defaults. An options struct is
-  filled by its `_init` function first.
-
-Details in [../dev/NATIVE_ABI.md](../dev/NATIVE_ABI.md#labview).
+Call Library Function Node on `iai_actuator_driver.dll`, calling convention C, "Run in any thread"; structs map to
+clusters field by field. Strings, JSON buffers, the Import Shared Library wizard and tribools:
+[../dev/NATIVE_ABI.md](../dev/NATIVE_ABI.md#labview).
 
 ## Evidence
 
@@ -269,9 +220,9 @@ Details in [../dev/NATIVE_ABI.md](../dev/NATIVE_ABI.md#labview).
 |---|---|
 | The C ABI through the Python and .NET bindings on the PCON-CB with an RCP6 and the EC-GRBP8M gripper | VERIFIED for the steps in [../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit); the calls none of these runs used are tested on the simulator only |
 | A C program on the simulator (`python build.py smoke`, CMake test `iad_c_smoke`) | tested in CI on Windows (zig) and Linux (gcc) |
-| A C program on hardware | VERIFIED: the SDK zip's `examples/c/first_move.c` on the PCON-CB with an RCP6 (servo on, a move to the middle, +10 and -10 mm, status, servo off), on Windows with the 1.0.1 SDK and on Linux with a build of the 1.1.0 fix (2026-11-03) |
+| A C program on hardware | VERIFIED: the SDK zip's `examples/c/first_move.c` on the PCON-CB with an RCP6 (servo on, a move to the middle, +10 and -10 mm, status, servo off), on Windows and on Linux (2026-11-03) |
 | LabVIEW on hardware | UNVERIFIED |
-| Linux serial port | VERIFIED from 1.1.0 (the 1.0.1 SDK's Linux library fails at the first read): the C example above, through the IAI USB adapter (`cp210x`, `/dev/ttyUSB0`) in WSL 2 with usbipd, a build of the 1.1.0 fix (2026-11-03) |
+| Linux serial port | VERIFIED ([../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit)) |
 | macOS | UNVERIFIED |
 
 ## Next

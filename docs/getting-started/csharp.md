@@ -6,13 +6,8 @@ RTU. It runs on the C++ core. Unofficial: not an IAI product ([README](../../REA
 Every method with its inputs and an example is in the API table of
 [bindings/dotnet/README.md](../../bindings/dotnet/README.md).
 
-## Projects
-
-| Project | Target | Contents |
-|---|---|---|
-| `src/IaiActuatorDriver` | netstandard2.0 and net8.0 (.NET Framework 4.6.2+, .NET 6, .NET 8) | `Axis`, `Cell`, `Port`, `PortManager`, the exceptions, the simulator (`IaiActuatorDriver.Simulation`) and the core's binding (`Interop/`) |
-| `src/IaiActuatorDriver.Cli` | net8.0 | the command line `iai-actuator-driver-cs` |
-| `tests/IaiActuatorDriver.Tests` | net8.0, xUnit | simulator and recorded frames only; no test opens a serial port |
+The library targets netstandard2.0 and net8.0 (.NET Framework 4.6.2+, .NET 6, .NET 8); the projects are listed in
+[Projects](../../bindings/dotnet/README.md#projects).
 
 ## The library and the core
 
@@ -24,31 +19,17 @@ layer (`IaiActuatorDriver.Interop`) of the same assembly and NuGet package. For 
 
 ## Install
 
-**From a release.** The NuGet package `IaiActuatorDriver` carries the core (win-x64, linux-x64). Add it from the
-folder you downloaded it to:
+From a release, the NuGet package `IaiActuatorDriver` carries the core (win-x64, linux-x64):
 
 ```shell
-dotnet add package IaiActuatorDriver --version 1.1.1 --source <folder with the .nupkg>
+dotnet add package IaiActuatorDriver --version <version> --source <folder with the .nupkg>
 ```
 
-**From source.** You need the .NET 8 SDK and the core's library. The library project copies it next to every program
-that references it. On Windows x64 (`pip install ziglang` once):
-
-```shell
-cd core
-python build.py shared        # core/build/iai_actuator_driver.dll + .lib
-cd ../bindings/dotnet
-dotnet build
-dotnet test                   # simulator only; no test opens a serial port
-```
-
-- Without the library the build stops with a message that names this command.
-- `-p:NativeLibraryPath=<file>` takes a library built elsewhere.
-- `-p:IadNativeOptional=true` builds anyway; the program then fails at run time with a load error that names the
-  places searched.
-- The interop tests alone: `dotnet test tests/IaiActuatorDriver.Tests --filter "FullyQualifiedName~Interop"`.
-
-In your own project, reference the library project (the native library comes along):
+From source you need the .NET 8 SDK and the core's library ([how to build it](../../core/README.md#build)); the build
+steps are in the [Quick start](../../bindings/dotnet/README.md#quick-start), the `-p:` switches under
+[Native core](../../bindings/dotnet/README.md#native-core-interop-layer). The interop tests alone:
+`dotnet test tests/IaiActuatorDriver.Tests --filter "FullyQualifiedName~Interop"`. In your own project, reference the
+library project (the native library comes along):
 
 ```xml
 <ItemGroup>
@@ -70,16 +51,8 @@ DeviceInfo info = axis.Connect();          // identity and the unit's own ranges
 Console.WriteLine($"{info.Model} ({axis.Kind}), position {axis.Limits().Position.Min} .. {axis.Limits().Position.Max} {axis.Units}");
 ```
 
-| Profile (`SimProfile` / string) | Simulates |
-|---|---|
-| `Slider` / `"slider"` (default) | the EC-DS4H slider |
-| `Gripper` / `"gripper"` | the EC-GRBP8M gripper |
-| `Rod` / `"rod"` | the EC-R6S rod |
-| `Pcon` / `"pcon"` | the PCON-CB with an RCP6 |
-| `Rotary`, `Unknown` | made-up units for the generic paths (deg units; a unit the driver has no name for) |
-
-The real profiles serve register blocks read from those units. A pass on the simulator shows the driver agrees with
-what was observed on them, not that every unit behaves this way.
+Profiles: `SimProfile.Slider` (default), `Gripper`, `Rod`, `Pcon`, `Rotary`, `Unknown`, or the same names as strings
+([what each simulates](python.md#a-simulated-axis)).
 
 On hardware: `Axis.Open("COM3")`. The baud rate is found in place. Close IA-OS first: only one program can use a
 serial port.
@@ -100,23 +73,19 @@ axis.MoveBy(-2.0, speed: 20);              // relative to the measured position
 axis.Servo(false);
 ```
 
-- Positions are in mm (deg on a rotary axis), speeds in units/s, accelerations in G.
-- Every target, speed, acceleration and band is checked against the unit's own ranges first. A value outside them
-  throws `SoftLimitException` and nothing moves.
+- Positions in mm (deg on a rotary axis), speeds in units/s, accelerations in G. A value outside the unit's own
+  ranges throws `SoftLimitException` and nothing moves.
 - The caps default to the unit's own maxima. Narrow them for a first test on hardware:
   `Axis.Open("COM3", options: new AxisOptions { MaxSpeedMmS = 100, MaxAccelG = 0.3 })`. A cap can only narrow the
   unit's range.
 - `wait: false` returns at once (`null`); then call `WaitIdle()`.
-- An incremental unit must be homed after every power-up and software reset.
 
-On hardware: unloaded, mid-stroke, 20 mm/s or less, a hand on the emergency stop. A vertical axis without a brake can
-fall when the servo goes off. Complete programs: [examples/csharp/](../../examples/csharp/) (`FirstMove`,
-`MultiAxisCell`).
+Before a move on hardware read [Safety](../GETTING_STARTED.md#safety). Complete programs:
+[examples/csharp/](../../examples/csharp/) (`FirstMove`, `MultiAxisCell`).
 
 ## Stop
 
-`axis.Stop()` is a decelerate-stop over Modbus. It holds the STOP coil until the axis stands still, then releases it.
-It works with or without Modbus control and blocks for the deceleration. With `wait: true` it throws
+`axis.Stop()` is a decelerate-stop over Modbus ([how it works](python.md#stop)). With `wait: true` it throws
 `MotionTimeoutException` if the axis still moves after `timeout` (default 5 s).
 
 ```csharp
@@ -138,12 +107,10 @@ catch (AggregateException e) when (e.InnerException is MotionIncompleteException
 }
 ```
 
-- `Pause()` holds the move and keeps the remaining travel. `Resume()` continues it. `CancelPausedMove()` drops it.
+- `Pause()`, `Resume()` and `CancelPausedMove()` hold, continue and drop a move.
 - `Dispose` releases a STOP or pause the axis still holds, and closes the port when the axis owns it.
 - The waiting calls (`MoveTo`, `Home`, `WaitIdle`, `HomeAll`...) take a `CancellationToken`. Cancelling sends the
   decel stop sequence.
-- STOP is VERIFIED on moves the PC commanded and UNVERIFIED on a move a PLC commanded over PIO. Stop those from the
-  PLC or with the hardware stop.
 - Not a safety function. There is no communication watchdog: if the PC or the cable fails, a move in progress is
   completed.
 
@@ -273,11 +240,9 @@ The binding maps the core's result code to these classes (table in [../dev/NATIV
 invalid argument throws `ArgumentException`. A missing library throws `DllNotFoundException`, one built for another
 CPU `BadImageFormatException`, and one of another ABI version `NotSupportedException`.
 
-**Non-volatile writes.** Position-table writes, teaching and parameter writes need no opt-in: `allowNonvolatile`,
-`allowDangerous`, `allowHomeParams` and `allowUnlisted` are accepted and ignored (no longer needed), and a risky write
-goes through with a warning (`Warnings`). They write the unit's non-volatile memory, which lasts about 100,000 write
-cycles (IAI). An unchanged value or row is not written again (`Skipped`), and the driver logs a warning above 60 writes
-an hour on one axis. For a target that changes every cycle use `MoveTo`: direct moves are RAM only (VERIFIED).
+**Non-volatile writes.** Position-table writes, teaching and parameter writes go straight through. A risky write gives
+a warning (`Warnings`), and an unchanged value or row is not written again (`Skipped`). For a target that changes every
+cycle use `MoveTo`. The rules: [Non-volatile writes](../TROUBLESHOOTING.md#non-volatile-writes).
 
 ## Threads
 
@@ -288,8 +253,7 @@ an hour on one axis. For a target that changes every cycle use `MoveTo`: direct 
   cancel. That is how a stop button stops a blocking move.
 - Axes on different ports run in parallel. Axes that share a port take turns on its lock.
 - A cell takes every axis it finds (no total limit; `CellOptions.MaxAxes` caps it if given). One cable carries at most
-  16 axes (axis numbers 0..15, addresses 1..16), and the scan asks addresses 1..16 per port by default. One axis per USB
-  adapter runs fastest: axes on one cable take turns.
+  16 axes ([Several axes on one port](../HARDWARE_SETUP.md#several-axes-on-one-port)).
 - `Cell` group commands run the ports in parallel and return when every axis is done. `StopAll()` may come from
   another thread while a group command waits.
 - The core's last error is per thread. The binding reads it on the calling thread right after the failing call, so
@@ -299,46 +263,27 @@ an hour on one axis. For a target that changes every cycle use `MoveTo`: direct 
 
 ## Where the native library comes from
 
-The binding loads `iai_actuator_driver` with P/Invoke: `iai_actuator_driver.dll` on Windows,
-`libiai_actuator_driver.so` on Linux, `libiai_actuator_driver.dylib` on macOS. The .NET runtime finds it next to the
-application or, in a NuGet package, under `runtimes/<rid>/native/` (`win-x64`, `linux-x64`, `osx-arm64`...).
-
-- **A release:** the NuGet package carries it. Otherwise use the library and the binding of the same release.
-- **Windows build:** see [Install](#install). The DLL needs no runtime on Windows 10 / 11.
-- **CMake build:** `cmake -S core -B core/build -DIAI_ACTUATOR_DRIVER_BUILD_SHARED=ON` and
-  `cmake --build core/build` (Linux: `libiai_actuator_driver.so`); see [cpp.md](cpp.md).
-
-`NativeDriver.EnsureLoaded()` runs before the first handle is opened. It checks the library's ABI version: the same
-ABI major and a library minor at least the binding's (C ABI 1.0, frozen within major 1). `NativeDriver.AbiVersion`,
-`NativeDriver.LibraryVersion` and `NativeDriver.ListPortsJson()` report what was loaded. A 64-bit process needs the
-x64 library; no 32-bit build is produced.
+The binding loads `iai_actuator_driver` with P/Invoke, from next to the application or, in a NuGet package, from
+`runtimes/<rid>/native/`; a release's package carries it. The load rules, the ABI check (C ABI 1.0, frozen within major
+1) and `NativeDriver`: [Native core](../../bindings/dotnet/README.md#native-core-interop-layer).
 
 ## Command line
 
 ```shell
-dotnet run --project bindings/dotnet/src/IaiActuatorDriver.Cli -- ports              # serial ports, IAI adapters first
-dotnet run --project bindings/dotnet/src/IaiActuatorDriver.Cli -- --sim rod limits   # the simulator
-dotnet run --project bindings/dotnet/src/IaiActuatorDriver.Cli -- --port COM3 status # read-only
-dotnet run --project bindings/dotnet/src/IaiActuatorDriver.Cli -- --port COM3 check  # the compatibility self-test, JSON report
-dotnet run --project bindings/dotnet/src/IaiActuatorDriver.Cli -- --port COM3 backup unit.json
-dotnet run --project bindings/dotnet/src/IaiActuatorDriver.Cli -- --port COM3 recover --wait 60   # after a power or link loss
+dotnet run --project bindings/dotnet/src/IaiActuatorDriver.Cli -- --sim rod limits     # the simulator
+dotnet run --project bindings/dotnet/src/IaiActuatorDriver.Cli -- --port COM3 status   # read-only
 ```
 
-- The commands and options match the Python command line; `--help` lists them.
-- `check` is read-only unless `--motion`. `backup` is read-only (FC03 / FC11 only). `recover` never moves the axis.
-- Also there: `monitor --watch`, `move --fast`, `move --change-speed` / `--change-accel`, `teach`, `pause`, `resume`
-  and `cancel-pause`.
-- Not in this command line (the Python and C++ ones have them): `--line`, `--position-unit`, `line` and `stop-all`.
+The commands and options match the Python command line, except `--line`, `--position-unit`, `line` and `stop-all`
+(the Python and C++ ones have them): [Command line](../../bindings/dotnet/README.md#command-line).
 
 ## Evidence
 
-| Part | Evidence |
-|---|---|
-| The command line `iai-actuator-driver-cs` on the EC-GRBP8M gripper and the PCON-CB with an RCP6 | VERIFIED; steps in [../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit) |
-| The public `Axis` on the EC-GRBP8M gripper | VERIFIED for the steps listed in [../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit) |
-| The core's binding on the PCON-CB with an RCP6 | VERIFIED; steps in [../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit) |
-| Fast mode, the status monitor's events, a change of speed, move handles, `CheckLink`, recovery after a line break | UNVERIFIED in this edition (tested on the simulator); the Python edition verified the same core features on hardware |
-| `Cell`, a push that makes contact, position-table writes, recovery, gateway lines, everything else | UNVERIFIED (tested on the simulator and on recorded frames) |
+VERIFIED: the command line `iai-actuator-driver-cs` on the EC-GRBP8M gripper and the PCON-CB with an RCP6, the public
+`Axis` on the gripper and the core's binding on the PCON-CB
+([steps](../COMPATIBILITY.md#which-editions-were-run-on-a-unit)). The rest is UNVERIFIED here, tested on the simulator
+and on recorded frames; the Python package verified fast mode, the monitor, move handles and recovery on the same core
+([Evidence](../../bindings/dotnet/README.md#evidence)).
 
 ## Next
 

@@ -1,40 +1,12 @@
-# ci-layout: no push trigger. A pull request or a manual run (workflow_dispatch) runs one small job (quick) and the full
-# set of jobs. GitHub Actions minutes are limited, so a push to any branch starts nothing: the tests run on the
-# development PC (tools/test.py). The quick job also checks that every package carries one version
-# (.github/release/check_version.py).
-# The full set is one job per area (gui, build, core, dotnet, python-native), each run only when its paths changed (on
-# a pull request). The Python package runs on the core only (the pure-Python edition was removed after 1.0.x), so every
-# job that imports it gets a native library first: the DLL of core-windows or the .so of core-linux. The build job waits
-# for every test job that ran (gui, core-windows, python-native).
-# The changes job does the same version check. Every test runs on the simulator: no job opens a serial port.
-# A manual run (workflow_dispatch) or a change to the workflows runs every job of the full set.
-# Releases are built locally (.github/release/local_release.py); release.yml runs by hand only, as a dry run.
-#
-#   quick   every pull request and manual run: Windows, Python 3.13: the DLL built with zig (python build.py shared),
-#           then the whole driver suite on IAI_DRIVER_BACKEND=native (tests/run_backend.py) against that DLL. The C++
-#           tests, the C smoke test, Linux and Python 3.11 are left to the full set
-#   gui     apps/gui and the driver package: the GUI tests on Windows (the DLL of core-windows) and Linux (the .so of
-#           core-linux) with Python 3.11 and 3.13
-#   build   the sdists and the wheels of the driver and the GUI (Windows); checks that the driver does not import
-#           without its library, then installs both wheels and runs their commands against the DLL of core-windows; it
-#           waits for gui, core-windows and python-native (a job that did not run does not hold it back, a failed one
-#           does)
-#   core    core/ and the Python package: Windows with zig (python build.py: C++ tests, DLL, C smoke test; the DLL goes
-#           to python-native, gui and build; a change outside the core area, such as docs/ or apps/gui/, builds only the
-#           DLL) and Linux with CMake and gcc (ctest; build.py targets Windows only, then the Python binding tests and
-#           the whole driver suite (tests/run_backend.py) against the .so; a change to apps/gui/ alone builds only the
-#           .so, for the GUI tests)
-#   python-native  Windows, Python 3.11 and 3.13, on every change to core/, bindings/python/, docs/, examples/,
-#           .github/release/, licenses/, .github/*.md or a root file: the Python native binding tests, then the whole
-#           driver suite on IAI_DRIVER_BACKEND=native (tests/run_backend.py; it also checks the documents), both against
-#           the DLL of core-windows (on Linux, core-linux runs the suite against its .so)
-#   dotnet  bindings/dotnet: the whole C# solution; its native tests use a DLL built with zig first; then the .NET
-#           Framework 4.8 smoke of the netstandard2.0 build, with the DLL next to it and preloaded by full path
+# CI, with no push trigger: Actions minutes are limited, and the tests run on the development PC (tools/test.py). A pull
+# request or a manual run runs the quick job (Windows, Python 3.13: the version check, the DLL built with zig, the
+# whole driver suite against it) and one job per area whose paths changed (a manual run, or a change to the workflows,
+# runs them all). Every job that imports the Python package gets a native library first (the DLL of core-windows or the
+# .so of core-linux); python-native adds Python 3.11 on Windows. No job opens a serial port: every test runs on the
+# simulator. Releases are built with .github/release/local_release.py.
 name: CI
 
 on:
-  # No push trigger (Actions minutes are limited). A pull request runs the quick job and the areas it changes; a manual
-  # run (Actions, CI, Run workflow) runs the quick job and every area.
   pull_request:
   workflow_dispatch:
 
@@ -95,9 +67,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # The Python package, the core (version.hpp, CMakeLists.txt) and the C# projects carry one version.
-      - name: One version everywhere
-        run: python3 .github/release/check_version.py
       - name: Compare with the base commit
         id: areas
         shell: bash
@@ -271,7 +240,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.13"]
+        python-version: ["3.11"]  # the quick job runs the suite on 3.13
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

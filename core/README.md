@@ -1,4 +1,4 @@
-# iai_actuator_driver: C++ edition
+# iai_actuator_driver: C++ core
 
 The C++17 core of IAI Actuator Driver, for IAI actuators over serial Modbus RTU: ELECYLINDER (EC) units and
 CON-family controllers (PCON / ACON / SCON / DCON) with RoboCylinder. It commands every axis it finds (no total limit;
@@ -8,12 +8,11 @@ PLC I/O.
 Unofficial: not an IAI product; see the [README](../README.md).
 
 - Standard C++17, no third-party dependencies. Windows (Win32 serial, SetupAPI port listing) and Linux (termios,
-  `/sys/class/tty`; the POSIX transport is VERIFIED on a real port from 1.1.0: the IAI USB adapter in WSL 2).
+  `/sys/class/tty`; Linux serial port: VERIFIED, [docs/COMPATIBILITY.md](../docs/COMPATIBILITY.md)).
 - This core is the one implementation under the Python package and the .NET library. The Python package's tests are
   the specification it is held to. The design is in [DESIGN.md](DESIGN.md).
-- Evidence words: VERIFIED (seen on hardware), ON-WIRE (frames captured on the line), DOC (IAI manuals), UNVERIFIED
-  (not checked). "VERIFIED in the Python edition" means checked on hardware through the Python package. This C++ code
-  is UNVERIFIED on hardware beyond the units and steps in the table below.
+- Evidence words (VERIFIED, ON-WIRE, DOC, UNVERIFIED) as in the [README](../README.md). VERIFIED means tried on
+  hardware through any binding or the C++ command line; the paths no run used are UNVERIFIED (table below).
 
 ## Status
 
@@ -27,12 +26,12 @@ The tests use the simulator and scripted frames only; no test opens a serial por
 | Motion extras: push(), command-profile moves (own deceleration, FC17 + PCRF), acceleration patterns (CTLF b6-b7), change_speed / change_accel of a running move, move_sequence (blended points) | done, simulator-tested |
 | Fast path: Completion::Fast, the status monitor (AxisMonitor, lean 8-word reads), MoveHandle (start_move_to / start_move_by / start_jog), enable_fast | done, simulator-tested |
 | Power / link-loss recovery: track, check_link, LinkMonitor, recover() (same unit, baud rate, PC control, safety speed, alarm assessment, rows / parameters against a backup); Cell track_all / check_links / monitor_links / recover_all | done, simulator-tested (power cycle, unplug / replug, unit replaced) |
-| Unit info (its sections), backup / backup_axes (the Python JSON schema), the compatibility check (run_check) | done, simulator-tested; the backup JSON was compared key for key with the Python edition's |
+| Unit info (its sections), backup / backup_axes (the Python JSON schema), the compatibility check (run_check) | done, simulator-tested; the backup JSON was compared key for key with the Python package's |
 | Gateway lines: line rules and the request guard, RCON (D0h status, MANU, all-axes monitor, 0.001 mm position unit, identity from the 0x9400 serial code, a silent directory treated as absent, the position-table refusal), ROBONET (SIO through mode; gateway mode refused), line detection | done, simulator-tested (DOC only, UNVERIFIED on hardware) |
 | Command strategies: coil, IAI 0x45, IAI 0x48 (EXPERIMENTAL), register (FC06 DRG1 servo / home / alarm reset / pause / safety speed and the coil-free STOP: pause, standstill, ALRS edge while paused, release), chosen by the line or after an FC05 exception 01; the action mode (PIO: 0x45 cmd 0x0C; PC: the PMSL / SFTY coils), set_safety_speed, teach with the MOD / TEAC coils (EXPERIMENTAL), the automatic servo OFF switched back on before a move | done, simulator-tested; the register path, 0x48 and the coil teach are UNVERIFIED on hardware |
 | Non-volatile write guard (unchanged writes skipped, counter, hourly warning) | done, simulator-tested |
 | Cell (every axis found, no total limit; ports in parallel, stop on fault, stop_all with an optional broadcast STOP); start_monitors / stop_monitors (link events to on_fault), status_all from a monitor sample, monitor_all, backup, pause_all / resume_all (optional broadcast), move_all with per-axis speed / accel / band / decel | done, simulator-tested |
-| Coordinated motion (`coord.hpp`, `Cell::coordinated`): lines, arcs, circles and polylines over several axes run by the PC, synchronized moves or streamed re-targeting (0x9900), the planner's checks (ranges, speeds, accelerations, the line's timing) with the largest feasible speed; a fault, a link fault, a late frame or an outside stop stops the whole group | done, simulator-tested; UNVERIFIED on hardware (the Python edition ran it with one real axis) |
+| Coordinated motion (`coord.hpp`, `Cell::coordinated`): lines, arcs, circles and polylines over several axes run by the PC, synchronized moves or streamed re-targeting (0x9900), the planner's checks (ranges, speeds, accelerations, the line's timing) with the largest feasible speed; a fault, a link fault, a late frame or an outside stop stops the whole group | done, simulator-tested; UNVERIFIED on hardware (the Python package ran it with one real axis) |
 | Simulator (slider, gripper, rod, pcon, rotary, unknown), SimLine, power / unplug faults, simulated RCON and ROBONET gateways | done |
 | `iai-actuator-driver-cpp` command line (the Python CLI's commands, see below) | done, tested on the simulator |
 | C ABI `include/iai_actuator_driver.h` and the shared library (`python build.py shared`; [docs/dev/NATIVE_ABI.md](../docs/dev/NATIVE_ABI.md)) | done, simulator-tested: C ABI 1.1 (1.0 frozen within major 1; 1.1 adds the serial framing options, 7 data bits, parity and 2 stop bits UNVERIFIED on hardware); sized inputs, fixed outputs, one name per function; test hooks in `include/iai_actuator_driver_testing.h` (no stability promise); the committed ABI manifest and JSON key list (`abi/`) with their checks; a C99 smoke program. VERIFIED for the calls the hardware runs used through the Python and C# bindings, on the PCON-CB with an RCP6 and the EC-GRBP8M gripper ([docs/COMPATIBILITY.md](../docs/COMPATIBILITY.md#hardware-results)); the other calls are simulator-tested, UNVERIFIED on hardware |
@@ -40,7 +39,7 @@ The tests use the simulator and scripted frames only; no test opens a serial por
 | On real hardware: the PCON-CB with an RCP6 (`iai-actuator-driver-cpp`) | **VERIFIED**: status, identify, limits, alarm reset (message alarm 0x069), servo on, moves and jogs, STOP mid-move, pause / resume, a same-value `param set No.10` skipped by the non-volatile guard, software reset (confirmed, still homed) |
 | Cell, teach, parameter writes and gateway lines on real hardware | UNVERIFIED |
 
-### Differences from the Python edition
+### Differences from the Python package
 
 - **Gateway lines:** `Cell::status_all` reads the axes of an RCON port one by one; the all-axes monitor is
   `Port::gateway_monitor` (Python's `status_all(via_gateway=...)` chooses it).
@@ -199,8 +198,7 @@ teach first compare with what the unit holds.
 An EC keeps three rows (0 backward end, 1 forward end, 2 middle; `max_positions()` reports 3: the rows it can read and
 store) but runs rows 0 and 1 only in 2-position mode (user parameter 9 = 0 or 3); 3-position mode (P9 = 4) runs rows
 0-2. The EC-GRBP8M gripper in 2-position mode rejected row 2 with 0x45 cmd 6 code 0x11 "1st operand error"; nothing
-moved, no alarm (VERIFIED in the Python edition). So on an EC whose P9 is read (once, cached; read again after a
-commit or a software reset):
+moved, no alarm (VERIFIED). So on an EC whose P9 is read (once, cached; read again after a commit or a software reset):
 
 - `move_to_position` (CLI `goto`) refuses an unused row with SoftLimitError before anything is sent: "row 2 (middle)
   is not used in 2-position mode (P9 = 0: 2-position (double solenoid)): the unit runs row 0 (backward end) and row 1
@@ -214,10 +212,10 @@ commit or a software reset):
 - A CON unit is not limited by P9 (class 8 item 2 is another parameter there): its rows are what MAXP and the
   directory say (64 on the PCON-CB). 0x9800 with an unused row is UNVERIFIED on hardware.
 
-After a software reset PMSS depends on the unit: the EC-R6S rod dropped it to 0, the EC-GRBP8M gripper and the
-PCON-CB kept 1 (VERIFIED in the Python edition). The restart is then confirmed by the servo, switched off before the
-reset, coming back on by itself. `Status::manual_mode()` is the unit's MANU / AUTO bit (DSSE b13 RMDS), not PC vs PIO
-control: that is `modbus_enabled` (PMSS).
+After a software reset PMSS depends on the unit: the EC-R6S rod dropped it to 0, the EC-GRBP8M gripper and the PCON-CB
+kept 1 (VERIFIED). The restart is then confirmed by the servo, switched off before the reset, coming back on by itself.
+`Status::manual_mode()` is the unit's MANU / AUTO bit (DSSE b13 RMDS), not PC vs PIO control: that is `modbus_enabled`
+(PMSS).
 
 ## Command line
 

@@ -7,7 +7,6 @@ is the contract and the model of that ABI. The header documents each function.
 - C, LabVIEW and any language with a C FFI call the ABI directly. C++ programs can also link the core itself.
 - The Python package (`bindings/python/`) and the .NET library (`bindings/dotnet/`) are thin layers over the ABI. Both
   bind every function of both headers, checked against the committed manifest in `core/abi/`.
-- The Python package runs on the core only.
 - `core/include/iai_actuator_driver_testing.h` declares the test hooks the same library exports. It has no stability
   promise.
 
@@ -388,7 +387,7 @@ The rules are in [The 1.0 contract](#the-10-contract). This is how a caller appl
 
 Rich or variable data is UTF-8 JSON written into a caller buffer: unit info, limits with their sources, alarm history,
 parameters with their choices, the full result of a write, the cell's info, the serial port list, the last error. The
-field names are those of the C++ `to_json` (`json.hpp`), which follow the Python edition's `to_dict`, so the editions'
+field names are those of the C++ `to_json` (`json.hpp`), which follow the Python package's `to_dict`, so the bindings'
 outputs compare.
 
 Every JSON function ends with `(char* buffer, size_t buffer_size, size_t* required)`.
@@ -410,7 +409,7 @@ Every JSON function ends with `(char* buffer, size_t buffer_size, size_t* requir
 - For the result of a call on the calling thread, see [Per-thread results](#per-thread-results-and-caller-aborts).
 
 **Numbers.** A whole float is written with a decimal point (`1.0`, as Python's `json.dumps`), so Python and C# readers
-keep it a float. Numbers the Python edition holds as ints stay integers: a parameter's code, count or flag and its
+keep it a float. Numbers the Python package holds as ints stay integers: a parameter's code, count or flag and its
 `min` / `max`, a CON row's table limits and factory default, the `stored_rows` and `speed_override` ranges of
 `iad_axis_limits_json`. Every JSON argument refuses a number outside the range of `long long` or `double` with
 `IAD_ERR_INVALID_ARGUMENT`; it is never narrowed or turned into `null`.
@@ -418,11 +417,11 @@ keep it a float. Numbers the Python edition holds as ints stay integers: a param
 **Parameters and unit info.**
 
 - A named parameter's row (`iad_axis_parameters_json`, `iad_axis_read_parameter_json`) has the keys of the Python
-  edition's `parameters()`: no raw-item fields (`unsigned`, `signed`, `words`, `named`), and a `symbol` or a `note` only
+  package's `parameters()`: no raw-item fields (`unsigned`, `signed`, `words`, `named`), and a `symbol` or a `note` only
   when it has one. A raw item keeps every field, and its write result gives the value as an integer, as the read does.
 - A parameter that is not offered is named `parameter 15` for a number and `parameter 'P15'` for a text key.
 - A unit info's `axis_limits` has no `notes`. The readers' wording and the notes and warnings of a parameter write are
-  the Python edition's (`IA-OS` where they name the tool).
+  the Python package's (`IA-OS` where they name the tool).
 
 ### Stateless functions
 
@@ -432,7 +431,7 @@ the unit-information decoders by name, JSON in and out. `"functions"` lists them
 
 - An unknown function is `IAD_ERR_UNSUPPORTED`.
 - A nested argument of the wrong JSON type is `IAD_ERR_INVALID_ARGUMENT`. An integer outside its field's range (outside
-  32 bits for an int field, a float outside the 64-bit range) is refused, never narrowed. Where the Python edition
+  32 bits for an int field, a float outside the 64-bit range) is refused, never narrowed. Where the Python package
   answers "unknown" for a number (`con_params.con_family`, `con_params.audit`), a huge one is unknown too.
 
 ### Per-thread results and caller aborts
@@ -541,15 +540,15 @@ What the Python `Elecylinder` attributes and methods show of an axis.
 - **Constants**: `iad_constants_json` (the `ec` module's constants, for a conformance check).
 - **Position mode**: `iad_axis_move_to_position` refuses a row the EC's position mode (P9) does not run, with
   `IAD_ERR_SOFT_LIMIT`, before anything is sent. `iad_axis_write_position_table` and `iad_axis_teach_position` write it
-  with a warning (`warning_count`, the texts in `iad_axis_last_result_json`). VERIFIED in the Python edition on the
-  EC-GRBP8M gripper in 2-position mode.
+  with a warning (`warning_count`, the texts in `iad_axis_last_result_json`). VERIFIED on the EC-GRBP8M
+  gripper in 2-position mode.
 - **Writes need no opt-in**: `iad_nv_write_options.allow_nonvolatile` and `allow_unsafe`, the
   `iad_param_write_options` opt-ins (`allow_dangerous`, `allow_home_params`, `allow_unlisted`) and
   `iad_baud_options.allow_unverified_code` stay in the structs and are accepted and ignored (no longer needed). A risky
   write goes through with a warning. `IAD_ERR_NONVOLATILE_REFUSED` is still returned for rows 256-267 and a row the
   table cannot address; `IAD_ERR_UNSAFE_REFUSED` for a read-only parameter, the never-send list, an IAI command off
   the safe list without `IAD_IAI_ALLOW_UNSAFE`, and line rules.
-- **Core behaviour shared with the Python edition**: a move's configured caps and stroke are checked before anything is
+- **Core behaviour every binding shares**: a move's configured caps and stroke are checked before anything is
   read; a stored push row is capped in PPOW counts; the status read takes 20 words when the directory announces a
   shorter monitor block; `read_monitor` gives `alarm_level`, `rated_current` and `words`; the speed note names the
   register address (`MAXV item 7.4 @0x0706`); the baud change's note is the Python `BAUD_VOLATILE_NOTE`.
@@ -668,7 +667,7 @@ besides a backup where the ABI reads JSON, because a path has a variable shape:
 - An outside stop (`iad_cell_stop_all`, `iad_axis_stop` or `iad_axis_pause` from another thread, from the call on, its
   planning included), a fault alarm, a link fault or a late frame stops every axis of the group and returns
   `IAD_ERR_DRIVER` (`CoordinatedMotionError`: `axis`, `cause`, `stop`, `result`). `iad_axis_cancel` / `iad_cell_cancel` do not end a run: stop it.
-- `"expect_start": {"x": 10, "y": 20}` (optional, from 1.0.1; path names): where the plan to run must start. The run
+- `"expect_start": {"x": 10, "y": 20}` (optional; path names): where the plan to run must start. The run
   plans first, then each named axis must be within max(band, 0.05) of the start of that plan (its lead-in's, if any),
   else `IAD_ERR_NOT_READY` and nothing is sent. A binding's `run_plan` sends the start of the plan it holds, so the
   check is inside the run's stop window: a stop sent meanwhile still ends the run.
@@ -837,7 +836,7 @@ override, hook, state, log and control calls and the unit's own clock are in the
   is active) and `set_parameter_word`. `iad_sim_state_json` gives the state.
 - **Models**: IAI 0x48 (cmd 0x30 servo, 0x31 home, 0x34 decel stop, 0x23 alarm reset; others rejected 0x21) and the
   teach coils MOD 0x0414 / TEAC 0x0415 (PNOW into row POSR, DSS2 PWRT / MODS, alarm 0x093 before homing). A stop while
-  braking late ends at the target, and a pause there rests at it, as in the Python edition.
+  braking late ends at the target, and a pause there rests at it.
 - **Lines**: `iad_sim_line_*` puts several units on one line. `iad_sim_gateway_line_open` makes an RCON (default),
   ROBONET (SIO through mode) or ROBONET-gateway line, with the Python `SimGatewayLine` options; the other line functions
   take it, and `iad_sim_line_control_json` reads and sets the gateway station. A frame the gateway passes on reaches the
@@ -1107,7 +1106,7 @@ and the CLI keep linking.
 |---|---|---|
 | Windows x64 | `iai_actuator_driver.dll` (+ `.lib` for C / C++ linking) | No runtime to install on Windows 10 / 11. Windows 7 / 8.1 need the Universal CRT update (KB2999226). Ship the DLL next to the program, in the Python package, or in the NuGet package under `runtimes/win-x64/native/`. Sign the DLL for customer distribution (SmartScreen, endpoint protection). The `.pdb` stays internal. |
 | Windows x86 | `iai_actuator_driver.dll` (32-bit) | For 32-bit LabVIEW and 32-bit applications. Not built yet (zig target `x86-windows-gnu`). |
-| Linux x64 / arm64 | `libiai_actuator_driver.so` | `serial_posix.cpp` is VERIFIED on a real port from 1.1.0 (the IAI USB adapter, `cp210x`, in WSL 2; the 1.0.1 code fails at the first read). Build against an old glibc for reach (zig target `x86_64-linux-gnu.2.28`, or a manylinux image with CMake). The user needs access to the port (`dialout` group). |
+| Linux x64 / arm64 | `libiai_actuator_driver.so` | `serial_posix.cpp` is VERIFIED on a real port (the IAI USB adapter, `cp210x`, in WSL 2). Build against an old glibc for reach (zig target `x86_64-linux-gnu.2.28`, or a manylinux image with CMake). The user needs access to the port (`dialout` group). |
 | macOS arm64 / x64 | `libiai_actuator_driver.dylib` | UNVERIFIED (no Mac in the test setup). A universal2 build, code-signed and notarized for distribution. |
 
 There is one library per OS and CPU. The bindings pick it by platform (`RuntimeInformation` in C#, `sys.platform` and
@@ -1123,5 +1122,5 @@ from the same commit, so their ABI versions always match.
   them).
 - Of what the bindings asked for: `row_words` / `monitor_record_words` / `missing_items` / `model_string`, and
   `iad_shutdown`.
-- What the C++ core does not do yet is listed in [core/README.md](../../core/README.md) ("Where this edition is shaped
-  differently from the Python one").
+- What the C++ core does not do yet is listed in [core/README.md](../../core/README.md) ("Differences from the
+  Python package").

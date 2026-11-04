@@ -7,7 +7,7 @@ IAI Actuator Driver is **unofficial**: not an IAI product, not supported by IAI.
 
 ## You need
 
-- A PC with Python 3.11 or newer. Windows is the tested system.
+- A PC with Python 3.11 or newer: Windows x64 or Linux x64 (macOS UNVERIFIED).
 - An ELECYLINDER or CON-family controller, powered (24 V for an ELECYLINDER) and wired to your own emergency stop.
 - An IAI USB adapter on the unit's RS-485 (SIO / teaching) port.
 
@@ -17,18 +17,18 @@ Download the wheel for your platform from the
 [GitHub release](https://github.com/zach-ippo/iai-actuator-driver/releases) and install it:
 
 ```shell
-pip install iai_actuator_driver-1.1.1-py3-none-win_amd64.whl
+pip install iai_actuator_driver-<version>-py3-none-win_amd64.whl  # Linux: the manylinux wheel
 iai-actuator-driver --version
 ```
 
 This adds `iai-actuator-driver` and `iai-check`, with the C++ core inside. For the GUI on Windows, unzip
-`iai-gui-1.1.1-win-x64.zip` and use `iai-gui.exe` wherever this page says `iai-gui`. From a clone instead,
-`pip install ./bindings/python ./apps/gui` also adds `iai-gui`; a clone install needs the core built or named
-([where the library comes from](getting-started/python.md#where-the-native-library-comes-from)).
+`iai-gui-<version>-win-x64.zip` and use `iai-gui.exe` wherever this page says `iai-gui`. To install from a source
+checkout instead, see [the Python guide](getting-started/python.md#install).
 
 ## 2. Cable and port
 
-Plug the adapter in. It appears as a COM port, for example `COM3` ("IAI USB to UART Bridge Controller").
+Plug the adapter in. It appears as a COM port ("IAI USB to UART Bridge Controller"). The examples in these documents
+use `COM3` for the unit and `COM4` for a second port; on Linux the port is `/dev/ttyUSB0`. Use your own port name.
 
 - **Close IA-OS first**, and any teaching pendant or wireless session. Only one program can use the port.
 - Do not unplug the cable while a move is running.
@@ -112,15 +112,14 @@ with Axis.open("COM3") as ax:
 - **STOP is a decelerate-stop over Modbus.** It is VERIFIED on moves the PC commanded and UNVERIFIED on a move a PLC
   commanded over PIO. Stop those from the PLC or with the hardware stop.
 - **Writes go straight through.** Commands that write the unit's non-volatile memory (position rows, teaching,
-  parameters) need no opt-in; a risky write (a home or dangerous parameter, a row the unit does not run) is written
+  parameters) write at once; a risky write (a home or dangerous parameter, a row the unit does not run) is written
   with a warning. A value the unit already holds is not written, and the writes are counted with a warning above 60
   an hour. Back the unit up first: `iai-actuator-driver --port COM3 backup unit1.json` (read-only).
 
 ## If nothing answers
 
 - Check the 24 V supply, the cable, the slave address (axis number + 1) and that no other program has the port.
-- Not supported, whatever the wiring: controllers with IAI's SEL protocol (XSEL, SSEL, ASEL, PSEL, MSEL, TTA) and an
-  ELECYLINDER on an RCON-EC / REC connection unit.
+- Some products never answer, whatever the wiring: [Not supported](COMPATIBILITY.md#not-supported).
 - More cases (changed baud rate, old firmware, vertical axes): [COMPATIBILITY.md](COMPATIBILITY.md#possible-trouble).
 
 ## Next

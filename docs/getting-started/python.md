@@ -7,29 +7,23 @@ Unofficial: not an IAI product ([README](../../README.md)).
 The cable and the command line are in [../GETTING_STARTED.md](../GETTING_STARTED.md). Every function is in
 [../DRIVER.md](../DRIVER.md).
 
-## Two ways in
-
-| Import | What runs underneath | Use it for |
-|---|---|---|
-| `from iai_actuator_driver import Axis, Cell` | the package API (`Axis` is `Elecylinder`) | programs, scripts, the GUI and the command line |
-| `from iai_actuator_driver.native import NativeAxis, NativeCell` | the C++ core, directly through its C ABI (ctypes) | testing the core, comparing it with the package API |
-
-Write programs against the package API. Both share method names (`connect`, `servo`, `home`, `move_to`, `stop`...)
-and raise the same exception classes. Both run on the core, so the package needs its native library
-([Where the native library comes from](#where-the-native-library-comes-from)).
+Write programs against `from iai_actuator_driver import Axis, Cell` (`Axis` is `Elecylinder`). It runs on the C++
+core, so the package needs its native library
+([Where the native library comes from](#where-the-native-library-comes-from)). `iai_actuator_driver.native`
+(`NativeAxis`, `NativeCell`) is the raw ctypes binding of the C ABI under it, for tests
+([../dev/NATIVE_ABI.md](../dev/NATIVE_ABI.md)).
 
 ## Install
 
 Python 3.11 or newer. The only dependency is pyserial.
 
 ```shell
-pip install ./bindings/python          # from the repository root
-pip install -e ./bindings/python       # to work on the source
+pip install iai_actuator_driver-<version>-py3-none-<platform>.whl   # from a release: the library is inside
 iai-actuator-driver --version
 ```
 
-From a release: `pip install iai_actuator_driver-<version>-py3-none-<platform>.whl`. A platform wheel carries the
-native library, so nothing has to be built. An install from the folder needs the library built or named
+From a source checkout, `pip install ./bindings/python ./apps/gui` (the GUI adds `iai-gui`), or
+`pip install -e ./bindings/python` to work on the source. A checkout install needs the library built or named
 ([below](#where-the-native-library-comes-from)).
 
 ## A simulated axis
@@ -46,15 +40,6 @@ with Axis.open(SimulatedEC(profile="gripper", time_scale=20)) as ax:
     print(ax.limits()["position"])         # the range every target is checked against
 ```
 
-The same on the core:
-
-```python
-from iai_actuator_driver.native import NativeAxis
-
-with NativeAxis.open_sim("gripper", time_scale=20) as ax:
-    print(ax.connect().model, ax.limits()["position"])
-```
-
 | Profile | Simulates |
 |---|---|
 | `slider` (default) | the EC-DS4H slider |
@@ -66,7 +51,7 @@ with NativeAxis.open_sim("gripper", time_scale=20) as ax:
 The four real profiles serve register blocks read from those units. A pass on the simulator shows the driver agrees
 with what was observed on them, not that every unit behaves this way.
 
-On hardware, pass the port name: `Axis.open("COM3")` (or `NativeAxis.open("COM3")`). The baud rate is found in place.
+On hardware, pass the port name: `Axis.open("COM3")`. The baud rate is found in place.
 Close IA-OS first: only one program can use a serial port.
 
 ## First move
@@ -84,18 +69,13 @@ with Axis.open(SimulatedEC(profile="gripper", time_scale=20)) as ax:
     ax.servo(False)
 ```
 
-`NativeAxis` takes the same calls and returns a `NativeStatus` with the same field names.
-
-- Positions are in mm (deg on a rotary axis), speeds in units/s, accelerations in G.
-- Every target, speed, acceleration and band is checked against the unit's own ranges first. A value outside them
-  raises `SoftLimitError` and nothing moves.
+- Positions in mm (deg on a rotary axis), speeds in units/s, accelerations in G. Every target, speed, acceleration and
+  band is checked against the unit's own ranges first: a value outside them raises `SoftLimitError` and nothing moves.
 - The caps default to the unit's own maxima. Narrow them for a first test on hardware:
   `Axis.open("COM3", max_speed_mm_s=100, max_accel_g=0.3)`. A cap can only narrow the unit's range.
-- `wait=False` returns at once with a `MoveHandle` (`NativeAxis`: `None`; then call `wait_idle()`).
-- An incremental unit must be homed after every power-up and software reset.
+- `wait=False` returns at once with a `MoveHandle`.
 
-On hardware: unloaded, mid-stroke, 20 mm/s or less, a hand on the emergency stop. A vertical axis without a brake can
-fall when the servo goes off. The complete program is
+Before a move on hardware read [Safety](../GETTING_STARTED.md#safety). The complete program is
 [examples/python/first_move.py](../../examples/python/first_move.py) (`--sim` or `--port COM3`).
 
 ## Stop
@@ -164,16 +144,12 @@ except EcDriverError as exc:
     raise
 ```
 
-`NativeAxis` raises the same classes, mapped from the core's result code. Each also carries `iad_code` (the C result
-code) and `iad_details` (the core's error record). An invalid argument is a `ValueError`. A missing or mismatched
-native library raises `NativeLibraryError`.
+An error from the core also carries `iad_code` (the C result code) and `iad_details` (its error record). A missing or
+mismatched native library raises `NativeLibraryError`.
 
-**Non-volatile writes.** Position-table writes, teach and parameter writes need no opt-in: `allow_nonvolatile`,
-`allow_dangerous`, `allow_home_params` and `allow_unlisted` are accepted and ignored (no longer needed), and a risky
-write goes through with a warning (`warnings`, `last_result()`). They write the unit's non-volatile memory, which lasts
-about 100,000 write cycles (IAI). An unchanged value or row is not written again (`skipped`), and the driver warns above
-60 writes an hour on one axis. For a target that changes every cycle use `move_to`: direct moves are RAM only
-(VERIFIED).
+**Non-volatile writes.** Position-table writes, teach and parameter writes go straight through. A risky write gives a
+warning (`warnings`, `last_result()`), and an unchanged value or row is not written again (`skipped`). For a target
+that changes every cycle use `move_to`. The rules: [Non-volatile writes](../TROUBLESHOOTING.md#non-volatile-writes).
 
 ## Threads
 
@@ -182,8 +158,7 @@ about 100,000 write cycles (IAI). An unchanged value or row is not written again
 - Axes on different ports run in parallel. Axes that share a port take turns on its bus lock; a STOP from another
   thread gets the bus between two status polls.
 - A cell takes every axis it finds (no total limit; `max_axes` caps it if given). One cable carries at most 16 axes
-  (axis numbers 0..15, addresses 1..16), and the scan asks addresses 1..16 per port by default. One axis per USB adapter
-  runs fastest: axes on one cable take turns.
+  ([Several axes on one port](../HARDWARE_SETUP.md#several-axes-on-one-port)).
 - `Cell` group commands (`servo_all`, `home_all`, `move_all`, `wait_all`, `stop_all`) run the ports in parallel and
   return when every axis is done. `stop_all()` may come from another thread while a group command waits.
 - Ctrl+C during a move sends a decel stop before `KeyboardInterrupt` propagates. ctypes releases the GIL during each
@@ -192,7 +167,7 @@ about 100,000 write cycles (IAI). An unchanged value or row is not written again
 
 ## Where the native library comes from
 
-The package runs on the core only. Importing it loads the core with ctypes (`iai_actuator_driver.dll` on Windows,
+Importing the package loads the core with ctypes (`iai_actuator_driver.dll` on Windows,
 `libiai_actuator_driver.so` on Linux, `libiai_actuator_driver.dylib` on macOS; no compiler is needed on the PC) and
 checks its ABI version. It looks in this order:
 
@@ -203,19 +178,8 @@ checks its ABI version. It looks in this order:
 
 A `pip install` of the folder copies only the Python files, so it finds the library through 1 or, editable, 3. When
 none is usable the import raises `ImportError` saying where it looked. `iai_actuator_driver.backend_info()` and
-`iai-actuator-driver --version` name the library loaded and its ABI. `IAI_DRIVER_BACKEND` may be unset, `auto` or
-`native`, all the core.
-
-To build it from source on Windows x64:
-
-```shell
-pip install ziglang
-cd core
-python build.py shared        # core/build/iai_actuator_driver.dll (+ .lib); no runtime to install
-```
-
-On Linux build it with CMake (`cmake -S core -B core/build -DIAI_ACTUATOR_DRIVER_BUILD_SHARED=ON`, then
-`cmake --build core/build`); details in [cpp.md](cpp.md).
+`iai-actuator-driver --version` name the library loaded and its ABI. To build it from source (zig on Windows x64,
+CMake on Linux): [core/README.md](../../core/README.md#build).
 
 Check it:
 
@@ -228,29 +192,14 @@ print(native.abi_version(), native.library_version())
 The binding checks the library's ABI version when it loads: the same ABI major and a library minor at least its own
 (C ABI 1.0, frozen within major 1). Use the library and the package of the same release.
 
-## What the core does today
-
-`NativeAxis` and `NativeCell` bind the core's axis and cell functions with the package API's names and shapes:
-
-- Open (port or simulator), connect, identify, status, limits, servo, home, unit info.
-- Absolute, relative, jog, stored-row and command-profile moves (`decel_g`), push, acceleration patterns, move
-  handles, move sequences, speed and acceleration changes.
-- Stop, pause, resume, alarm reset and history, the position table, teach, parameters, the non-volatile write counter.
-- Baud change, software reset, the status monitor and fast mode, link checks and recovery, backup, the self-test, line
-  and gateway status, the log and frame sinks.
-- The cell's group commands, monitors, recovery, backup and coordinated motion.
-
-The rest of the C ABI is what the package's modules run on. All of it is tested on the simulator. On
-hardware only the steps in [Evidence](#evidence) are VERIFIED; the rest is UNVERIFIED.
-
 ## Evidence
 
 | Part | Evidence |
 |---|---|
-| The package API on the core | VERIFIED on the EC-GRBP8M gripper; steps in [../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit) |
-| `iai_actuator_driver.native` on the core | VERIFIED on the PCON-CB with an RCP6; steps in [../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit) |
-| Everything else through the core | UNVERIFIED (tested on the simulator) |
-| Linux serial port | VERIFIED from 1.1.0 (the 1.0.1 Linux wheel fails at the first read): the package on the core on the PCON-CB through the IAI USB adapter (`cp210x`, `/dev/ttyUSB0`) in WSL 2 with usbipd, a build of the 1.1.0 fix (2026-11-03) |
+| The package API | VERIFIED on the EC-GRBP8M gripper; steps in [../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit) |
+| `iai_actuator_driver.native` | VERIFIED on the PCON-CB with an RCP6; steps in [../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit) |
+| Everything else | UNVERIFIED (tested on the simulator) |
+| Linux serial port | VERIFIED ([../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit)) |
 | macOS serial port | UNVERIFIED |
 
 ## Next

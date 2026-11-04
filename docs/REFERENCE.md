@@ -4,13 +4,13 @@ How the driver, the command line, the test GUI and the simulator behave, with th
 a first run read [GETTING_STARTED.md](GETTING_STARTED.md); for one line per function (and the same calls in C#, C++
 and C) read [DRIVER.md](DRIVER.md); for the supported products read [COMPATIBILITY.md](COMPATIBILITY.md).
 
-Evidence words, for features and paths: **VERIFIED** (tried on hardware), **ON-WIRE** (seen in serial traffic),
-**DOC** (public IAI manuals), **UNVERIFIED** (expected, not yet tried). Every unit is driven the same way, whatever its
-model. Unofficial: not an IAI product; see the [README](../README.md).
+The evidence words are defined under [Evidence levels](#evidence-levels). Every unit is driven the same way, whatever
+its model. Unofficial: not an IAI product; see the [README](../README.md).
 
 ## Run on hardware so far
 
-A record of the units this driver has run on, not a list of allowed units.
+What the units reported at register level. The list of units and of what ran on each is in
+[COMPATIBILITY.md](COMPATIBILITY.md#run-on-hardware-so-far); it is a record, not a list of allowed units.
 
 Slave address 1, one unit per port. Every unit answered at **38400 baud after power-up** (115200 after another PC tool
 had connected); the driver finds the rate by itself.
@@ -21,20 +21,11 @@ had connected); the driver finds the rate by itself.
 | EC-GRBP8M-20-1-1-PN-WA-WL2 | gripper 4, 2-position mode | 0x0A (EC(MS) "2-size EC") / 0x0002 | 0..9.50 mm (-0.30 / +9.80) | 53.00 mm/s / 0.30 G | b0 LS0, b1 LS1, b2 *ALM | PASS |
 | EC-R6S-150-1-PN (no WA: incremental) | rod 3, 2-position mode | 0x00 (EC standard) / 0x0002 (FC11 answers after 0.2-0.4 s) | 0..150.00 mm (-0.30 / +150.30) | 800.00 mm/s / 1.00 G (VERIFIED) | b0 LS0, b1 LS1, b2 *ALM | PASS |
 
-Also run on hardware:
-
-- **EC-S6HH-200-1-PN-WL** (EC, unit 0x00, firmware 0x300E, incremental, soft limits -0.30 / 200.30): home, direct
-  moves at 50-100 mm/s, a mid-move STOP and a stored push row (VERIFIED).
-- **PCON-CB + RCP6-WSA10R** (FC11 `AE FF 44 00 00`: system 0xAE PCON, unit 0x44; absolute; 38400 at power-up): the
-  same directory, blocks, position table (768 rows) and commands as an EC, including home by coil and by 0x45 cmd
-  0x0A, the 0x45 alarm reset / action mode / servo forms, and the software reset, which reloads parameters from
-  non-volatile memory and keeps PMSS = 1, the baud rate and the uptime (VERIFIED). What else was run is listed in
-  [COMPATIBILITY.md](COMPATIBILITY.md).
-- **The core on the EC-GRBP8M gripper**: the Python package, the .NET `Axis` and the C++ and C#
-  command lines each went through the steps of their edition.
-  The steps per edition are in [COMPATIBILITY.md](COMPATIBILITY.md#hardware-results). The released 1.0.0 files (the
-  Python wheel, the C++ and C# command lines and `iai-gui.exe`) were run the same way on 2026-10-31. No parameter or
-  position-table write cycle was used, and the unit ended as found.
+- **EC-S6HH-200-1-PN-WL**: unit 0x00, firmware 0x300E, incremental, soft limits -0.30 / 200.30.
+- **PCON-CB + RCP6-WSA10R**: FC11 `AE FF 44 00 00` (system 0xAE PCON, unit 0x44), absolute. The same directory,
+  blocks and commands as an EC, including home by coil and by 0x45 cmd 0x0A and the 0x45 alarm reset / action mode /
+  servo forms. Its software reset reloads the parameters from non-volatile memory and keeps PMSS = 1, the baud rate and
+  the uptime (VERIFIED).
 
 The FC11 system code names the product **family** (`EC`, `PCON`, `ACON/DCON`, `SCON`, else `IAI controller`); for an
 EC the unit code names the EC family (display only). The actuator **kind** (gripper / rod / slider / rotary ...)
@@ -62,20 +53,14 @@ reported with the codes the unit gives.
   rejected 0x11 "1st operand error"), alarm reset `01 45 00 05 00 00 00 00` and the action mode (0x45 cmd 0x0C,
   ON-WIRE) `01 45 00 0C 00 <pc> 00 <safety>` (PMSS / SFTY followed). MAXV 7.4 = 800.00 mm/s and MAXA 7.5 = 1.00 G
   were read.
-- Up to 1.0.0 the driver's own `set_action_mode(pc)` was the PC/PIO toggle in this form. On the EC-GRBP8M gripper PMSS
-  read back 0 after `pc=False` and 1 after `pc=True`, the axis stood still in PIO and moved again in PC mode (VERIFIED
-  on 2026-10-30 and with the released 1.0.0 on 2026-10-31; [COMPATIBILITY.md](COMPATIBILITY.md#hardware-results)).
-  That test sets `pc` only: the `safety` argument is UNVERIFIED on the gripper.
-- On the PCON-CB every 0x45 cmd 0x0C with op1 = 1 cleared DSSE bit 12 (listed as "cannot be used" in ME0162-12A
-  p.4-20; its name is unknown), from PIO and in PC mode alike and with either op2. While the bit was 0 the unit took
-  no servo ON: SON was written, STAT bit 1 stayed 0, no alarm and no cause showed. Of what was tried, only a PMSL coil
-  OFF set the bit again (PMSL ON written again did not; op1 = 0 while the bit was 0 and a power cycle were not tried);
-  PMSL ON from PIO kept it, and the servo then came on (VERIFIED on the PCON-CB, 2026-11-02). So from 1.0.1 on
-  `set_action_mode(True)` takes PC control with the PMSL coil and changes the safety speed with the SFTY coil; only
-  `pc=False` sends this command (op1 = 0), and so does `pc=True` on a unit without FC05 coils. The 1.0.1 form took PC
-  control from PIO on the PCON-CB with the PMSL coil alone, and the servo then came on (VERIFIED, 2026-11-02, a build
-  of ea04991: the Python package on the core and the C++ and C# command lines); its safety-speed change by the SFTY
-  coil is UNVERIFIED on the unit.
+- `set_action_mode(True)` takes PC control with the PMSL coil and sets the safety speed with the SFTY coil; only
+  `pc=False` (and `pc=True` on a unit without FC05 coils) sends 0x45 cmd 0x0C, with op1 = 0. The reason: on the
+  PCON-CB that command with op1 = 1 cleared DSSE bit 12 (listed as "cannot be used" in ME0162-12A p.4-20; its name is
+  unknown), from PIO and in PC mode alike, and the unit then took no servo ON (no alarm, no cause shown) until a PMSL
+  coil OFF (VERIFIED). PC control from PIO with the PMSL coil alone, the servo coming on after it: VERIFIED on the
+  PCON-CB (from the Python package and the C++ and C# command lines) and on the EC-GRBP8M gripper (PMSS read back 0
+  after `pc=False` and 1 after `pc=True`; the axis stood still in PIO and moved again in PC mode). The SFTY coil change
+  is UNVERIFIED on both.
 
 **Not yet verified (UNVERIFIED):** the driver's own `home(method="iai")` / `reset_alarm(method="iai")` calls (the
 frames are the verified ones), the 0x48 commands, a message-level alarm on an EC (0x069
@@ -83,11 +68,29 @@ was seen on the PCON-CB; that the axis keeps running with one active is UNVERIFI
 commanded over PIO (only a hand-wired PIO input was tried, VERIFIED; see
 [COMPATIBILITY.md](COMPATIBILITY.md#hardware-results)).
 
-**Not supported:** controllers that speak IAI's SEL protocol instead of Modbus RTU (XSEL, SSEL, ASEL, PSEL, MSEL and
-the TTA table-top robots) do not answer Modbus, and an ELECYLINDER on an RCON-EC / REC connection unit has its serial
-port disabled. The driver says so when a port gets no answer.
+What is not supported, and why: [COMPATIBILITY.md](COMPATIBILITY.md#not-supported). Other models: run `iai-check`
+and send the result ([how](COMPATIBILITY.md#sending-a-report)).
 
-Other models: run `iai-check` and send the result ([how](COMPATIBILITY.md#sending-a-report)).
+### Measured on hardware
+
+The numbers measured in the acceptance runs ([COMPATIBILITY.md](COMPATIBILITY.md#hardware-results)), all VERIFIED:
+
+- **STOP timing** (PCON-CB, Python `stop()`, 10 trials each): at 10 mm/s and 0.1 G the STOP reached the wire a median
+  16.5 ms after the call and the axis was at rest after 88 ms; at 840 mm/s and 1.0 G, 7 ms and 254 ms. Under CPU load
+  (24 busy loops) 2 of 10 STOPs at 10 mm/s took 122 and 134 ms to reach the wire.
+- **STOP from speed** (PCON-CB, 100 to 840 mm/s, 0.3 and 1.0 G): the unit braked at the move's own deceleration about
+  50 ms after the call, and the distances repeated to 0.01 mm (6.94 mm after the call from 100 mm/s, 31.0 mm from
+  300 mm/s, 38.86 mm from 490 mm/s). A STOP never carried the axis past the move's target: from 786 mm/s it came to
+  rest at the target.
+- **Fast moves** (PCON-CB, 15 to 135 mm and back at 200 to 840 mm/s and 0.3 to 1.0 G, hops of 2 to 20 mm): every move
+  at its target (error at most 0.01 mm, no sampled overshoot with the status read about every 33 ms), no alarm. The
+  driver returned about 0.3 s after the motion itself (in position and settled): 0.553 s for 120 mm at 840 mm/s and
+  1.0 G (0.229 s in theory), 0.318 s for a 2 mm hop.
+- **`recover()` after a 250 ms line break**: the unit dropped to 9600 baud; `recover()` found it and took the rate back
+  to 38400 in 3.87 s on the EC gripper and in 4.0 to 4.1 s on the PCON-CB (also on Linux), with PC control kept and no
+  home needed.
+- **Speed change during a move** (EC gripper, Python): with a 12 mm/s request the gripper ran about 1.4 mm/s before
+  and about 10.5 mm/s on average after, the stop included.
 
 ## Command line reference
 
@@ -108,16 +111,16 @@ python -m iai_actuator_driver --port COM3 move 120 --speed 100 --accel 0.3 --dec
 python -m iai_actuator_driver --port COM3 jog -5       # relative step (never the EC's JOG coils)
 python -m iai_actuator_driver --port COM3 push 80 10 30  # approach 80 mm, push 10 mm further at 30 %
 python -m iai_actuator_driver --port COM3 stop
-python -m iai_actuator_driver --port COM3 move 100 --speed 20 --change-speed 60 --change-after 1.5  # change the running move's speed (VERIFIED on the EC gripper)
+python -m iai_actuator_driver --port COM3 move 100 --speed 20 --change-speed 60 --change-after 1.5  # change the running move's speed (VERIFIED on the EC gripper); --change-accel G likewise
 python -m iai_actuator_driver --port COM3 pause        # hold a move, keep its travel (stays set); 'resume' continues it
 python -m iai_actuator_driver --port COM3 cancel-pause # drop the remaining travel of a paused move (VERIFIED on the EC gripper)
-python -m iai_actuator_driver --port COM3 teach 2           # store the current position as row 2 (permanent; an unchanged row is not written, --force writes it)
+python -m iai_actuator_driver --port COM3 teach 2           # store the current position as row 2 (permanent; an unchanged row is not written, --force writes it; --method table|coil; --allow-nonvolatile is accepted and ignored)
 python -m iai_actuator_driver --port COM3 backup unit1.json  # read-only JSON backup (FC03 / FC11 only)
 python -m iai_actuator_driver --port COM3 line --monitor     # the line (direct / rcon / robonet), its rules, the gateway status
 python -m iai_actuator_driver --port COM3 move 80 --fast     # fast completion with the status monitor (baud rate kept)
-python -m iai_actuator_driver --port COM3 monitor --watch    # status changes and link events until Ctrl+C (read-only)
+python -m iai_actuator_driver --port COM3 monitor --watch --duration 60  # a line per status change (--interval S at most) and every link event, until Ctrl+C or S seconds (read-only)
 python -m iai_actuator_driver --port COM3 recover --backup unit1.json --target 80  # re-sync after a power / link loss; never moves (VERIFIED on the EC-GRBP8M gripper and the PCON-CB)
-python -m iai_actuator_driver --port COM3 recover --backup unit1.json --rows used  # compare only the rows 'backup --rows used' holds, not all 768 (this command line only)
+python -m iai_actuator_driver --port COM3 recover --backup unit1.json --rows used  # compare only the rows 'backup --rows used' holds (this command line only)
 python -m iai_actuator_driver stop-all --ports COM3,COM4     # STOP every axis of the ports (--broadcast: one broadcast STOP too, UNVERIFIED)
 python -m iai_actuator_driver --port COM3 goto 0       # stored position 0 (0x9800) at its stored speed
 python -m iai_actuator_driver --port COM3 goto 6 --speed-pct 25  # row 6 at 25 % of its stored speed (0x45 cmd 6)
@@ -136,8 +139,16 @@ python -m iai_actuator_driver --sim --sim-profile gripper identify  # ... simula
 python -m iai_actuator_driver ports                    # serial ports, IAI USB adapters first (opens nothing)
 python -m iai_actuator_driver scan                     # every IAI adapter, addresses 1-16: who answers (read-only)
 python -m iai_actuator_driver scan --ports COM3,COM4 --slaves 1-4
-python -m iai_actuator_driver --port COM5 --axis 2 status  # axis 2 on a shared port (= --slave 3)
+python -m iai_actuator_driver --port COM4 --axis 2 status  # axis 2 on a shared port (= --slave 3)
 ```
+
+`status` also prints the condition flags (EMG input, drive power cut, enable switch ...), and `servo on` is refused
+with the reasons when the status shows the servo cannot come on. `recover` checks that the unit is the same (the
+backup's identity), restores PC control, the baud rate (`--restore-baud RATE`) and message-level alarms, and reports
+HEND, alarm, uptime and position; `--no-control` does not take PC control again and `--wait S` is how long it waits for
+the unit to answer (default 30 s). It compares every row the backup holds: 768 on an EC for a `backup --rows all`
+file, about 25 s at 38400 baud (VERIFIED on the EC gripper). With `--rows used` it compares only the rows
+`backup --rows used` holds, and a change in any other row is not noticed.
 
 **Baud rate.** Without `--baud` the CLI finds the rate on the open port: 115200 first, then 38400 (the EC's power-up
 rate), 9600, 230400, 57600, 19200. The rate is changed in place: the port is never closed and reopened in between
@@ -531,6 +542,124 @@ with Cell.open() as cell:              # every IAI adapter, every answering addr
   skip it (one warning line), and a request or an open of slave 58 is refused with nothing sent (`ValueError` /
   `ArgumentException` / `std::invalid_argument`).
 
+## Coordinated motion
+
+How a coordinated run (`cell.coordinated()`, alpha) plans, checks, runs and stops. The functions are in
+[DRIVER.md](DRIVER.md#coordinated-motion-alpha). The core does all of it, in every edition.
+
+### How it runs
+
+| Mode | Used for | How |
+|---|---|---|
+| `"sync"` | lines, polylines | One move per axis per segment, started on every port at once. Axis i gets speed `v * \|d_i\| / L` and acceleration = deceleration `a * \|d_i\| / L`, so every axis runs the same trapezoid in time and the point stays on the line. The next segment starts when every axis is done (with `blend=`, when each is within that distance). |
+| `"stream"` | arcs, circles, curves | The path is cut into chords (angle step `2 * acos(1 - e / r)` for chord error `e`). Each waypoint gets a time from a trapezoid speed profile, and at each time every axis is re-targeted one waypoint ahead with the speed that gets it there on time. One thread per port, one start time, 1 ms Windows timer. Status is read about every 20 ms while slack allows, and at least every 0.15 s (longer on a slow line). |
+| `"auto"` (default) | anything | sync for lines only, stream otherwise |
+
+A 0x9900 block re-sent during a move re-targets it, and a new speed takes effect mid-move (both VERIFIED on the EC
+gripper). About 15 re-targets per second on one EC are VERIFIED; several real axes doing it together are UNVERIFIED.
+
+### Checks before anything is sent
+
+The planner checks:
+
+- every commanded waypoint against each axis's range (soft limits minus their 0.30 margin, within a configured
+  `stroke`; the start point is not checked);
+- every per-axis speed and acceleration against that axis's `limits()`;
+- the centripetal acceleration `v^2 / r` against the smallest axis acceleration;
+- the step time against what the line can carry.
+
+An infeasible path raises `SoftLimitError` with the reasons and the largest feasible speed (`.max_speed`; a plan at
+that speed passes); nothing is sent. A speed below an axis's documented minimum is a warning, never a refusal.
+Waypoints that change no axis by a whole count are merged away. A step too short for the line merges with its
+neighbour where the path is straight there (or the step is within the chord error).
+
+`run_plan()` runs a plan the group made: the core plans the same path again from where the axes are, and they must be
+at the plan's start (its lead-in's, if any), else `EcNotReadyError` and nothing is sent; `result.plan` is the plan that
+ran. A plan made elsewhere (`plan_path`) raises `NotImplementedError`: plan it with `xy.plan()`, or run the path with
+`xy.run()`. Before it sends anything, `run_plan()` checks again against the axes as they are then:
+
+- the ranges, read fresh (a narrowed `stroke` counts; a failed soft-limit read refuses);
+- each moving axis's lowest and highest waypoint, the way `move_to()` checks a target;
+- every axis of the plan, held ones too: ready (EMG, alarm, servo, homed, not paused, no home return), standing still
+  and at the start;
+- a streamed plan's steps against the line timing measured then.
+
+An axis in automatic servo OFF is switched back on the documented way just before it gets a frame (not by the 0x9900
+frame: that wake is UNVERIFIED on an EC). One coordinated run at a time per axis: a second one is refused (nothing
+sent).
+
+### Stops and errors
+
+Any of these stops **every axis of the group** (decel stop) and raises `CoordinatedMotionError`, with the trace so far
+in `.result`:
+
+- an error, a fault alarm, EMG, servo off, a pause or a home return;
+- a link fault, or a frame later than one full step;
+- an outside stop: `xy.stop()`, `cell.stop_all()`, the cell's stop after a link fault, `ax.stop()`, `ax.pause()` or a
+  servo OFF from another thread. The run then sends no further frame and never releases a STOP it did not send.
+
+A stop counts from the moment the run is called (`run`, `line_to`, `circle`, `run_plan`), its planning included.
+`circle` without `start_deg` reads where the axes are just before that call, to choose its start.
+
+**Ctrl+C** stops every axis of the group the same way, then re-raises `KeyboardInterrupt` (result in
+`.coordinated_result`).
+
+Axes outside the group are not commanded, except on a link fault in a cell: three failed status reads in a row, both
+attempts of a frame lost, or the port failing. Then the group's STOP frames go out first, and the cell's
+`stop_on_fault` handling stops every other axis, as for `move_all`. One lost echo or a late frame is not a link fault:
+the group stops, but the cell's fault handling is not called.
+
+In C++, `CoordinatedGroup::run` (and `run_plan`, `line_to`, `circle`) throws `coord::CoordinatedMotionError` the same
+way. A caller that runs it on its own `std::thread` must catch it there: an exception that leaves a thread function
+ends the process.
+
+### Timeout
+
+The run's timeout is the wait for the last waypoint; left out, it comes from the plan. It must be a finite number of
+seconds above 0 (C++ `RunOptions::timeout_s`, `"timeout_s"` of the C ABI's JSON request). Zero, a negative value (-1 is
+"wait forever" in VB and LabVIEW) or infinity is refused before anything is sent (`SoftLimitError`;
+`IAD_ERR_INVALID_ARGUMENT` for a C ABI request). A path that moves no axis is refused the same way. JSON has no NaN:
+leave the key out for the default. A stop's timeout is not checked: a STOP always goes out.
+
+### Limits of PC-side coordination
+
+- **No shared clock.** Axes meet in time only through the PC sending frames on schedule. Axes on separate ports start
+  within a few ms of each other. Axes sharing a port take turns, one transaction apart, and unit replies take tens of
+  ms (VERIFIED; up to about 285 ms at 9600 baud). That skew times the speed is a path error;
+  `plan.est_timing_error_s` and `plan.est_deviation` estimate it.
+- **Frame timing sets the smoothness.** Each axis runs at constant speed between waypoints. The shortest step comes
+  from `LineTiming` (baud rate, frame lengths, response delay, bus gap, axes per port, one status read per step,
+  x1.5). By the model alone that is about 60 ms at 38400 baud, 44 ms at 115200 and 40 ms at 230400 for one axis per
+  port. Below 38400 a stream is effectively ruled out. `plan()`, `run()` and `run_plan()` also time status reads of
+  every axis inside the core's plan or run, and the measured time counts when it is longer. For shorter steps raise
+  the rate: `Port.set_baudrate(230400)` on a cell port, `ax.set_baudrate()` on an axis that owns its port
+  (`ax.enable_fast()` on a cell axis keeps the rate). `min_step_s=` overrides the estimate.
+- **Status monitors are held.** A run holds the status monitors of its own axes (they poll while it plans) and reads
+  its own samples. Other axes' monitors on the same ports keep polling; that traffic delays frames and shows as late
+  frames.
+- **Chord error vs speed.** A smaller chord error means shorter steps at the same speed. When steps get shorter than
+  the line allows, the plan is refused with the largest feasible speed: raise `chord_error` or lower the speed.
+- **Lag.** Each axis gets the next waypoint one step ahead. With a low acceleration cap the axis brakes before each
+  waypoint and the path cuts inside; the plan warns when the cap bites.
+- **The PC is in the loop.** A busy or sleeping PC delays frames. Late frames are counted (`result.late_frames`;
+  `result.worst_skew_s` for a sync segment), and a frame that would reach the wire later than one full step is not sent
+  and aborts the run. A frame whose echo is lost is re-sent once; with steps shorter than that re-send the run stops as
+  a late frame. Every wait of the core runs on the monotonic clock, so a step of the system clock (an NTP step, a VM's
+  time sync) does not lose frames. A lost status reply is skipped; three in a row are a link fault. The unit has no
+  watchdog: if the PC or the cable fails mid-path, each axis completes the waypoint it was last sent.
+- **The deviation is an estimate.** `result.max_deviation` and `mean_deviation` come from status samples, interpolated
+  per axis. They are blind between samples (`result.sample_spacing_s` is the median spacing).
+
+### Coordinated motion on hardware
+
+The core's runner is VERIFIED with one real axis as x and a simulated y, on the EC gripper and on the PCON-CB: a
+synchronized line, a streamed circle of r = 2 mm at 5 mm/s (deviation max 0.10 / mean 0.03 mm on the gripper, max
+0.08 mm on the PCON-CB, no late frame) and `xy.stop()` mid-circle (`CoordinatedMotionError`; the real axis stood
+still with no alarm, and on the PCON-CB the run ended 0.39 s after the stop). Deviations are estimates from status
+samples, and half the path is the simulated axis. Under CPU load (24 busy loops) the planner refused the circle before
+sending anything, or a run ended by itself on a refused late frame with no frame past the limit sent: coordinated
+motion under CPU load is UNVERIFIED. Two or more real axes together are UNVERIFIED.
+
 ## Safety notes
 
 - **This software is not a safety function.** Keep a hardware emergency stop and guarding as for any machine. Test
@@ -587,21 +716,21 @@ with Cell.open() as cell:              # every IAI adapter, every answering addr
 - **Preconditions.** Moves require Modbus control, servo on, homed, no alarm or emergency stop, not paused and no home
   return in progress; otherwise `EcNotReadyError` / `EcAlarmError` with a hint.
 - **Alarm reset.** `reset_alarm()` leaves a servo the alarm switched off **off**: an alarm keeps the servo-on level
-  (SON coil / DRG1 b12) set, and on a PCON-CB the reset alone re-energised the motor (ON-WIRE, 2026-11-03), so the
+  (SON coil / DRG1 b12) set, and on a PCON-CB the reset alone re-energised the motor (ON-WIRE), so the
   driver clears that level first, on the reset's own path. Call `servo(True)` afterwards. A servo that is on stays on.
 - **Modbus control (PMSL).** The EC powers up with PMSS = 0. The driver takes control (PMSL coil 0x0427)
   automatically before a command, **but only while the axis is at rest**: on hardware, switching PMSL on in the middle
   of a move stopped that move. With PMSS = 0 and the axis moving, commands raise `EcNotReadyError` instead of touching
   PMSL. A command the driver refuses (servo off, not homed, a blocked servo ON, a moving axis, a push row or push
   started inside its zone, a bad home pattern) is refused before control is taken, so nothing is written, not even
-  PMSL (a refused move had switched PMSS 0 -> 1 first: ON-WIRE on the PCON-CB, 2026-11-03). `auto_modbus_control=False`
+  PMSL (a refused move had switched PMSS 0 -> 1 first: ON-WIRE on the PCON-CB). `auto_modbus_control=False`
   makes the driver require an explicit `enable_modbus_control()`. PMSS does not gate
   0x9900 moves on the EC: a move sent by another tool runs whatever PMSS is. A pause at a standstill with the servo off
   (DSS1 STP, no SV, no MOVE, no home return, no push and VNOW 0) does not block taking control; a pause with the servo
   on does (a PLC holding a stop input on a move), and a PLC pause with the servo off is still indistinguishable from an
   unwired stop input. A PCON in PIO mode with nothing on its PIO connector pauses and switches its servo off, and the
-  servo stays off once PC control is back (VERIFIED on the PCON-CB, 2026-11-02). 1.0.1 taking control there: VERIFIED
-  (PCON-CB, 2026-11-02). Handing control back to PIO is still refused while a pause is on.
+  servo stays off once PC control is back; taking control there: VERIFIED on the PCON-CB. Handing control back to PIO
+  is still refused while a pause is on.
 - **Stop.** `stop()` and every automatic stop use the hardware-verified sequence: STOP coil 0x042C ON, wait until the
   axis has stopped (position unchanged for `settle_s`), STOP OFF. It never touches PMSL. With PMSS = 0 it stopped a
   move commanded over Modbus (VERIFIED); it has **never been tried on a move a PLC commanded over PIO**. If a PLC holds
@@ -722,7 +851,7 @@ established:
 | **DOC** (DOC-CON) | Documented in a public IAI manual; DOC-CON = documented only for the CON controller family (Modbus manual ME0162, which does not list the EC) | Plausible; must be verified on the EC |
 | **UNVERIFIED** | Expected behaviour, not yet confirmed on hardware | Treat as an assumption; the driver guards these paths |
 
-The units run so far are listed under [Run on hardware so far](#run-on-hardware-so-far).
+The units run so far are listed in [COMPATIBILITY.md](COMPATIBILITY.md#run-on-hardware-so-far).
 
 **Where the EC differs from the CON documentation:**
 
@@ -760,7 +889,8 @@ PLC-commanded moves.
 ## Test GUI
 
 A local web GUI to drive axes by hand, with status lamps. Stdlib only, loopback only (127.0.0.1); every `/api`
-request needs the per-run token embedded in the page. After `pip install ./bindings/python ./apps/gui`:
+request needs the per-run token embedded in the page. After installing it
+([GETTING_STARTED.md](GETTING_STARTED.md#1-install)):
 
 ```shell
 iai-gui                         # http://127.0.0.1:8780 (Ctrl+C to quit)

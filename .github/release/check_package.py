@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 """Check what a release package carries before it is attached to the release.
 
-    python .github/release/check_package.py wheel dist/x.whl --rid win-x64 --version 1.0.0
-    python .github/release/check_package.py sdist dist/x.tar.gz --version 1.0.0
-    python .github/release/check_package.py nupkg nupkg/IaiActuatorDriver.1.0.0.nupkg --version 1.0.0
+    python .github/release/check_package.py wheel dist/x.whl --rid win-x64 --version X.Y.Z
+    python .github/release/check_package.py sdist dist/x.tar.gz --version X.Y.Z
+    python .github/release/check_package.py nupkg nupkg/IaiActuatorDriver.X.Y.Z.nupkg --version X.Y.Z
     python .github/release/check_package.py binary build/native/linux-x64/dist/libiai_actuator_driver.so --rid linux-x64
 
 wheel: tag py3-none-<platform of rid> in the file name and in WHEEL, Root-Is-Purelib false, the library at
-       iai_actuator_driver/_native/<rid>/ and built for that OS and CPU, no other native file, listed in RECORD; no
-       pure-Python edition (_pure/).
-sdist: source, needs the native library: no native library or binary of any platform inside and no pure-Python
-       edition (_pure/, removed after 1.0.x); PKG-INFO carries the version and says that the sdist needs the library
-       (SDIST_TEXT, from bindings/python/README.md).
-nupkg: runtimes/<rid>/native/ for win-x64, linux-x64 and linux-arm64 (each built for its OS and CPU), the managed
+       iai_actuator_driver/_native/<rid>/ and built for that OS and CPU, no other native file, listed in RECORD.
+sdist: source, needs the native library: no native library or binary of any platform inside; PKG-INFO carries the
+       version and says that the sdist needs the library (SDIST_TEXT, from bindings/python/README.md).
+nupkg: runtimes/<rid>/native/ for win-x64 and linux-x64 (each built for its OS and CPU), the managed
        assembly under lib/, the .NET Framework copy targets under build/ and buildTransitive/, the nuspec version.
 wheel, sdist and nupkg also: LICENSE, NOTICE and NATIVE_THIRD_PARTY.txt (the notices of what is linked into the
        native library), each equal to the repository's file (NOTICES: LICENSE, licenses/NOTICE,
@@ -32,7 +30,7 @@ installed: run with the wheel installed (and the source package out of the way):
        site-packages, its native module finds the library in _native/<rid>/ of the installed package, loads it, and
        the library reports the release version.
 
-    python .github/release/check_package.py installed --rid linux-x64 --version 1.0.0
+    python .github/release/check_package.py installed --rid linux-x64 --version X.Y.Z
 """
 
 from __future__ import annotations
@@ -67,7 +65,6 @@ NOTICES = {
 LICENSE_EXPRESSION = "Apache-2.0"
 SDIST_TEXT = re.compile(r"The sdist is source, and needs the native\s+library")
 """What the sdist's description (PKG-INFO, from bindings/python/README.md) says about it (decision D8)."""
-PURE = "iai_actuator_driver/_pure/"  # the pure-Python edition, removed after 1.0.x: in no package since
 
 
 def notice_folder(asset: str, names: list[str]) -> str:
@@ -325,8 +322,6 @@ def cmd_wheel(args: argparse.Namespace) -> int:
                 c.expect(lib in zf.read(record).decode("utf-8"), f"RECORD lists {lib}")
         others = [n for n in names if n != lib and n.lower().endswith(NATIVE_SUFFIXES)]
         c.expect(not others, f"no other native file ({others[:5] or 'none'})")
-        pure = [n for n in names if n.startswith(PURE)]
-        c.expect(not pure, f"no pure-Python edition, {PURE} ({pure[:3] or 'none'})")
         metadata = next((n for n in names if n.endswith(".dist-info/METADATA")), None)
         text = zf.read(metadata).decode("utf-8") if metadata else ""
         c.expect(re.search(rf"^License-Expression: {LICENSE_EXPRESSION}\s*$", text, re.M) is not None,
@@ -349,8 +344,6 @@ def cmd_sdist(args: argparse.Namespace) -> int:
             if head[:2] == b"MZ" or head == b"\x7fELF" or head[:4] in (b"\xcf\xfa\xed\xfe", b"\xca\xfe\xba\xbe"):
                 binaries.append(m.name)
         c.expect(not binaries, f"no executable binary inside ({binaries[:5] or 'none'})")
-        pure = [m.name for m in members if f"/{PURE}" in m.name]
-        c.expect(not pure, f"no pure-Python edition, {PURE} ({pure[:3] or 'none'})")
         pkg_info = next((m for m in members if PurePosixPath(m.name).name == "PKG-INFO"
                          and len(PurePosixPath(m.name).parts) == 2), None)
         c.expect(pkg_info is not None, "has PKG-INFO")
@@ -445,7 +438,7 @@ def main(argv: list[str] | None = None) -> int:
     n = sub.add_parser("nupkg")
     n.add_argument("file")
     n.add_argument("--version", default="")
-    n.add_argument("--rids", default="win-x64,linux-x64,linux-arm64")
+    n.add_argument("--rids", default="win-x64,linux-x64")
     b = sub.add_parser("binary")
     b.add_argument("file")
     b.add_argument("--rid", required=True, choices=sorted(LIB))

@@ -6,7 +6,7 @@ JSON and a markdown summary, so someone else can repeat a check on another day.
 
 - It tests the installed `iai_actuator_driver` package by default, so it can test a released wheel. The C++ and C#
   command lines can be tested the same way.
-- The checks are the ones run by hand on an EC-GRBP8M gripper; the results of the harness on that gripper are in
+- The harness has run on the EC-GRBP8M gripper and on the PCON-CB with an RCP6; the results are in
   [COMPATIBILITY.md](../../docs/COMPATIBILITY.md#hardware-results). On any other unit its behaviour stays UNVERIFIED
   until a first run there.
 - Unofficial: not an IAI product.
@@ -91,7 +91,7 @@ axis into the band by hand.
 - A run on a real port with no terminal and no `--yes` ends before the port is opened. No option skips the backup, the
   band or the end sequence.
 
-## Steps of the Python edition
+## Steps of the Python package
 
 Opt-in steps run only when named (`--steps all` or `--steps default,recover`). Steps marked M move the axis or change
 its servo or mode.
@@ -120,7 +120,7 @@ its servo or mode.
 | `nv_guard` | | a parameter written its own value is skipped: nothing written, no write cycle used |
 | `baud` | | the baud rate found on the line is the one the run started at |
 | `link` | | a recovery session can be taken and the link reads ok |
-| `pc_pio` | M | PIO mode, PC mode, Modbus control off and on; the axis stays still in PIO mode and moves again in PC mode (a unit that shows a pause in PIO mode and whose servo went off by the first status in PC mode gets it back on first, also when the first status still showed it on; any other servo loss across the toggle, a later one too, fails the step). The Python edition tries a servo ON straight after `set_action_mode(PC)`, before the PMSL toggle, when the servo is off then: a servo ON that is not taken fails the step. That servo ON switches the servo on in the middle of the step, also on a unit found with its servo off; the restore at the end of the run switches such a unit's servo off again |
+| `pc_pio` | M | PIO mode, PC mode, Modbus control off and on; the axis stays still in PIO mode and moves again in PC mode (a unit that shows a pause in PIO mode and whose servo went off by the first status in PC mode gets it back on first, also when the first status still showed it on; any other servo loss across the toggle, a later one too, fails the step). With `--edition python` the step tries a servo ON straight after `set_action_mode(PC)`, before the PMSL toggle, when the servo is off then: a servo ON that is not taken fails the step. That servo ON switches the servo on in the middle of the step, also on a unit found with its servo off; the restore at the end of the run switches such a unit's servo off again |
 | `check` | | the driver's read-only self-test has no failing line |
 | `recover` | M, opt-in | a 250 ms line break; the unit falls silent, `recover()` finds it again, restores the baud rate and keeps PC control. It changes the baud rate of the line and back, so it is not in the default set. On the simulator use `--sim-baud 115200` |
 

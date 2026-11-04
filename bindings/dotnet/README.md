@@ -121,12 +121,12 @@ write calls: they send exactly what you ask (IAI commands still pass the safe an
 | `axis.Backup(path, rows)` / `BackupJson(path, rows)` / `Axis.BackupAll(axes, directory, names, rows)` | Read-only backup (identity, directory, support words, parameters, rows, alarms, maintenance; schema `ec_driver.backup/1`) as a dictionary or JSON, optionally to a file; one file per axis. FC03 / FC11 only. | `rows`: `"used"` (default), `"all"` (768 on an EC: slow), `"0,1,2"` | `axis.Backup("backup.json");` |
 | `axis.Limits()` | Every range the driver enforces (`AxisRanges`), with its source. | | `axis.Limits().Speed.Max` |
 | `axis.Units` / `Kind` / `ProductFamily` / `IsEc` | `"mm"` or `"deg"`, actuator kind, family (`EC`, `PCON` ...), EC or CON unit. | | `axis.Units` |
-| `Port.Open(portName, baudRate, detectSlaves, readTimeout, retries, frameLogger, line)` | Opens a port shared by several axes. | `line`: `LineKind.Auto` (default; read-only gateway probes, about 0.1 s more without a gateway), `Direct` (no probes), `Rcon`, `Robonet`, `RobonetGateway` | `var port = Port.Open("COM5");` |
+| `Port.Open(portName, baudRate, detectSlaves, readTimeout, retries, frameLogger, line)` | Opens a port shared by several axes. | `line`: `LineKind.Auto` (default; read-only gateway probes, about 0.1 s more without a gateway), `Direct` (no probes), `Rcon`, `Robonet`, `RobonetGateway` | `var port = Port.Open("COM3");` |
 | `new Port(transport, name, retries, minGap, frameLogger, autoBaud, line)` | The same on any transport. | as above | `new Port(line, "SIM1")` |
 | `port.Scan(slaves, timeout)` / `ScanUnits(slaves, timeout, identify)` / `Identify(slave)` | Addresses that answer (with their FC11 identity) / one address's `DeviceInfo`. Read-only; no retry per missing address. | addresses 1..247, default 1..16 | `port.ScanUnits()` |
 | `port.Axis(slave, options)` | The axis at that address (one object per address). | 1..247 | `var ax = port.Axis(3);` |
 | `Cell.Open(options)` | Opens every IAI USB adapter; finds and identifies every answering axis. Read-only. | `CellOptions`: `MaxAxes` 0 (no limit; a value caps the cell), `ScanSlaves` 1..16, `BaudRate`, `ReadTimeout`, `Retries`, `Identify`, `AxisOptions`, `Line` | `using var cell = Cell.Open();` |
-| `Cell.Open(portNames, slaves, options)` / `Cell.Open(slavesByPort, options)` | The named ports; listed slaves must answer. | `"COM3"`, `{ "COM5": [1], "COM6": [2, 3] }` | `Cell.Open(new[] { "COM3", "COM4" })` |
+| `Cell.Open(portNames, slaves, options)` / `Cell.Open(slavesByPort, options)` | The named ports; listed slaves must answer. | `"COM3"`, `{ "COM3": [1], "COM4": [2, 3] }` | `Cell.Open(new[] { "COM3", "COM4" })` |
 | `Cell.Open(transports, slaves, options)` / `Cell.Open(ports, slaves, options)` | A cell on open transports or `Port`s. An axis a `Port` already has is used as is, so its caps and stroke apply to group commands. | name -> transport | `Cell.Open(SimLine.SimPorts(3))` |
 | `cell[name]` / `cell[index]` / `Names` / `Axes` / `Ports` / `Info` | One axis by name or index; all names, axes, ports, identities. | `"COM3:1"`, `0` ... | `cell["COM3:1"].Status()` |
 
@@ -156,9 +156,9 @@ write calls: they send exactly what you ask (IAI commands still pass the safe an
 | `axis.Push(target, band, forcePct, direction, speed, accelG, wait, timeout, cancellationToken)` | Moves to `target`, then pushes up to `band` further. Returns `PushResult` (`Contact`, `PositionMm`, `Warnings`, `Status`). | force 1 .. unit max % (`Limits().Push`); direction +1 away from home, -1 toward | `axis.Push(85.0, band: 10.0, forcePct: 30);` |
 | `axis.CheckMove(position, speed, accelG, band, decelG, accelPattern)` | Every check of `MoveTo`, without moving. | as `MoveTo` | `axis.CheckMove(120.0, speed: 100);` |
 | `axis.StartMoveTo(position, speed, accelG, band, timeout, decelG, accelPattern, completion)` / `StartMoveBy(...)` / `StartJog(...)` | Starts a move after every check and returns its `MoveHandle`. `Wait(timeout, token)` / `WaitAsync(...)` block until done; a timeout or alarm sends a decel stop, and a cancelled token sends one and throws `OperationCanceledException`. `Poll(maxWaitS)` waits a slice, `IsDone()` checks once, `Cancel(wait, timeout)` is a decel stop (safe from another thread). `Info`, `Result`, `Target`, `Band`, `TimeoutS`. `Dispose` releases the handle only; the move goes on. | as `MoveTo` | `using var move = axis.StartMoveTo(80.0, speed: 20); var st = move.Wait();` |
-| `axis.ChangeSpeed(speed, wait, timeout, cancellationToken)` / `ChangeAccel(accelG, wait, timeout, cancellationToken)` | Changes the speed (or acceleration = deceleration) of the running 0x9900 move. Without a running move: `EcNotReadyException`, nothing sent. With `wait`, returns the settled status, else `null`. VERIFIED in the Python edition on the EC-GRBP8M gripper (speed also on the PCON-CB); UNVERIFIED here. | 0.01 .. unit max | `axis.ChangeSpeed(100, wait: true);` |
+| `axis.ChangeSpeed(speed, wait, timeout, cancellationToken)` / `ChangeAccel(accelG, wait, timeout, cancellationToken)` | Changes the speed (or acceleration = deceleration) of the running 0x9900 move. Without a running move: `EcNotReadyException`, nothing sent. With `wait`, returns the settled status, else `null`. VERIFIED through the Python package on the EC-GRBP8M gripper (speed also on the PCON-CB); UNVERIFIED here. | 0.01 .. unit max | `axis.ChangeSpeed(100, wait: true);` |
 | `axis.MoveSequence(points, speed, accelG, band, blendBand, completion, timeout, cancellationToken)` | Absolute moves through `SequencePoint`s (or positions) in order, one settled status per point. Every point is checked before the first frame. `blendBand` 0.01 .. 10 sends the next target within that distance (UNVERIFIED). | as `MoveTo`, per point | `axis.MoveSequence(new[] { 20.0, 60.0 }, speed: 50);` |
-| `axis.TeachPosition(n, allowNonvolatile, viaCoils, allowUnsafe, force)` | Stores the current position as row `n` (non-volatile; an unchanged row is `Skipped`). `viaCoils` is the EXPERIMENTAL MOD / POSR / TEAC sequence. `allowNonvolatile` and `allowUnsafe` are accepted and ignored (no longer needed). | row 0 .. `MaxPositions() - 1`; an EC row its position mode does not run is written with a warning | `axis.TeachPosition(2);` |
+| `axis.TeachPosition(n, allowNonvolatile, viaCoils, allowUnsafe, force)` | Stores the current position as row `n` (non-volatile; an unchanged row is `Skipped`). `viaCoils` is the EXPERIMENTAL MOD / POSR / TEAC sequence. `allowNonvolatile` and `allowUnsafe` are accepted and ignored. | row 0 .. `MaxPositions() - 1`; an EC row its position mode does not run is written with a warning | `axis.TeachPosition(2);` |
 | `axis.CancelPausedMove(timeout)` / `CancelWaits()` | Drops a paused move's remaining travel and releases the pause / ends every blocking call of this axis on other threads (a decel stop first when motion was waited for). | | `axis.CancelPausedMove();` |
 | `axis.Stop(wait, timeout)` | Decel stop (STOP coil on, standstill, off). Works with or without Modbus control, from any thread. | | `axis.Stop();` |
 | `axis.Pause()` / `Resume()` | Holds a move with its remaining travel / continues it. | | `axis.Pause();` |
@@ -172,7 +172,7 @@ write calls: they send exactly what you ask (IAI commands still pass the safe an
 | `axis.MaxPositions()` | Number of stored rows (3 on the ECs tested, 64 on the PCON). | | `axis.MaxPositions()` |
 | `axis.ReadPositionTable(n)` | One stored row (`PositionEntry`). | row 0 .. `MaxPositions() - 1` | `axis.ReadPositionTable(1)` |
 | `axis.MoveToPosition(n, speedPct, wait, timeout, allowAboveCaps, cancellationToken)` | Runs a row at its stored speed or a percentage of it (0x45 command 6). | `speedPct` 1..100; a stored speed above the caps needs `allowAboveCaps` | `axis.MoveToPosition(1, speedPct: 25);` |
-| `axis.WritePositionTable(n, entry, allowNonvolatile, writeChecksum, allowUnsafe, force)` | Writes a row (permanent) and verifies it. An unchanged row is not written (`Skipped`) unless `force: true`. Counts in `axis.NonVolatileWrites`. `allowNonvolatile` and `allowUnsafe` are accepted and ignored (no longer needed). | position, push power and load threshold within the unit's limits; a row the unit does not run, unknown control-flag bits or a role-bit change is written with a warning; rows 256-267 are refused | `axis.WritePositionTable(2, row with { PositionMm = 60.0 });` |
+| `axis.WritePositionTable(n, entry, allowNonvolatile, writeChecksum, allowUnsafe, force)` | Writes a row (permanent) and verifies it. An unchanged row is not written (`Skipped`) unless `force: true`. Counts in `axis.NonVolatileWrites`. `allowNonvolatile` and `allowUnsafe` are accepted and ignored. | position, push power and load threshold within the unit's limits; a row the unit does not run, unknown control-flag bits or a role-bit change is written with a warning; rows 256-267 are refused | `axis.WritePositionTable(2, row with { PositionMm = 60.0 });` |
 
 ### Parameters
 
@@ -187,7 +187,7 @@ write calls: they send exactly what you ask (IAI commands still pass the safe an
 
 No opt-in: a home direction / offset, encoder / motor type, lead / stroke configuration, servo gains, PIO, fieldbus
 or baud setup, a wider soft limit, an unknown raw item or an item the unit's own list does not offer is written with a
-warning. `allowDangerous`, `allowHomeParams` and `allowUnlisted` are accepted and ignored (no longer needed).
+warning. `allowDangerous`, `allowHomeParams` and `allowUnlisted` are accepted and ignored.
 
 ### Alarms
 
@@ -208,7 +208,7 @@ warning. `allowDangerous`, `allowHomeParams` and `allowUnlisted` are accepted an
 | `axis.BaudRate` | Baud rate in use (`null` on a transport without one). | | `axis.BaudRate` |
 | `axis.Track(name, rows, alarmHistory, parameters, backupJson)` / `TrackBackup(json)` / `TrackBackupFile(path)` / `TrackIdentity()` / `Session` / `Forget()` | The session the axis remembers while the link is up: identity, baud rate, PC control, safety speed, HEND, uptime, and optionally alarm history, rows, parameters and a backup. Recovery uses it to confirm the same unit; without one, the identity from `Connect()` is the baseline. Read-only. | `rows`: `null`, `"all"`, `"0,1,5"` | `axis.Track("line 1");` |
 | `axis.CheckLink()` / `LinkState` | One status read compared with the session: `ok`, `port_vanished`, `unit_silent`, `unit_restarted` (with `Reasons`), `recovering`; a change also raises `LinkChanged` / the last known state, no I/O. Read-only. | | `axis.CheckLink().State` |
-| `axis.Recover(timeout, policy, name, cancellationToken)` | Brings the axis back after a power or link loss: waits for the port, reopens it, finds the baud rate, requires the same unit (else `UnitReplacedException`, nothing written), restores baud rate, PC control and safety speed, resets a message alarm, and reports (`RecoveryReport`: `Restarted`, `BaudRestored`, `ControlRestored`, `NeedsHome`, `AtTarget`, `ReadyToMove`, `NeedsAttention`, `Actions`, `Notes` ...). **Never moves the axis.** On failure `RecoveryException.Report` says what was done. VERIFIED in the Python edition on the EC-GRBP8M gripper and the PCON-CB; UNVERIFIED here. `NoteTarget(mm)` / `NoteControl(...)` record a deliberate change. | `RecoveryPolicy`: `RestoreBaudRate`, `RestoreControl`, `RestoreSafetySpeed`, `ClearMessageAlarms`, `CheckRows`, `CheckParameters`, `BackupJson` / `BackupFile`, `PositionToleranceMm`, `PollS`, `BootBaudRate`, `RequireSession`; `timeout` default 30 s | `var report = axis.Recover(60);` |
+| `axis.Recover(timeout, policy, name, cancellationToken)` | Brings the axis back after a power or link loss: waits for the port, reopens it, finds the baud rate, requires the same unit (else `UnitReplacedException`, nothing written), restores baud rate, PC control and safety speed, resets a message alarm, and reports (`RecoveryReport`: `Restarted`, `BaudRestored`, `ControlRestored`, `NeedsHome`, `AtTarget`, `ReadyToMove`, `NeedsAttention`, `Actions`, `Notes` ...). **Never moves the axis.** On failure `RecoveryException.Report` says what was done. VERIFIED through the Python package on the EC-GRBP8M gripper and the PCON-CB; UNVERIFIED here. `NoteTarget(mm)` / `NoteControl(...)` record a deliberate change. | `RecoveryPolicy`: `RestoreBaudRate`, `RestoreControl`, `RestoreSafetySpeed`, `ClearMessageAlarms`, `CheckRows`, `CheckParameters`, `BackupJson` / `BackupFile`, `PositionToleranceMm`, `PollS`, `BootBaudRate`, `RequireSession`; `timeout` default 30 s | `var report = axis.Recover(60);` |
 | `axis.RunCheck(options, onItem, cancellationToken)` | The compatibility self-test (`iai-check`): link, slave id, index table, identification, soft limits, speed limit, status, alarm and history, position table, direct-move block, Modbus control, safety speed, unit information, parameter ranges. Read-only unless `Motion` (a short move out and back). A unit that answers differently is a `Fail` line, never an exception. `onItem` sees each line on the calling thread. `CheckReport.Passed`, `.Items`, `.ToJson()`, `.WriteJson(path)`. | `CheckOptions`: `Motion`, `StepMm` (5), `SpeedMmS` (10), `AccelG` (0.1), `PortLabel` | `axis.RunCheck(null, item => Console.WriteLine(item.ToLine()));` |
 | `axis.LineName` / `StopPath` / `RecommendedMinSpeed()` | The line (`null` = direct) / how `Stop` stops it / the documented minimum speed and its source. | | `axis.StopPath` |
 | `DeviceInfo` (from `Connect()` / `Identify()`) | `ProductFamily`, `Model`, `Controller`, `Kind`, `SerialNumber`, `Firmware`, `AxisNumber`, `Units`, `SoftLimitsMm`, `MaxSpeedMmS`, `Errors`. | | `info.ProductFamily` |
@@ -285,7 +285,7 @@ All derive from `EcDriverException`. The full Python-to-C# mapping is at the top
 
 ### Python names
 
-| Python edition | C# edition |
+| Python | C# |
 |---|---|
 | `Axis`, `MoveHandle`, `AxisMonitor` | `Axis`, `MoveHandle`, `AxisMonitor`, with records such as `AxisOptions`, `AxisRanges`, `PositionEntry`, `PushResult`, `MonitorSample`, `RecoveryReport`, `CheckReport` |
 | `cell.py` (`list_ports`, `scan`, `Port`, `Cell`) | `PortManager` (`ListPorts`, `Scan`), `Port`, `Cell`, `CellOptions`, `AxisMove`, `CellResults<T>` |
@@ -401,7 +401,7 @@ applications against the public classes above.
 using IaiActuatorDriver.Native;
 
 NativeDriver.EnsureLoaded();                      // DllNotFoundException without the DLL, NotSupportedException for another ABI
-Console.WriteLine(NativeDriver.LibraryVersion);   // the core's version, e.g. 1.0.0
+Console.WriteLine(NativeDriver.LibraryVersion);   // the core's version
 Console.WriteLine(NativeDriver.ListPortsJson());  // serial ports, IAI USB adapters first (opens nothing)
 ```
 
@@ -419,9 +419,7 @@ targets for .NET Framework applications.
 manuals)" = documented for CON-family controllers only), **UNVERIFIED** (expected, not yet confirmed on hardware).
 
 - VERIFIED in this edition: the command line on the EC-GRBP8M gripper and on the PCON-CB with an RCP6, the public
-  `Axis` on the EC-GRBP8M gripper, and the interop layer on both units. On 2026-10-31 the command line, built from
-  the 1.0.0 source and running on the released native library, passed its steps on the gripper again. The managed
-  library of this NuGet package was not itself run on hardware.
+  `Axis` on the EC-GRBP8M gripper, and the interop layer on both units.
 - UNVERIFIED in this edition (tested on the simulator and on frames recorded from real units): `Cell`, a push that
   makes contact, position-table writes, fast mode, the monitor's events, the speed change, move handles,
   acceleration patterns, `CheckLink`, recovery after a fault, and the core's other calls.
@@ -431,8 +429,8 @@ Which steps ran on which unit:
 
 ## State of this edition
 
-The public `Axis` mirrors the Python edition's `Axis`, and the command line has the same commands. Not public here
-(the core and the Python edition have them; the core's functions are bound internally):
+The public `Axis` mirrors the Python package's `Axis`, and the command line has the same commands. Not public here
+(the core and the Python package have them; the core's functions are bound internally):
 
 - `Cell`: group monitors and the link monitor, `track_all` / `check_links` / `recover_all`, group backup,
   `pause_all` / `resume_all`, the gateway calls, a stop on every axis with an optional broadcast, and coordinated

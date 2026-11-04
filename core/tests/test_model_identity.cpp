@@ -914,7 +914,7 @@ TEST(model_limits_gripper_and_pcon_axis_limits) {
     const AxisLimits p = read_axis_limits(pcon, UnitDirectory::read(pcon));
     CHECK_NEAR(*p.max_speed_mm_s, 840.0, 1e-9);
     CHECK(!p.actuator_kind.has_value());  // a CON controller has no AKID
-    CHECK_EQ(p.kind(), "unknown");
+    CHECK_EQ(p.kind(), "linear");  // no AKID; ATYP says not rotary
     CHECK(!*p.rotary_atyp);
     CHECK_NEAR(*p.min_band, 0.01, 1e-9);
     CHECK_NEAR(*p.lead_mm, 16.0, 1e-9);

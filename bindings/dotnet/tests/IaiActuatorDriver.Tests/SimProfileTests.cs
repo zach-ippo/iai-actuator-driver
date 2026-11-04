@@ -19,7 +19,7 @@ namespace IaiActuatorDriver.Tests
             new object[] { SimProfile.Slider, "EC", "mm", "slider (small)", 150.0, 73.95, 3 },
             new object[] { SimProfile.Gripper, "EC", "mm", "gripper", 9.5, 9.5, 3 },
             new object[] { SimProfile.Rod, "EC", "mm", "rod", 150.0, 0.0, 3 },
-            new object[] { SimProfile.Pcon, "PCON", "mm", "unknown", 150.0, 60.0, 64 },
+            new object[] { SimProfile.Pcon, "PCON", "mm", "linear", 150.0, 60.0, 64 },
             new object[] { SimProfile.Rotary, "EC", "deg", "rotary", 360.0, 0.0, 3 },
             new object[] { SimProfile.Unknown, "IAI controller", "mm", "kind 42", 100.0, 0.0, 2 },
         };

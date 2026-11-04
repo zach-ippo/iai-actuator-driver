@@ -1,6 +1,6 @@
-// C ABI over the C++ core (include/iai_actuator_driver.h; the model is in docs/NATIVE_ABI.md). Built into the static
-// library and, with IAD_BUILD_SHARED, exported from the shared library (python build.py shared, or the CMake option
-// IAI_ACTUATOR_DRIVER_BUILD_SHARED).
+// C ABI over the C++ core (include/iai_actuator_driver.h; the model is in docs/dev/NATIVE_ABI.md). Built into the
+// static library and, with IAD_BUILD_SHARED, exported from the shared library (python build.py shared, or the CMake
+// option IAI_ACTUATOR_DRIVER_BUILD_SHARED).
 //
 // Phase 1: every function of the header. Each one is a thin call of the C++ method its header comment names, wrapped
 // in capi::guarded (c_api_impl.hpp): every exception is caught, turned into an iad_result and the calling thread's last

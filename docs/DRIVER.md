@@ -8,8 +8,7 @@ or a CON-family controller such as the PCON, any actuator kind.
 - **Other languages.** C#, C++ and C run the same C++ core: the names differ, the ranges, units, refusals and warnings
   do not. See [Names in the other editions](#names-in-the-other-editions).
 - **Native library.** The package runs on the core and needs its library
-  ([getting-started/python.md](getting-started/python.md#where-the-native-library-comes-from)); the pure-Python
-  fallback was removed after 1.0.x ([PYTHON_FALLBACK.md](PYTHON_FALLBACK.md)).
+  ([getting-started/python.md](getting-started/python.md#where-the-native-library-comes-from)).
 - **Evidence words.** **VERIFIED** (tried on hardware), **ON-WIRE** (seen in serial traffic), **DOC** (public IAI
   manuals), **UNVERIFIED** (not yet tried). They describe features and paths, never a unit: every unit is driven the
   same way. The details are in [REFERENCE.md](REFERENCE.md).
@@ -307,21 +306,39 @@ Ports run in parallel; axes on one shared port take turns. Every `*_all` takes `
 
 `cell.backup()` is under [Backup](#backup-read-only).
 
-## Coordinated motion
+## Coordinated motion (alpha)
 
-Lines, arcs and circles over several axes, interpolated by the PC. Alpha: VERIFIED with one real axis and a simulated
-second on the EC gripper, UNVERIFIED with two real axes. Details and limits: [COORDINATED.md](COORDINATED.md).
+Lines, arcs and circles over several axes, interpolated by the PC. Alpha: one real axis (the EC gripper) ran a
+line, a circle and a stop together with a simulated second axis ([Hardware results](#hardware-results)); two or more
+real axes together are UNVERIFIED.
 
-- Coordinates are `{axis name: position}` in each axis's own units; axes a segment does not name hold.
-- Every check runs before anything is sent, and again in `run_plan` against the axes as they are then (ranges read
-  fresh, line timing measured).
-- Any failure, an outside stop (`xy.stop()`, `cell.stop_all()`, `ax.stop()` / `pause()` from another thread) or
-  Ctrl+C during a run stops every axis of the group; Ctrl+C then re-raises `KeyboardInterrupt`.
-- The names below are in `iai_actuator_driver.coord` (the main ones also in `iai_actuator_driver`). The core plans,
-  runs and stops; `run_plan` plans the path again, and a plan made elsewhere and `timing()` raise
-  `NotImplementedError` ([COORDINATED.md](COORDINATED.md#on-the-core)). The JSON calls are `coordinated_plan` /
-  `coordinated_run` of `iai_actuator_driver.native` ([NATIVE_ABI.md](NATIVE_ABI.md)); the GUI's Coordinated tab uses
-  them.
+### What it is
+
+An ELECYLINDER or CON unit has no interpolation of its own and no clock shared with other axes.
+`iai_actuator_driver.coord` makes several axes follow one path by commanding them from the PC:
+
+```python
+from iai_actuator_driver import Cell, Path
+
+with Cell.open(["COM3", "COM4"]) as cell:
+    xy = cell.coordinated(x="COM3:1", y="COM4:1")        # names for the path coordinates
+    plan = xy.plan(Path.circle({"x": 60, "y": 40}, 10), speed=10, accel_g=0.1)   # dry run: nothing sent
+    print(plan.summary())
+    result = xy.run_plan(plan)                           # or xy.circle((60, 40), 10, speed=10)
+    print(result.summary(), result.max_deviation)
+```
+
+In Python this runs on the core: the core plans, checks, runs and stops; the shape of the C ABI limits a few calls
+([On the core](#on-the-core)). The JSON calls of the C ABI are `coordinated_plan` / `coordinated_run` of `NativeCell`
+in `iai_actuator_driver.native` ([dev/NATIVE_ABI.md](dev/NATIVE_ABI.md)); the GUI's Coordinated tab uses them. The
+names below are in `iai_actuator_driver.coord` (the main ones also in `iai_actuator_driver`).
+
+- **Coordinates** are `{axis name: position}` in each axis's units (mm, or deg on a rotary axis). An axis a segment
+  does not name holds its position.
+- **Names:** `iai_actuator_driver.Line` is the gateway line class. The segment is `iai_actuator_driver.coord.Line`, also
+  exported as `iai_actuator_driver.LineSegment`.
+
+### Functions
 
 | Function | What it does | Inputs and ranges | Example |
 |---|---|---|---|
@@ -333,11 +350,164 @@ second on the EC gripper, UNVERIFIED with two real axes. Details and limits: [CO
 | `xy.plan(path, speed, accel_g=0.1, *, chord_error=0.05, mode="auto", min_step_s=None, band=None, blend=None, stream_accel_g=None)` | Dry run from the current positions against each axis's `limits()` and the line timing, both read now: returns a `MotionPlan`. A path starting elsewhere gets a straight lead-in, with a warning: one more segment of a sync path, `plan.lead_in` (a synchronized line, run first) for a streamed one. A path that moves no axis by a count from its own start is the lead-in alone. Reads only. | `mode`: `"auto"`, `"sync"` (lines), `"stream"`; `chord_error` > 0; `blend` (sync) > 0 | `p = xy.plan(path, 20, 0.3)` |
 | `plan_path(path, speed, accel_g=0.1, *, limits=None, timing=None, min_step_s=None, ...)` | The same planner, pure (`iai_actuator_driver.coord.plan`): `limits` `{axis: AxisRange or limits() dict}`. A refusal's `.max_speed` is the largest speed that passes every check (the checks re-run). | as above | `plan_path(path, 20, limits={"x": ax.limits()})` |
 | `MotionPlan` | `mode`, `axes`, `points`, `times`, per-step per-axis `speeds` / `accels` (0 = no frame), `duration`, `shortest_step_s`, `min_step_s`, `est_chord_error`, `est_timing_error_s`, `est_deviation`, `warnings`, `lead_in`, `summary()`, `table()`, `to_dict()`. | fields | `p.summary()` |
-| `xy.run(path, speed, accel_g=0.1, *, late_abort_s=None, timeout=None, **plan_kw)` / `xy.run_plan(plan, *, late_abort_s=None, timeout=None)` | Runs it (its `lead_in` first). Before anything is sent it checks: the plan against the ranges read now; each moving axis's lowest and highest waypoint as `move_to` checks a target; every axis of the plan (held ones too) ready, standing still and at the start; a streamed plan's steps against the line timing measured now (for a plan this group made on the same line, the lower of the two measurements). An axis in automatic servo OFF is switched on first. `sync`: one synchronized move per segment (axis speed `v * \|d_i\| / L`, accel `a * \|d_i\| / L`). `stream`: time-scheduled re-targeting, one step ahead, one thread per port, status reads between frames. The run's status monitors are held meanwhile (other axes' keep polling). A stop of one of its axes from the moment `run_plan` is called (lead-in included) ends it; a link fault stops the group before the cell's `on_fault` runs; one run at a time per axis. Returns a `CoordinatedResult`. | `late_abort_s`: default one step | `xy.run(Path.rectangle((10, 10), 30, 20), 20)` |
+| `xy.run(path, speed, accel_g=0.1, *, late_abort_s=None, timeout=None, **plan_kw)` / `xy.run_plan(plan, *, late_abort_s=None, timeout=None)` | Runs it (its `lead_in` first) as in [How it runs](#how-it-runs), after the checks of `run_plan()` below (a streamed plan this group made on the same line is held to the lower of the two line timings). The run's status monitors are held meanwhile (other axes' keep polling). A stop of one of its axes from the moment `run_plan` is called (lead-in included) ends it ([Stops and errors](#stops-and-errors)); a link fault stops the group before the cell's `on_fault` runs; one run at a time per axis. Returns a `CoordinatedResult`. | `late_abort_s`: default one step | `xy.run(Path.rectangle((10, 10), 30, 20), 20)` |
 | `xy.line_to(point, speed, accel_g=0.1)` / `xy.circle(center, radius, speed, accel_g=0.1, *, plane=None, start_deg=None, turns=1, ccw=True)` | A synchronized line / a streamed circle from the current position (the circle starts where the axes are when they are on it, within 0.5 % of the radius). `line_to` where the axes already are: a completed result, nothing sent. | as `run` | `xy.circle((75, 75), 10, speed=20)` |
 | `xy.stop()` / `xy.positions()` / `xy.ranges()` / `xy.timing(names=None, *, measure=False)` | Decel stop on every axis of the group (a run in another thread ends with `CoordinatedMotionError`) / current positions / each axis's `AxisRange` (read now) / `timing()` raises `NotImplementedError`: the core measures the line for each plan and run itself; use `plan.timing`. | none | `xy.stop()` |
 | `CoordinatedResult` | `plan`, `samples` (per axis `(t, position)` from the status reads during the run), `trace`, `max_deviation` / `mean_deviation` (from the planned chords: an estimate from the samples, only where every axis was read within one read time), `sample_spacing_s`, `frames`, `skipped_frames`, `late_frames` (measured when a frame's call begins, not when it is on the wire), `worst_late_s`, `worst_skew_s`, `duration_s`, `completed`, `error`, `summary()`, `to_dict()` (JSON, for the GUI). | fields | `r.max_deviation` |
 | `LineTiming(baudrate=115200, axes_on_port=1, response_ms=5, gap_s=0.005, ..., measured_write_s=None, measured_read_s=None)` | The shortest step one port can carry (a write and a status read per axis, x1.5): the model's value (below 38400 baud every reply taken as ~285 ms, VERIFIED at 9600), or what was measured when that is longer (on the EC gripper the measured step was longer than the model's, VERIFIED). | properties `write_s`, `read_s`, `min_step_s`, `model` | `LineTiming(230400).min_step_s` |
+
+### How it runs
+
+| Mode | Used for | How |
+|---|---|---|
+| `"sync"` | lines, polylines | One move per axis per segment, started on every port at once. Axis i gets speed `v * \|d_i\| / L` and acceleration = deceleration `a * \|d_i\| / L`, so every axis runs the same trapezoid in time and the point stays on the line. The next segment starts when every axis is done (with `blend=`, when each is within that distance). |
+| `"stream"` | arcs, circles, curves | The path is cut into chords (angle step `2 * acos(1 - e / r)` for chord error `e`). Each waypoint gets a time from a trapezoid speed profile, and at each time every axis is re-targeted one waypoint ahead with the speed that gets it there on time. One thread per port, one start time, 1 ms Windows timer. Status is read about every 20 ms while slack allows, and at least every 0.15 s (longer on a slow line). |
+| `"auto"` (default) | anything | sync for lines only, stream otherwise |
+
+A 0x9900 block re-sent during a move re-targets it, and a new speed takes effect mid-move (both VERIFIED on the EC
+gripper). About 15 re-targets per second on one EC are VERIFIED; several real axes doing it together are UNVERIFIED.
+
+**Start point.** A path that does not start where the axes are gets a straight lead-in. For a sync path it is one more
+segment; for a streamed path it is `plan.lead_in`, run first as its own synchronized line. `xy.circle()` needs no
+lead-in when the axes are already on the circle (within 0.5 % of the radius). `xy.line_to()` to where the axes already
+are returns a completed result at once (nothing sent). A path whose segments move no axis by a whole count runs as its
+lead-in alone, with a warning.
+
+#### Checks before anything is sent
+
+The planner checks:
+
+- every commanded waypoint against each axis's range (soft limits minus their 0.30 margin, within a configured
+  `stroke`; the start point is not checked);
+- every per-axis speed and acceleration against that axis's `limits()`;
+- the centripetal acceleration `v^2 / r` against the smallest axis acceleration;
+- the step time against what the line can carry.
+
+An infeasible path raises `SoftLimitError` with the reasons and the largest feasible speed (`.max_speed`; a plan at
+that speed passes); nothing is sent. A speed below an axis's documented minimum is a warning, never a refusal.
+Waypoints that change no axis by a whole count are merged away. A step too short for the line merges with its
+neighbour where the path is straight there (or the step is within the chord error).
+
+`run_plan()` checks again against the axes as they are then:
+
+- the ranges, read fresh (a narrowed `stroke` counts; a failed soft-limit read refuses);
+- each moving axis's lowest and highest waypoint, the way `move_to()` checks a target;
+- every axis of the plan, held ones too: ready (EMG, alarm, servo, homed, not paused, no home return), standing still
+  and at the start;
+- a streamed plan's steps against the line timing measured then.
+
+An axis in automatic servo OFF is switched back on the documented way just before it gets a frame (not by the 0x9900
+frame: that wake is UNVERIFIED on an EC). One coordinated run at a time per axis: a second one is refused (nothing
+sent).
+
+#### Stops and errors
+
+Any of these stops **every axis of the group** (decel stop) and raises `CoordinatedMotionError`, with the trace so far
+in `.result`:
+
+- an error, a fault alarm, EMG, servo off, a pause or a home return;
+- a link fault, or a frame later than one full step;
+- an outside stop: `xy.stop()`, `cell.stop_all()`, the cell's stop after a link fault, `ax.stop()`, `ax.pause()` or a
+  servo OFF from another thread. The run then sends no further frame and never releases a STOP it did not send. This
+  holds from the moment `run_plan()` is called.
+
+**Ctrl+C** stops every axis of the group the same way, then re-raises `KeyboardInterrupt` (result in
+`.coordinated_result`).
+
+Axes outside the group are not commanded, except on a link fault in a cell: three failed status reads in a row, both
+attempts of a frame lost, or the port failing. Then the group's STOP frames go out first, and the cell's
+`stop_on_fault` handling stops every other axis, as for `move_all`. One lost echo or a late frame is not a link fault:
+the group stops, but the cell's fault handling is not called.
+
+On the core, a stop counts from the moment the core's run is called, its planning included (`run`, `line_to`,
+`circle`, `run_plan`: the core checks the plan's start itself, see [On the core](#on-the-core)). `circle` without
+`start_deg` reads where the axes are just before that call, to choose its start.
+
+In C++, `CoordinatedGroup::run` (and `run_plan`, `line_to`, `circle`) throws `coord::CoordinatedMotionError` the same
+way. A caller that runs it on its own `std::thread` must catch it there: an exception that leaves a thread function
+ends the process.
+
+#### Timeout
+
+The run's timeout is the wait for the last waypoint; left out, it comes from the plan. In the core (C++
+`RunOptions::timeout_s`; `"timeout_s"` of the C ABI's JSON request, so `NativeCell.coordinated_run` and C#
+`CoordRunJson` too) it must be a finite number of seconds above 0. Zero, a negative value (-1 is "wait forever" in VB
+and LabVIEW) or infinity is refused before anything is sent (`SoftLimitError` in C++, `IAD_ERR_INVALID_ARGUMENT` for a
+request). A path that moves no axis is refused the same way. JSON has no NaN: leave the key out for the default. A
+stop's timeout is not checked: a STOP always goes out.
+
+#### On the core
+
+In Python, `cell.coordinated()` and `CoordinatedGroup({name: axis})` give the core's group
+(`iai_actuator_driver.coord.CoordinatedGroup`): `plan()` and every run go to the core (`iad_cell_coord_plan_json` /
+`iad_cell_coord_run_json`), on the cell's core cell, or on one opened over the axes for a group built directly. What
+to know about the core's group, from the shape of the C ABI:
+
+- `xy.run_plan(plan)` runs a plan the group made: the core plans the same path again from where the axes are, and they
+  must be at the plan's start (its lead-in's, if any; the request's `"expect_start"`), else `EcNotReadyError` and
+  nothing is sent; then it runs it, with every check of a run. `result.plan` is the plan that ran. A plan made
+  elsewhere (`plan_path`) raises `NotImplementedError`: plan it with `xy.plan()`, or run the path with `xy.run()`.
+- `xy.timing()` raises `NotImplementedError`: the core measures the line inside each plan and run; the timing a plan was
+  made with is `plan.timing`.
+- The run reports when it ends: no samples while it runs. Its status monitors are held from the core's run on; they
+  poll while it plans.
+- `result.worst_skew_s` and the late frames are measured when a frame's call begins, not when the frame is on the wire.
+
+The core's runner, from Python, is VERIFIED (2026-10-31, a development build of 569e836; 1.0.0 has no
+`Cell.coordinated` on the core) with one real axis (the EC gripper) and a simulated second axis for a sync line, a
+streamed circle r = 2 mm at 5 mm/s (deviation max 0.10 / mean 0.03 mm, no late frame) and `xy.stop()` mid-circle
+(`CoordinatedMotionError`; the gripper stood still, no alarm). Two real axes together are UNVERIFIED.
+
+### Limits of PC-side coordination
+
+- **No shared clock.** Axes meet in time only through the PC sending frames on schedule. Axes on separate ports start
+  within a few ms of each other. Axes sharing a port take turns, one transaction apart, and unit replies take tens of
+  ms (VERIFIED; up to about 285 ms at 9600 baud). That skew times the speed is a path error;
+  `plan.est_timing_error_s` and `plan.est_deviation` estimate it.
+- **Frame timing sets the smoothness.** Each axis runs at constant speed between waypoints. The shortest step comes
+  from `LineTiming` (baud rate, frame lengths, response delay, bus gap, axes per port, one status read per step,
+  x1.5). By the model alone that is about 60 ms at 38400 baud, 44 ms at 115200 and 40 ms at 230400 for one axis per
+  port. Below 38400 a stream is effectively ruled out. `plan()`,
+  `run()` and `run_plan()` also time status reads of every axis inside the core's plan or run, and the measured time
+  counts when it is longer. For shorter steps raise the rate: `Port.set_baudrate(230400)` on a cell port,
+  `ax.set_baudrate()` on an axis that owns its port (`ax.enable_fast()` on a cell axis keeps the rate). `min_step_s=`
+  overrides the estimate.
+- **Status monitors are held.** `run_plan()` holds the status monitors of its own axes and reads its own samples.
+  Other axes' monitors on the same ports keep polling; that traffic delays frames and shows as late frames.
+- **Chord error vs speed.** A smaller chord error means shorter steps at the same speed. When steps get shorter than
+  the line allows, the plan is refused with the largest feasible speed: raise `chord_error` or lower the speed.
+- **Lag.** Each axis gets the next waypoint one step ahead. With a low acceleration cap the axis brakes before each
+  waypoint and the path cuts inside; the plan warns when the cap bites.
+- **The PC is in the loop.** A busy or sleeping PC delays frames. Late frames are counted (`result.late_frames`;
+  `result.worst_skew_s` for a sync segment), and a frame that would reach the wire later than one full step is not sent
+  and aborts the run. A frame whose echo is lost is re-sent once; with steps shorter than that re-send the run stops as
+  a late frame. On Linux, 1.0.0 also lost frames to a backward step of the system clock during a run (an NTP step, a
+  VM's time sync: a WSL guest was seen stepping its clock back by up to about 1 s every 32 s): its waits took their
+  deadline from that clock, and the stream stopped with `LateFrame`. Since 1.0.1 every wait of the core runs on the
+  monotonic clock. A lost status reply is skipped; three in a row are a link fault. The unit has no watchdog: if the PC
+  or the cable fails mid-path, each axis completes the waypoint it was last sent.
+- **The deviation is an estimate.** `result.max_deviation` and `mean_deviation` come from status samples, interpolated
+  per axis. They are blind between samples (`result.sample_spacing_s` is the median spacing).
+
+### Hardware results
+
+The core's runner is VERIFIED with one real axis as x and a simulated y: [On the core](#on-the-core), and the runs on
+the 1.0.x branch in [COMPATIBILITY.md](COMPATIBILITY.md#runs-on-the-10x-branch). Two or more real axes together are
+UNVERIFIED. Deviations are estimates from status samples, and half the path is the simulated axis.
+
+On the simulator with replies 30 ms late, a fault alarm on one axis mid-circle put the other axis's STOP on the wire
+about 0.15 s later. With 10 ms replies, a dead link on one axis stopped the other within about 0.2 s.
+
+### Demo
+
+```shell
+python examples/python/draw_circle.py --sim                              # two simulated axes
+python examples/python/draw_circle.py --x COM3:1 --y COM4:1 --dry-run    # plan only (reads positions and ranges)
+python examples/python/draw_circle.py --x COM3:1 --y COM4:1 --radius 5 --speed 5
+```
+
+On hardware: servo on and home both axes first. Start small and slow, unloaded and mid-stroke, with a hand on the
+emergency stop.
 
 ## Errors
 
@@ -392,7 +562,7 @@ The details, with what can go wrong, are in [COMPATIBILITY.md](COMPATIBILITY.md)
 ## Names in the other editions
 
 The same calls in each language. Arguments, ranges and units are the same. The C names are in
-`core/include/iai_actuator_driver.h` ([NATIVE_ABI.md](NATIVE_ABI.md)), the C++ ones in
+`core/include/iai_actuator_driver.h` ([dev/NATIVE_ABI.md](dev/NATIVE_ABI.md)), the C++ ones in
 `core/include/iai_actuator_driver/` ([../core/README.md](../core/README.md)), the C# ones in the API table of
 [../bindings/dotnet/README.md](../bindings/dotnet/README.md). C passes options in `iad_*_options` structs (always call
 `iad_*_options_init` first) and returns an `iad_result` (0 = `IAD_OK`).

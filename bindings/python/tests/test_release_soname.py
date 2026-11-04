@@ -1,4 +1,5 @@
-"""The Linux shared library of a release carries the ABI major in its SONAME (docs/NATIVE_ABI.md, "The library file").
+"""The Linux shared library of a release carries the ABI major in its SONAME (docs/dev/NATIVE_ABI.md, "The library
+file").
 
 build_native.py links the release library with ``-Wl,-soname,libiai_actuator_driver.so.<IAD_ABI_VERSION_MAJOR>``
 (the header's major, as core/build.py and the CMake build do); make_sdk.py ships it as

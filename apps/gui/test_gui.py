@@ -2716,7 +2716,7 @@ class ProductPolishTest(_WorkbenchCase):
         self.assertTrue(any("safety function" in t for t in about["notice"]), about["notice"])
         self.assertEqual([w for w, _ in about["evidence"]], ["VERIFIED", "ON-WIRE", "DOC", "UNVERIFIED"])
         docs = {d["title"]: d for d in about["docs"]}
-        self.assertEqual(list(docs), ["Getting started", "Coordinated motion", "Compatibility", "Function reference",
+        self.assertEqual(list(docs), ["Getting started", "Compatibility", "Function reference",
                                       "Reference and evidence", "README", "Changelog"])
         for d in docs.values():
             self.assertTrue(d["available"], d)  # a source checkout has every document
@@ -2727,10 +2727,11 @@ class ProductPolishTest(_WorkbenchCase):
         self.assertEqual(status, 200)
         self.assertTrue(ctype.startswith("text/plain"), ctype)
         self.assertIn("Not supported", text)
-        status, ctype, text = fetch(self.base, "/docs/COORDINATED.md")  # the doc the Coordinated tab belongs with
+        status, ctype, text = fetch(self.base, "/docs/DRIVER.md")  # holds the section the Coordinated tab belongs with
         self.assertEqual((status, ctype.startswith("text/plain")), (200, True))
-        self.assertTrue(text.startswith("#"), text[:40])
-        for path in ("/docs/NOPE.md", "/docs/../pyproject.toml", "/pyproject.toml", "/docs/", "/CLAUDE.md"):
+        self.assertIn("\n## Coordinated motion (alpha)\n", text)
+        for path in ("/docs/NOPE.md", "/docs/../pyproject.toml", "/pyproject.toml", "/docs/", "/CLAUDE.md",
+                     "/docs/COORDINATED.md"):
             self.assertEqual(fetch(self.base, path)[0], 404, path)
         self.assertEqual(fetch(self.base, "/docs/DRIVER.md", host="evil.example:80")[0], 403)  # the Host check still applies
 

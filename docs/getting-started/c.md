@@ -6,7 +6,7 @@ only header a C program, LabVIEW or any language with a C FFI needs. Unofficial:
 ([README](../../README.md)).
 
 The header documents each function. The model (handles, errors, threads, JSON, versioning, LabVIEW) is in
-[../NATIVE_ABI.md](../NATIVE_ABI.md).
+[../dev/NATIVE_ABI.md](../dev/NATIVE_ABI.md).
 
 ## The library
 
@@ -261,7 +261,7 @@ iad_cell_move_each(cell, moves, 2, 1, NAN, 1, results, 2, &count);        /* wai
 - A zeroed `iad_axis_move` or `iad_sequence_point` with its `struct_size` set is all defaults. An options struct is
   filled by its `_init` function first.
 
-Details in [../NATIVE_ABI.md](../NATIVE_ABI.md#labview).
+Details in [../dev/NATIVE_ABI.md](../dev/NATIVE_ABI.md#labview).
 
 ## Evidence
 
@@ -277,5 +277,5 @@ Details in [../NATIVE_ABI.md](../NATIVE_ABI.md#labview).
 ## Next
 
 - `core/include/iai_actuator_driver.h`: every type, code and function with its comment.
-- [../NATIVE_ABI.md](../NATIVE_ABI.md): the model behind the ABI and how each language loads the library.
+- [../dev/NATIVE_ABI.md](../dev/NATIVE_ABI.md): the model behind the ABI and how each language loads the library.
 - [cpp.md](cpp.md): the core itself, for C++ programs.

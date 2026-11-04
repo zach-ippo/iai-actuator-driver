@@ -5,7 +5,7 @@ the C++ core built as one shared library (``python build.py shared`` in ``core/`
 no compiler is needed on the user's PC, and wraps its handles in :class:`NativeAxis` and :class:`NativeCell`, whose
 method names follow :class:`~iai_actuator_driver.ec.Elecylinder` and :class:`~iai_actuator_driver.cell.Cell`. A failing
 call raises this package's own exception classes (:mod:`iai_actuator_driver.errors`, ``TransportError``, ``CellError``)
-as mapped in ``docs/NATIVE_ABI.md``, so code written against the package API catches the same types; each
+as mapped in ``docs/dev/NATIVE_ABI.md``, so code written against the package API catches the same types; each
 raised exception also carries ``iad_code`` (the C result code) and ``iad_details`` (the library's last-error record).
 
 Where the library is looked for (first match):
@@ -56,8 +56,8 @@ Handles are closed by ``close()``, by leaving a ``with`` block, or (when forgott
 them before the interpreter exits: an open port otherwise stays open until the process ends.
 
 Evidence: the C++ core's command line is VERIFIED on the EC-GRBP8M gripper and on the PCON-CB with an RCP6; the ABI
-0.1 part of this binding is VERIFIED on the PCON-CB with an RCP6 (steps in docs/NATIVE_ABI.md); the 0.2 additions are
-tested on the native simulator only (UNVERIFIED on hardware); everything else UNVERIFIED.
+0.1 part of this binding is VERIFIED on the PCON-CB with an RCP6 (steps in docs/dev/NATIVE_ABI.md); the 0.2 additions
+are tested on the native simulator only (UNVERIFIED on hardware); everything else UNVERIFIED.
 
 Example::
 
@@ -271,7 +271,7 @@ _SLICE_S = 0.1  # longest wait in one native call while Ctrl+C must reach Python
 _PUMP_WAIT_S = 0.02  # longest wait of an event thread for its queue: a flush waits at most this long for it
 # IAD_ALARM_LEVEL_* -> the name of its alarms.LEVEL_* constant (alarms is imported at the first use, _alarm_level)
 _ALARM_LEVELS = ("LEVEL_NONE", "LEVEL_MESSAGE", "LEVEL_OPERATION_CANCELLED", "LEVEL_COLD_START", "LEVEL_UNKNOWN")
-_JSON_START = 64 * 1024  # first buffer size of a JSON output (docs/NATIVE_ABI.md: start with 64 KiB, grow once)
+_JSON_START = 64 * 1024  # first buffer size of a JSON output (docs/dev/NATIVE_ABI.md: start with 64 KiB, grow once)
 
 # ====================================================================== structs (header order, no implicit padding)
 
@@ -2036,7 +2036,7 @@ NOT_READY_KINDS: dict[str, type[EcNotReadyError]] = {}
 
 
 def _make_error(code: int, details: Mapping[str, Any]) -> BaseException:
-    """The package's exception for a result code (docs/NATIVE_ABI.md, the Python column of the error table)."""
+    """The package's exception for a result code (docs/dev/NATIVE_ABI.md, the Python column of the error table)."""
     message = str(details.get("message") or result_name(code))
     kind = str(details.get("kind") or "")
     attempts = details.get("attempts")

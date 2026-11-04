@@ -93,7 +93,7 @@ sys.path[:0] = [os.path.join(ROOT, "apps"), os.path.join(ROOT, "bindings", "pyth
 
 # The documents of docs/ that the About panel links (ABOUT_DOCS in apps/gui/server.py; test_gui.py checks the two lists
 # against each other). Listed one by one on purpose: a document added to docs/ later must not ship in the exe by itself.
-DOCS = ("GETTING_STARTED.md", "COORDINATED.md", "COMPATIBILITY.md", "DRIVER.md", "REFERENCE.md")
+DOCS = ("GETTING_STARTED.md", "COMPATIBILITY.md", "DRIVER.md", "REFERENCE.md")
 
 datas = [
     (here("apps", "gui", "*.html"), "gui"),

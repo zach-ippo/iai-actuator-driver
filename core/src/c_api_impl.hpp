@@ -1,7 +1,7 @@
 // Private helpers of the C ABI (include/iai_actuator_driver.h): the handle registry, the thread-local last error and
 // the mapping of C++ exceptions to iad_result codes, the struct and option conversions, the text outputs. Internal:
 // not installed, not part of the ABI. Implemented in src/c_api_support.cpp; the exported functions are in
-// src/c_api.cpp. The model is in docs/NATIVE_ABI.md.
+// src/c_api.cpp. The model is in docs/dev/NATIVE_ABI.md.
 //
 // Evidence: UNVERIFIED on hardware (the C ABI is tested on the simulator only).
 #pragma once
@@ -431,7 +431,7 @@ inline void check_struct_size_bound(std::uint32_t size, std::size_t own, std::si
 /// min(struct_size, sizeof(T)) over a zeroed T. std::invalid_argument when struct_size is below `minimum` (the size of
 /// the ABI that introduced T), is not a size check_struct_size_bound accepts, or the header's reserved word is set;
 /// std::logic_error (IAD_ERR_UNSUPPORTED) when bytes beyond sizeof(T) are not zero: a field of a later ABI this library
-/// does not know (docs/NATIVE_ABI.md).
+/// does not know (docs/dev/NATIVE_ABI.md).
 template <class T>
 T read_sized(const T* input, const char* name, std::size_t minimum = sizeof(T)) {
     T out;

@@ -21,8 +21,8 @@ namespace IaiActuatorDriver.Interop
     /// when the object is collected without Dispose. A call on a disposed axis throws
     /// <see cref="ObjectDisposedException"/>.</para>
     /// <para>Evidence: the C++ core's command line is VERIFIED on the EC-GRBP8M gripper and on the PCON-CB with an RCP6;
-    /// this binding is VERIFIED on the PCON-CB with an RCP6 (steps in docs/NATIVE_ABI.md), tested on the native simulator
-    /// besides; everything else UNVERIFIED.</para>
+    /// this binding is VERIFIED on the PCON-CB with an RCP6 (steps in docs/dev/NATIVE_ABI.md), tested on the native
+    /// simulator besides; everything else UNVERIFIED.</para>
     /// </remarks>
     internal sealed partial class NativeAxis : IDisposable
     {

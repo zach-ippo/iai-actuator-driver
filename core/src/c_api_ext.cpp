@@ -1,9 +1,9 @@
 // C ABI 0.2 additions over the C++ core (include/iai_actuator_driver.h, "library: log sink, option defaults" to "cell:
-// pause, cancel, monitors, recovery, lines, backup"; the model is in docs/NATIVE_ABI.md): push, command-profile moves
-// and acceleration patterns (through iad_move_options), change_accel, move_sequence, move handles, the status monitor
-// with the per-handle event queue, fast mode, power / link-loss recovery, unit info / backup / backup_axes / the
-// self-test, the lean status and the boot baud rate, the line and gateway (with the RCON all-axes monitor), the command
-// strategy, the action mode, the safety speed, the cancel entry and the Cell extras (per-axis move values in
+// pause, cancel, monitors, recovery, lines, backup"; the model is in docs/dev/NATIVE_ABI.md): push, command-profile
+// moves and acceleration patterns (through iad_move_options), change_accel, move_sequence, move handles, the status
+// monitor with the per-handle event queue, fast mode, power / link-loss recovery, unit info / backup / backup_axes /
+// the self-test, the lean status and the boot baud rate, the line and gateway (with the RCON all-axes monitor), the
+// command strategy, the action mode, the safety speed, the cancel entry and the Cell extras (per-axis move values in
 // iad_cell_move_all, pause / resume with broadcast, monitors, links, backup). Each function is a thin call of the C++
 // function its header comment names, wrapped in capi::guarded like the phase-1 functions in c_api.cpp: every exception
 // is caught and turned into an iad_result and the calling thread's last error. The event queue and the 0.2 conversions

@@ -268,7 +268,7 @@ catch (EcDriverException e)
 }
 ```
 
-The binding maps the core's result code to these classes (table in [../NATIVE_ABI.md](../NATIVE_ABI.md)).
+The binding maps the core's result code to these classes (table in [../dev/NATIVE_ABI.md](../dev/NATIVE_ABI.md)).
 `NativeErrors.ResultOf(e)` gives the result code and `NativeErrors.ErrorJsonOf(e)` the core's error record. An
 invalid argument throws `ArgumentException`. A missing library throws `DllNotFoundException`, one built for another
 CPU `BadImageFormatException`, and one of another ABI version `NotSupportedException`.
@@ -343,5 +343,5 @@ dotnet run --project bindings/dotnet/src/IaiActuatorDriver.Cli -- --port COM3 re
 ## Next
 
 - [bindings/dotnet/README.md](../../bindings/dotnet/README.md): the API table, multi-axis layouts, guards.
-- [../NATIVE_ABI.md](../NATIVE_ABI.md): the C ABI under the library's binding.
+- [../dev/NATIVE_ABI.md](../dev/NATIVE_ABI.md): the C ABI under the library's binding.
 - [../TROUBLESHOOTING.md](../TROUBLESHOOTING.md): error messages and what to do.

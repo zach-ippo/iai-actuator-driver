@@ -30,8 +30,8 @@ Also run on hardware:
   0x0A, the 0x45 alarm reset / action mode / servo forms, and the software reset, which reloads parameters from
   non-volatile memory and keeps PMSS = 1, the baud rate and the uptime (VERIFIED). What else was run is listed in
   [COMPATIBILITY.md](COMPATIBILITY.md).
-- **The core on the EC-GRBP8M gripper**: the Python package (on the core and, up to 1.0.x, on its fallback, with
-  nearly the same results), the .NET `Axis` and the C++ and C# command lines each went through the steps of their edition.
+- **The core on the EC-GRBP8M gripper**: the Python package, the .NET `Axis` and the C++ and C#
+  command lines each went through the steps of their edition.
   The steps per edition are in [COMPATIBILITY.md](COMPATIBILITY.md#hardware-results). The released 1.0.0 files (the
   Python wheel, the C++ and C# command lines and `iai-gui.exe`) were run the same way on 2026-10-31. No parameter or
   position-table write cycle was used, and the unit ended as found.

@@ -13,5 +13,5 @@ program is built against this header only (never `core/include/`) and run on the
   step of `release.yml`, through `.github/release/sdk_consumer` (the test `c_smoke_1_0`).
 
 A test (`bindings/python/tests/test_abi_frozen_1_0.py`) pins the sha256 of both files. If the program fails against a new
-library, the library broke the 1.0 contract (`docs/NATIVE_ABI.md`): fix the library, not these files. The live program
-and header (`core/tests/c_smoke.c`, `core/include/iai_actuator_driver.h`) follow the current ABI as before.
+library, the library broke the 1.0 contract (`docs/dev/NATIVE_ABI.md`): fix the library, not these files. The live
+program and header (`core/tests/c_smoke.c`, `core/include/iai_actuator_driver.h`) follow the current ABI as before.

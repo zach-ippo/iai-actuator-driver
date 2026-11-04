@@ -2,7 +2,7 @@
 
 How the C++17 core is laid out and the conventions it follows. The core is the one implementation of the driver;
 Python and C# are thin bindings over its C ABI (`include/iai_actuator_driver.h`,
-[docs/NATIVE_ABI.md](../docs/NATIVE_ABI.md)). Unofficial: not an IAI product.
+[docs/dev/NATIVE_ABI.md](../docs/dev/NATIVE_ABI.md)). Unofficial: not an IAI product.
 
 The Python package (`bindings/python/iai_actuator_driver/`) is the specification: the core does what its tests
 require, with the matching tests ported as C++ tests against the C++ simulator. Behaviour the core ports is "VERIFIED
@@ -134,7 +134,7 @@ Each unit owns its files; no file belongs to two units.
 | model | `src/registers.cpp alarms.cpp alarm_tables.cpp status.cpp directory.cpp device_info.cpp limits.cpp position.cpp user_parameters.cpp con_parameters.cpp parameter_plan.cpp to_json.cpp model_gateway.cpp`, `src/model_detail.hpp` (internal declarations), `tests/test_model_*.cpp` | registers, alarms, status, directory, device_info, position, parameters, results, the `to_json` declarations |
 | sim | `src/sim_unit.cpp sim_motion.cpp sim_fixtures.cpp sim_line.cpp sim_profile.cpp sim_faults.cpp sim_gateway.cpp`, `src/sim_fixtures.hpp`, `tests/test_sim_*.cpp` | sim, sim_line, sim_gateway |
 | axis | `src/axis_core.cpp axis_motion.cpp axis_motion_extras.cpp axis_fast.cpp axis_config.cpp axis_nv.cpp cell.cpp monitor.cpp move_handle.cpp recovery.cpp info.cpp check.cpp`, `src/axis_impl.hpp`, `cli/*.cpp`, `cli/cli.hpp`, `tests/test_axis_*.cpp test_cell*.cpp test_cli*.cpp test_recovery*.cpp test_info*.cpp test_check*.cpp` | axis, motion, monitor, move_handle, recovery, info, check, cell, nonvolatile, iai_actuator_driver.hpp |
-| capi | `src/c_api*.cpp`, `src/c_api_impl.hpp`, `tests/test_capi*.cpp`, `tests/test_c_api*.cpp`, `tests/c_smoke.c` (the C ABI over the other four; [docs/NATIVE_ABI.md](../docs/NATIVE_ABI.md)) | `include/iai_actuator_driver.h` |
+| capi | `src/c_api*.cpp`, `src/c_api_impl.hpp`, `tests/test_capi*.cpp`, `tests/test_c_api*.cpp`, `tests/c_smoke.c` (the C ABI over the other four; [docs/dev/NATIVE_ABI.md](../docs/dev/NATIVE_ABI.md)) | `include/iai_actuator_driver.h` |
 | sel | `src/sel_frame.cpp`, `src/sel_frame.hpp` (internal: the SEL protocol's frames, checksum and hex fields), `src/sel_messages.cpp`, `src/sel_messages.hpp` (internal: the phase-1 message codecs), `src/sel_sim.cpp`, `src/sel_sim.hpp` (internal: `SimulatedSel`, a simulated SEL controller with a TTA profile and C++-only controls), `src/sel_link.cpp`, `src/sel_link.hpp` (internal: `SelLink`, the exchange over a Transport with the no-blind-resend retry rules, the re-query verifiers and the completion rule), `src/sel_shim.cpp`, `src/sel_shim.hpp` (internal: `StreamShim`, a byte-stream view of a Transport for the LF framing tests; all UNVERIFIED on a controller), `tests/test_sel_*.cpp` | none yet (nothing SEL in the C ABI) |
 
 - The public headers are the contract: a unit changes one only when a declaration cannot be implemented as written,

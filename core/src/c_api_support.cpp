@@ -321,7 +321,7 @@ const char* object_kind_name(ObjectKind kind) {
 
 /// Live handles. Tokens come from one counter (never reused, never 0), so a token is live in at most one map. The
 /// registry is never destroyed: handles still open when the library unloads leave their ports open until the
-/// process exits (docs/NATIVE_ABI.md), instead of closing ports from a DLL detach.
+/// process exits (docs/dev/NATIVE_ABI.md), instead of closing ports from a DLL detach.
 struct Registry {
     std::mutex mutex;
     std::uintptr_t next = 1;

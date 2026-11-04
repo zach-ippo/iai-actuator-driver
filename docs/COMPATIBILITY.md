@@ -53,7 +53,6 @@ edition called.
 
 | Edition | Unit | VERIFIED on hardware |
 |---|---|---|
-| Python package up to 1.0.x, on its pure fallback ([removed since](PYTHON_FALLBACK.md)) | the units above | everything the tables here and in [REFERENCE.md](REFERENCE.md) list. The released 1.0.0 wheel ran the harness steps again on 2026-10-31 on it, and with it a coordinated line and circle with a real x and a simulated y ([COORDINATED.md](COORDINATED.md#hardware-results)) |
 | Python package on the core (the default) | EC-GRBP8M gripper | identity, unit info, status, limits, servo, moves, jog, refusals, fast mode and monitor events, move handles (polled and cancelled), stop, pause / resume, speed change, deceleration, acceleration pattern, a missed push, position table and parameters (read), the non-volatile guard, backup, baud detection, track and link check, recovery after a 250 ms line break, the PC/PIO toggle, the self-test. The released 1.0.0 wheel repeated all of it on 2026-10-31 ([Hardware results](#hardware-results)). |
 | Python `iai_actuator_driver.native`; the .NET core binding | PCON-CB with RCP6-WSA10R | open with baud detection, identify, status, limits, servo, moves, STOP mid-move, pause / resume, a same-value parameter write skipped, baud 230400 and back to 38400 |
 | .NET `Axis` on the core (2026-10-30) | EC-GRBP8M gripper | open and identify, unit info, status, limits, servo off and on, absolute and relative moves and jogs, the speed / stroke / acceleration refusals, a move polled by its status and one cancelled with a `CancellationToken`, stop, pause / resume, its own deceleration, a missed push, position table and parameters (read), the non-volatile guard, baud detection, the PC/PIO toggle; the unit ended as found |
@@ -99,40 +98,40 @@ and [Runs on the 1.0.x branch](#runs-on-the-10x-branch).
 ### Acceptance run of 2026-10-31: the released 1.0.0 files
 
 The files of the GitHub release 1.0.0, checked against `SHA256SUMS.txt`: the Python wheel in a new environment (run
-once on the core and once on its pure fallback), the C++ command line of the SDK zip, the C# command line
-and `iai-gui.exe`. The C# command line was built from the 1.0.0 source and runs on the released native library; the
-managed library of the NuGet package was not itself run.
+on the core), the C++ command line of the SDK zip, the C# command line and `iai-gui.exe`. The C# command line was
+built from the 1.0.0 source and runs on the released native library; the managed library of the NuGet package was not
+itself run.
 
 | | |
 |---|---|
 | Driver | 1.0.0 on core C ABI 1.0 |
-| Limits of the run | speed cap 20 mm/s (the moves ran at 10 mm/s, the mid-move steps at 3 mm/s or below), 0.1 G, targets inside 2.0 to 7.5 mm, no write to a parameter or the position table (the Python editions made one same-value parameter write, which the driver skipped) |
-| End state | back at 3.00 mm, servo on, PC mode, no alarm, 38400 baud. The 102 parameter items outside the live monitor classes, the 768 position rows and the alarm history matched the read-only backup taken before the run, also after the GUI and coordinated runs below. The Python runs also checked the link, and the driver's write counter stayed at 0. |
+| Limits of the run | speed cap 20 mm/s (the moves ran at 10 mm/s, the mid-move steps at 3 mm/s or below), 0.1 G, targets inside 2.0 to 7.5 mm, no write to a parameter or the position table (the Python run made one same-value parameter write, which the driver skipped) |
+| End state | back at 3.00 mm, servo on, PC mode, no alarm, 38400 baud. The 102 parameter items outside the live monitor classes, the 768 position rows and the alarm history matched the read-only backup taken before the run, also after the GUI and coordinated runs below. The Python run also checked the link, and the driver's write counter stayed at 0. |
 
-| Function group | Python, core (default) | Python, pure fallback | C++ command line | C# command line |
-|---|---|---|---|---|
-| Identify the unit, unit info, read-only backup | PASS | PASS | PASS | PASS |
-| Status, limits, position table and parameters (read) | PASS | PASS | PASS | PASS |
-| Servo off and on | PASS | PASS | not run | not run |
-| Home from a unit that is not homed | not run | not run | not run | not run |
-| Absolute and relative moves, jog | PASS | PASS | PASS | PASS |
-| Refusal of a speed, target or acceleration beyond the limits | PASS | PASS | not run | not run |
-| Fast completion and the status monitor's events | PASS | PASS | arrival only | arrival only |
-| Move handle polled; move cancelled | PASS | PASS | not run | not run |
-| Stop in the middle of a move | PASS | PASS | PASS | PASS |
-| Pause and resume | PASS | PASS | not run | not run |
-| Speed raised during a move | PASS | PASS | arrival only | arrival only |
-| Own deceleration | PASS | PASS | PASS | PASS |
-| Acceleration pattern `s_motion` | PASS | PASS | PASS | not run (no such option) |
-| Push into free air (a miss) | PASS | PASS | PASS | PASS |
-| Non-volatile guard (same-value write skipped) | PASS | PASS | not run | not run |
-| Baud rate detection | PASS | PASS | not run | not run |
-| Link check (`track`, `check_link`); in the command lines `recover` with the link up | PASS | PASS | PASS | PASS |
-| Recovery after a 250 ms line break | PASS | PASS | not run | not run |
-| PC / PIO mode toggle | PASS | PASS | PASS | PASS |
-| Self-test | PASS | PASS | PASS | PASS |
-| End state as found | PASS | PASS | PASS | PASS |
-| **Totals** | 29 PASS, 1 not run | 29 PASS, 1 not run | 19 PASS, 2 arrival only, 1 not run | 18 PASS, 2 arrival only, 2 not run |
+| Function group | Python, core (default) | C++ command line | C# command line |
+|---|---|---|---|
+| Identify the unit, unit info, read-only backup | PASS | PASS | PASS |
+| Status, limits, position table and parameters (read) | PASS | PASS | PASS |
+| Servo off and on | PASS | not run | not run |
+| Home from a unit that is not homed | not run | not run | not run |
+| Absolute and relative moves, jog | PASS | PASS | PASS |
+| Refusal of a speed, target or acceleration beyond the limits | PASS | not run | not run |
+| Fast completion and the status monitor's events | PASS | arrival only | arrival only |
+| Move handle polled; move cancelled | PASS | not run | not run |
+| Stop in the middle of a move | PASS | PASS | PASS |
+| Pause and resume | PASS | not run | not run |
+| Speed raised during a move | PASS | arrival only | arrival only |
+| Own deceleration | PASS | PASS | PASS |
+| Acceleration pattern `s_motion` | PASS | PASS | not run (no such option) |
+| Push into free air (a miss) | PASS | PASS | PASS |
+| Non-volatile guard (same-value write skipped) | PASS | not run | not run |
+| Baud rate detection | PASS | not run | not run |
+| Link check (`track`, `check_link`); in the command lines `recover` with the link up | PASS | PASS | PASS |
+| Recovery after a 250 ms line break | PASS | not run | not run |
+| PC / PIO mode toggle | PASS | PASS | PASS |
+| Self-test | PASS | PASS | PASS |
+| End state as found | PASS | PASS | PASS |
+| **Totals** | 29 PASS, 1 not run | 19 PASS, 2 arrival only, 1 not run | 18 PASS, 2 arrival only, 2 not run |
 
 Notes:
 
@@ -142,20 +141,18 @@ Notes:
   totals, not in a row.
 - Arrival only: the command lines' speed-change step (`move --change-speed 12`) and fast step (`move --fast`) check
   only that the move arrives (within 0.1 mm and 0.15 mm). They would also pass if the speed change were ignored or the
-  fast path not used, and neither reads the monitor's events. The Python runs measured the speed change: about
-  1.4 mm/s before and about 10.5 mm/s (core) and 8.5 mm/s (fallback) on average after, the stop included, with a
-  12 mm/s request.
+  fast path not used, and neither reads the monitor's events. The Python run measured the speed change: about
+  1.4 mm/s before and about 10.5 mm/s on average after, the stop included, with a 12 mm/s request.
 - The command lines' stop step starts a slow `move --no-wait` and sends `stop` from a second process. The gripper
   stopped short of its target (3.77 mm with C++, 3.73 mm with C#).
 - The mid-move steps (cancel, stop, pause, speed change) ran at 3 mm/s or below, under the 5 mm/s minimum of the GRB
   manual (DOC). The driver warned and ran the moves.
-- Core and pure fallback gave nearly the same positions and times. In the command lines, `recover` with the link up
-  reported the same unit and changed nothing.
+- In the command lines, `recover` with the link up reported the same unit and changed nothing.
 - The Python steps for the PC / PIO toggle call `set_action_mode()`, then `disable_modbus_control()` and
   `enable_modbus_control()`. The command lines' `mode pio` and `mode pc` call `set_action_mode()`. The C# command line
   ran them with `--json`, its stdout read strictly as one JSON document: PASS.
-- Recovery after a 250 ms line break (the opt-in `recover` step, Python editions only): the unit went silent, the link
-  check said so, and `recover()` took 3.87 s (core) and 3.94 s (fallback), found the unit at 9600 baud and took the
+- Recovery after a 250 ms line break (the opt-in `recover` step, the Python run only): the unit went silent, the link
+  check said so, and `recover()` took 3.87 s, found the unit at 9600 baud and took the
   rate back to 38400. PC control was kept and no home was needed. Taking PC control back was not exercised, because
   the unit stayed in PC mode.
 - The power cycle and the PIO inputs were checked by hand with the same 1.0.0 wheel on 2026-10-31:
@@ -169,14 +166,9 @@ Notes:
   nothing was sent; disconnect; quit, exit code 0. 13 PASS, 0 FAIL: VERIFIED. A request without the access key, and
   one with a foreign Host header, got 403. The GUI's own limits on this unit are 53 mm/s and 0.3 G (the unit's): the
   10 mm/s and 0.1 G came from the test script. The workbench page and its Coordinated tab were not run on hardware.
-- **Coordinated motion** with the gripper as x and a simulated y, at most 10 mm/s and 0.1 G, x inside 2.79 to
-  6.75 mm, on the pure fallback of the released wheel only: 5 of 5 PASS. The shortest step was 81 ms. A line
-  from 3.00 to 6.75 mm at 5 mm/s landed; a circle of radius 2 mm at 5 mm/s took 2.73 s with a deviation of at most
-  0.10 mm (mean 0.05) and 0 late frames; at 9.5 mm/s it took 1.54 s with at most 0.17 mm (mean 0.07); a line back
-  landed at 3.00 mm. At 10 mm/s the planner refused the circle before any frame (a step of y would pass the cap).
-  In 1.0.0 the core had no `Cell.coordinated`; the core's runner was run later that day on a development build: see
-  [On the core](COORDINATED.md#on-the-core). Two real axes together stay UNVERIFIED
-  ([COORDINATED.md](COORDINATED.md#hardware-results)).
+- **Coordinated motion**: in 1.0.0 the core had no `Cell.coordinated`; the core's runner was run later that day on a
+  development build: see [On the core](DRIVER.md#on-the-core). Two real axes together stay UNVERIFIED
+  ([DRIVER.md](DRIVER.md#hardware-results)).
 
 ### Runs of 2026-11-03 on the PCON-CB
 
@@ -185,14 +177,13 @@ mode, alarm 0) with no non-volatile write. After its power-up the unit showed th
 cleared it before the first run.
 
 - **The released 1.0.1 files (07:53 to 08:32)**, checked against `SHA256SUMS.txt`, on Windows: the wheel in a new
-  environment (on the core, and on its fallback with `--backend python`), the C++ command line of the SDK zip, the C#
-  command line built from the 1.0.1 source on the NuGet package's managed and native libraries, and `iai-gui.exe`. The
-  harness steps `default,recover`, `--speed-cap 20`, band 30 to 120 mm, 0.1 G, test moves at 10 mm/s.
-  - Python on the core and on the fallback: 28 PASS, 1 CHECK (the self-test warns about the alarm history and the
-    position table), 1 SKIP (home: the unit was homed) each; `recover()` after a 250 ms line break restored 38400 baud
-    from 9600 in 4.0 to 4.1 s. C++ command line: 21 PASS, 1 SKIP (home). C# command line: 20 PASS, 2 SKIP (home; it
-    has no `--accel-pattern` option). The PC / PIO toggle PASSed in all four, so the 1.0.1 action-mode fix holds on
-    the released files.
+  environment (on the core), the C++ command line of the SDK zip, the C# command line built from the 1.0.1 source on
+  the NuGet package's managed and native libraries, and `iai-gui.exe`. The harness steps `default,recover`,
+  `--speed-cap 20`, band 30 to 120 mm, 0.1 G, test moves at 10 mm/s.
+  - Python on the core: 28 PASS, 1 CHECK (the self-test warns about the alarm history and the position table), 1 SKIP
+    (home: the unit was homed); `recover()` after a 250 ms line break restored 38400 baud from 9600 in 4.0 to 4.1 s. C++
+    command line: 21 PASS, 1 SKIP (home). C# command line: 20 PASS, 2 SKIP (home; it has no `--accel-pattern` option).
+    The PC / PIO toggle PASSed in all three, so the 1.0.1 action-mode fix holds on the released files.
   - GUI, through its single-axis HTTP interface: 14 PASS, the first run of the 1.0.1 GUI on the unit. A request without
     the token was refused (403), connect took 1.54 s, the GUI enforced the 30 to 120 mm band, a 5 mm move out and back
     at 10 mm/s, PC to PIO (the PCON paused with the servo off), a move in PIO refused (409), PIO to PC (the 1.0.1
@@ -281,18 +272,18 @@ harness steps `default,recover`, the caps and the end checks of the runs above.
 
 The same unit with driver 0.12.0b1 on core C ABI 0.8 (the layout released as C ABI 1.0), at most 10 mm/s and 0.1 G,
 targets inside 2.0 to 7.5 mm. Every function group had the result of the table above, except that the opt-in recovery
-after a line break was not run. Totals: Python core and pure fallback 28 PASS, 1 not run each; C++ command line 19
+after a line break was not run. Totals: Python core 28 PASS, 1 not run; C++ command line 19
 PASS, 2 arrival only, 1 not run; C# command line 18 PASS, 2 arrival only, 2 not run.
 
 ### Acceptance run of 2026-10-30
 
 The same unit with driver 0.12.0b1 on core C ABI 0.7, at most 20 mm/s and 0.1 G, targets inside 2.0 to 7.5 mm, and the
-same end-state checks, all as found. Every function group had the result of the table above. Both Python editions also
+same end-state checks, all as found. Every function group had the result of the table above. The Python core also
 ran the opt-in recovery after a 250 ms line break: PASS.
 
-- Totals: Python core and pure fallback 29 PASS, 1 not run each; C++ command line 19 PASS, 2 arrival only, 1 not run;
+- Totals: Python core 29 PASS, 1 not run; C++ command line 19 PASS, 2 arrival only, 1 not run;
   C# command line 18 PASS, 2 arrival only, 2 not run.
-- The Python runs measured the speed change: about 1.4 mm/s before and about 10 mm/s on average after, with a 12 mm/s
+- The Python run measured the speed change: about 1.4 mm/s before and about 10 mm/s on average after, with a 12 mm/s
   request.
 - After the line break the unit answered at 9600 baud. The driver found it, took the rate back to 38400 and the run
   went on. The unit had not restarted and kept its home.
@@ -324,7 +315,7 @@ On this gripper the following stay UNVERIFIED, unless a table above lists them a
 
 - the RES input of the PIO connector (not wired on the bench);
 - coordinated motion with two real axes (on the core, one real axis is VERIFIED on a development build only:
-  [COORDINATED.md](COORDINATED.md#on-the-core));
+  [DRIVER.md](DRIVER.md#on-the-core));
 - a PLC driving the PIO connector; the power cycle through the C++ and C# command lines; the PIO checks through the
   command lines;
 - home from a unit that is not homed; writes to parameters and the position table;

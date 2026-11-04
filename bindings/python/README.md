@@ -50,9 +50,6 @@ wheel puts it), then in `core/build/` of a checkout. When it is missing or has a
 `ImportError` saying where it looked. `iai-actuator-driver --version` names the core and its ABI;
 `iai_actuator_driver.backend_info()` says which library was loaded.
 
-The pure-Python edition, which ran without the library, was removed: 1.0.x is the last release with it
-(`IAI_DRIVER_BACKEND=python` now raises `ImportError` saying so; unset, `auto` and `native` are the core).
-
 `iai_actuator_driver.native` is the core's binding itself (`NativeAxis`, `NativeCell`). It needs C ABI 1.0 and
 accepts any 1.x library (the same ABI major and at least the minor it was written for).
 

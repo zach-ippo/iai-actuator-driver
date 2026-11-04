@@ -9,7 +9,7 @@ namespace IaiActuatorDriver.Interop
         /// <summary>One call of a text output function.</summary>
         internal delegate int Call(byte[]? buffer, UIntPtr bufferSize, out UIntPtr required);
 
-        /// <summary>First buffer size (64 KiB, docs/NATIVE_ABI.md); grown to the size the library asks for.</summary>
+        /// <summary>First buffer size (64 KiB, docs/dev/NATIVE_ABI.md); grown as the library asks.</summary>
         internal const int InitialSize = 64 * 1024;
 
         /// <summary>Calls of <see cref="Read"/> at most: the first, then one per larger size asked for.</summary>

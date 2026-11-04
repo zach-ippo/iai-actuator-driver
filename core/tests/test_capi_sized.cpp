@@ -1,4 +1,4 @@
-// C ABI 1.0 (the 0.8 layout reset): the structs (docs/NATIVE_ABI.md, "Sized structs"), on the simulator only:
+// C ABI 1.0 (the 0.8 layout reset): the structs (docs/dev/NATIVE_ABI.md, "Sized structs"), on the simulator only:
 //  - every input struct is sized (struct_size + reserved_header): a short struct, a set reserved_header, a set reserved
 //    slot and a set byte past the library's own struct are refused, a bigger caller struct with zeroed extra bytes is
 //    read;

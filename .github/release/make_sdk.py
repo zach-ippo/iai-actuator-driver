@@ -6,7 +6,7 @@ command line, a CMake package config and the documents.
 
 writes dist/iai_actuator_driver-sdk-<version>-<rid>.zip, holding one folder of the same name:
 
-    include/iai_actuator_driver.h                       the C ABI (C99; docs/NATIVE_ABI.md)
+    include/iai_actuator_driver.h                       the C ABI (C99; docs/dev/NATIVE_ABI.md)
     include/iai_actuator_driver_testing.h               the test hooks the library also exports (no stability promise)
     bin/iai_actuator_driver.dll                         Windows: the library
     bin/iai-actuator-driver-cpp[.exe]                   the command line (simulator: --sim)
@@ -172,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
                 add_file(zf, path, f"{base}/examples/c/{path.relative_to(examples).as_posix()}")
 
         doc = f"{base}/share/doc/{NAME}"
-        for rel in ("docs/NATIVE_ABI.md", "README.md", "CHANGELOG.md"):
+        for rel in ("docs/dev/NATIVE_ABI.md", "README.md", "CHANGELOG.md"):
             path = root / rel
             if path.is_file():
                 add_file(zf, path, f"{doc}/{path.name}")

@@ -19,8 +19,8 @@ GUI = ROOT / "apps" / "gui"  # the GUI and its own pyproject.toml
 GITHUB = "https://github.com/zach-ippo/iai-actuator-driver/"
 DOCS = (
     "README.md", "CHANGELOG.md", "docs/GETTING_STARTED.md", "docs/COMPATIBILITY.md", "docs/DRIVER.md", "docs/REFERENCE.md",
-    "docs/HARDWARE_SETUP.md", "docs/TROUBLESHOOTING.md", "docs/FAQ.md", "docs/ARCHITECTURE.md", "examples/README.md",
-    ".github/CONTRIBUTING.md", "docs/PYTHON_FALLBACK.md",
+    "docs/HARDWARE_SETUP.md", "docs/TROUBLESHOOTING.md", "docs/dev/ARCHITECTURE.md", "docs/dev/NATIVE_ABI.md",
+    "examples/README.md", ".github/CONTRIBUTING.md",
 )
 # the licence files the packages carry, and where the repository keeps each: LICENSE at the root (where GitHub finds the
 # licence), the notices in licenses/ (.github/release/check_package.py NOTICES)

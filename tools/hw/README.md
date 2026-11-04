@@ -45,7 +45,7 @@ library you built (`python build.py shared` in `core/`).
 | `--stroke-band BAND` | Where the run may move: a percentage of the stroke around its middle (default `60`, allowed 10 to 90) or `LOW:HIGH` in mm (cut to the unit's stroke, never wider). |
 | `--steps LIST` / `--skip LIST` | Which steps run. `default` is the safe motion set, `all` adds the opt-in step; `default,recover` adds one. The order is fixed. |
 | `--results DIR` | Where the results go. Each run makes a time-stamped folder in it. Default `./hw-results`. |
-| `--src DIR` / `--native DIR` / `--backend` | Test a source tree instead of the installed package / the native core library to load / `auto` or `native` (both the core: the pure-Python fallback was removed after 1.0.x). |
+| `--src DIR` / `--native DIR` / `--backend` | Test a source tree instead of the installed package / the native core library to load / `auto` or `native` (both the core). |
 | `--yes` | Do not wait for Enter. A run on a real port needs this or a terminal; with neither it ends before the port is opened. |
 | `--sim-profile`, `--sim-baud`, `--sim-time-scale` | `--sim` only: the simulated unit (`gripper` by default; `slider`, `rod`, `pcon`, `rotary`), its baud rate, its speed. The rod, rotary and unknown profiles start at 0, outside the default band: add `--stroke-band 0:10000`. |
 | `--sim-scenario NAME` | `--sim` only, to rehearse the safety paths: `alarm`, `warning`, `other-warning`, `cold`, `outside`, `pio-input`, `obstacle`, `fault`, `interrupt`. |
@@ -226,4 +226,4 @@ python -m unittest discover -s tools/hw/tests -t .
 ```
 
 The driver comes from `bindings/python` of the checkout, and the native core from `IAI_ACTUATOR_DRIVER_NATIVE` when
-that is set (else `core/build`). The driver needs the core: the pure-Python fallback was removed after 1.0.x.
+that is set (else `core/build`). The driver needs the core.

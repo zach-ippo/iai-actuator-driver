@@ -14,7 +14,7 @@ namespace IaiActuatorDriver.Native
     /// <remarks>
     /// The runtime finds iai_actuator_driver.dll (libiai_actuator_driver.so / .dylib) next to the application or in the
     /// NuGet package's runtimes/&lt;rid&gt;/native/. Evidence: the binding is VERIFIED on the PCON-CB with an RCP6 and on
-    /// the EC-GRBP8M gripper (steps in docs/NATIVE_ABI.md), tested on the native simulator besides; everything else
+    /// the EC-GRBP8M gripper (steps in docs/dev/NATIVE_ABI.md), tested on the native simulator besides; everything else
     /// UNVERIFIED.
     /// </remarks>
     public static class NativeDriver

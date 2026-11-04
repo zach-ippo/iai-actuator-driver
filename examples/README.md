@@ -33,7 +33,7 @@ Install the package first: `pip install ./bindings/python` (the examples also ru
 | [fast_cycle.py](python/fast_cycle.py) | A repeated A -> B -> A cycle, timed with the default completion rule and then with `enable_fast()` |
 | [recovery_after_power_loss.py](python/recovery_after_power_loss.py) | `track()`, `check_link()` and `recover()`, which never moves the axis; on a unit, switch its 24 V off and on |
 | [machine_sequence.py](python/machine_sequence.py) | A machine cycle written like a PLC program: steps on a fixed scan, several axes between A and B, step timers, an alarm that stops every axis |
-| [draw_circle.py](python/draw_circle.py) | A circle with two axes (coordinated motion, UNVERIFIED on hardware): `--sim`, or `--x COM3:1 --y COM4:1`, with `--dry-run` to plan only; see [docs/COORDINATED.md](../docs/COORDINATED.md) |
+| [draw_circle.py](python/draw_circle.py) | A circle with two axes (coordinated motion, UNVERIFIED on hardware): `--sim`, or `--x COM3:1 --y COM4:1`, with `--dry-run` to plan only; see [docs/DRIVER.md](../docs/DRIVER.md#coordinated-motion-alpha) |
 
 ```shell
 python examples/python/first_move.py --sim

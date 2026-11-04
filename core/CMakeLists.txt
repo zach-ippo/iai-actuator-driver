@@ -9,7 +9,7 @@
 # Targets: iai_actuator_driver (static library), ec_tests (tests), iai-actuator-driver-cpp (command line), and with
 # -DIAI_ACTUATOR_DRIVER_BUILD_SHARED=ON (or -DBUILD_SHARED_LIBS=ON) iai_actuator_driver_shared: the C ABI
 # (include/iai_actuator_driver.h) as iai_actuator_driver.dll / libiai_actuator_driver.so / .dylib, with the C++ runtime
-# linked statically where the toolchain allows it (see docs/NATIVE_ABI.md).
+# linked statically where the toolchain allows it (see docs/dev/NATIVE_ABI.md).
 # In your own CMake project: add_subdirectory(path/to/core) and target_link_libraries(your_app PRIVATE iai_actuator_driver).
 
 cmake_minimum_required(VERSION 3.14)

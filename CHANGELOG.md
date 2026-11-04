@@ -400,7 +400,7 @@ Renamed from ec-driver to IAI Actuator Driver (package `iai_actuator_driver`; co
 
 ### 0.10.0a1 - 2026-10-29
 
-Coordinated multi-axis motion run by the PC (alpha); see [docs/COORDINATED.md](docs/COORDINATED.md). Two real axes
+Coordinated multi-axis motion run by the PC (alpha); see [docs/DRIVER.md](docs/DRIVER.md#coordinated-motion-alpha). Two real axes
 together: UNVERIFIED.
 
 ### 0.9.1b1 - 2026-10-28

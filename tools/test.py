@@ -111,7 +111,6 @@ PATH_MAP: list[tuple[str, set[str]]] = [
     ("tools/test.py", {"docs"}),  # docs: test_runners checks this file
     # the documents the GUI's About panel serves (apps/gui/server.py ABOUT_DOCS; test_runners keeps the list in step)
     ("docs/GETTING_STARTED.md", {"docs", "gui"}),
-    ("docs/COORDINATED.md", {"docs", "gui"}),
     ("docs/COMPATIBILITY.md", {"docs", "gui"}),
     ("docs/DRIVER.md", {"docs", "gui"}),
     ("docs/REFERENCE.md", {"docs", "gui"}),

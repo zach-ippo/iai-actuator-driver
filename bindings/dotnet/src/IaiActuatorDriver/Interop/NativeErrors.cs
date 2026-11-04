@@ -95,8 +95,8 @@ namespace IaiActuatorDriver.Native
 
     /// <summary>
     /// How the interop layer turns a failed call of the native core into an exception: the library's own exception
-    /// classes, so code written against <c>IaiActuatorDriver</c> catches the same types (docs/NATIVE_ABI.md, "Results
-    /// and errors"). Public for diagnostics (<see cref="ResultOf"/>, <see cref="ErrorJsonOf"/>):
+    /// classes, so code written against <c>IaiActuatorDriver</c> catches the same types (docs/dev/NATIVE_ABI.md,
+    /// "Results and errors"). Public for diagnostics (<see cref="ResultOf"/>, <see cref="ErrorJsonOf"/>):
     /// </summary>
     /// <remarks>
     /// <code>

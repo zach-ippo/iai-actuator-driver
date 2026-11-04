@@ -59,7 +59,7 @@ simulator clock (`step_s`) or the virtual clock (`testing.virtual_clock`) instea
 | Release scripts | `python .github/release/test_local_release.py` | the root |
 
 The Python package runs on the core only, so its tests need the native library (`core/build/`, or
-`IAI_ACTUATOR_DRIVER_NATIVE`). The pure-Python edition was removed after 1.0.x, its last release.
+`IAI_ACTUATOR_DRIVER_NATIVE`).
 
 The tests never open a serial port, and a new test must not either. Use the simulator (`SimulatedEC`, `sim_line()`,
 `sim_ports()`) and the helpers in `bindings/python/tests/ec_testutil.py`.
@@ -89,7 +89,7 @@ The simulator answers Modbus RTU byte for byte and mimics what the hardware test
 | `bindings/dotnet/` | The C# library, its command line and tests ([bindings/dotnet/README.md](../bindings/dotnet/README.md)) |
 | `apps/gui/` | The GUI: `server.py` (HTTP, loopback only), `workbench.py` (page `/`), `controller.py` (page `/classic`), `test_gui.py` |
 | `examples/` | Short programs, one task each, runnable with `--sim` ([examples/README.md](../examples/README.md)) |
-| `docs/` | User and maintainer documents |
+| `docs/` | User documents; `docs/dev/` the maintainer ones ([ARCHITECTURE.md](../docs/dev/ARCHITECTURE.md), [NATIVE_ABI.md](../docs/dev/NATIVE_ABI.md)) |
 | `tools/` | `test.py`, the parallel unittest runner and the hardware harness ([tools/hw](../tools/hw/README.md)) |
 | `licenses/` | `NOTICE` and `NATIVE_THIRD_PARTY.txt`: the sources of the copies in `bindings/python/` (both) and `apps/gui/` (`NOTICE`), packed into every release asset; `LICENSE` stays at the root |
 | `.github/` | CI, the release workflow and the release scripts, the issue forms and `CONTRIBUTING.md` |

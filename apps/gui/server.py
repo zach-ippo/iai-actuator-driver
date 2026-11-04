@@ -92,7 +92,6 @@ STATIC_FILES: dict[str, tuple[str, str]] = {
 # Read-only documents linked from the About panel (plain text, from a source checkout; absent in a bare install).
 ABOUT_DOCS: tuple[tuple[str, str, str], ...] = (
     ("Getting started", "/docs/GETTING_STARTED.md", "docs/GETTING_STARTED.md"),
-    ("Coordinated motion", "/docs/COORDINATED.md", "docs/COORDINATED.md"),
     ("Compatibility", "/docs/COMPATIBILITY.md", "docs/COMPATIBILITY.md"),
     ("Function reference", "/docs/DRIVER.md", "docs/DRIVER.md"),
     ("Reference and evidence", "/docs/REFERENCE.md", "docs/REFERENCE.md"),

@@ -6,12 +6,12 @@
  * libiai_actuator_driver.so, libiai_actuator_driver.dylib) for C, C#, Python, LabVIEW and any language with a C FFI.
  * The C++ classes behind it (the headers in include/iai_actuator_driver/) are not part of the binary interface. The
  * model (handles, errors, threading, JSON outputs, versioning, loading per language, distribution) is in
- * docs/NATIVE_ABI.md.
+ * docs/dev/NATIVE_ABI.md.
  *
  * Behaviour: each function does what the C++ method named in its comment does (axis.hpp, cell.hpp); the checks, the
  * completion rule, the STOP handling and the non-volatile write guard are the core's. Evidence: the C++ core's command
  * line is VERIFIED on the EC-GRBP8M gripper and on the PCON-CB with an RCP6; the ABI 0.1 functions (see "Layout") and
- * the bindings on them are VERIFIED on the PCON-CB with an RCP6 (docs/NATIVE_ABI.md); the rest is UNVERIFIED on
+ * the bindings on them are VERIFIED on the PCON-CB with an RCP6 (docs/dev/NATIVE_ABI.md); the rest is UNVERIFIED on
  * hardware.
  *
  * Conventions

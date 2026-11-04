@@ -1,7 +1,7 @@
 // Coordinated (interpolated) multi-axis motion, run by the PC: lines, arcs and circles over several axes. Port of the
-// Python edition's coord.py (docs/COORDINATED.md there); implemented by src/coord_geometry.cpp (points, segments,
-// paths), src/coord_plan.cpp (the planner, line timing, plans and results) and src/coord_run.cpp (CoordinatedGroup,
-// the runners, Cell::coordinated).
+// Python edition's coord.py (docs/DRIVER.md, "Coordinated motion (alpha)"); implemented by src/coord_geometry.cpp
+// (points, segments, paths), src/coord_plan.cpp (the planner, line timing, plans and results) and src/coord_run.cpp
+// (CoordinatedGroup, the runners, Cell::coordinated).
 //
 // IAI units have no interpolation of their own and no shared clock: every axis runs its own move. This module makes
 // several axes follow one path from the PC side:

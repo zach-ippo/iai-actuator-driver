@@ -1,8 +1,8 @@
 # Architecture
 
 How IAI Actuator Driver is built, for maintainers: the layers, how a command reaches the wire, the rules each layer
-keeps, and the one C++ core under every language. The functions are listed in [DRIVER.md](DRIVER.md); behaviour and
-its evidence are in [REFERENCE.md](REFERENCE.md). Unofficial: not an IAI product.
+keeps, and the one C++ core under every language. The functions are listed in [DRIVER.md](../DRIVER.md); behaviour and
+its evidence are in [REFERENCE.md](../REFERENCE.md). Unofficial: not an IAI product.
 
 ## Layers
 
@@ -243,7 +243,7 @@ implemented once, in C++ (`core/`), behind a small, stable C ABI. Each language 
 idiomatic API. Everything is in this one repository and released from one commit. The ABI's model (handles, errors,
 threads, data, versioning, loading per language) is in [NATIVE_ABI.md](NATIVE_ABI.md); the header
 `core/include/iai_actuator_driver.h` documents each function. Per-language guides are in
-[getting-started/](getting-started/).
+[getting-started/](../getting-started/).
 
 ```text
 apps/gui (iai-gui)      iai-actuator-driver, iai-check     iai-actuator-driver-cs     your program
@@ -282,9 +282,8 @@ transport                SerialTransport (Win32, POSIX) | SimulatedUnit | SimLin
    the core's simulator.
 4. **A change goes core first.** Code and C++ test in `core/`, then the ABI (a new function or a reserved slot given a
    meaning is a minor version), then the bindings, then the documents. Behaviour can be worked out on hardware with
-   whichever language is quickest to script; the fix lands in the core. The Python package runs on the core only (its
-   pure-Python fallback was removed after 1.0.x: [PYTHON_FALLBACK.md](PYTHON_FALLBACK.md)). The Python tests remain
-   the conformance suite: where the core disagrees with one, the core is fixed.
+   whichever language is quickest to script; the fix lands in the core. The Python package runs on the core only. The
+   Python tests remain the conformance suite: where the core disagrees with one, the core is fixed.
 
 ### What stays in each language
 
@@ -400,7 +399,7 @@ files.
 | `bindings/dotnet/` | `IaiActuatorDriver` (the core's binding inside, `Interop/`), `IaiActuatorDriver.Cli`, tests, `packaging/` | `dotnet test` |
 | `apps/gui/` | `iai-gui` | the GUI server, controller and API tests |
 | `examples/{python,csharp,cpp,c}/` | one task per program, simulator or unit | run on the simulator |
-| `docs/` | the documents | packaging and wording checks |
+| `docs/` | the documents; `docs/dev/` the maintainers' ones (this one and the C ABI) | packaging and wording checks |
 | `licenses/` | `NOTICE` and `NATIVE_THIRD_PARTY.txt`: the sources of the copies in `bindings/python/` (both) and `apps/gui/` (`NOTICE`), packed into every release asset; `LICENSE` stays at the root | packaging checks |
 | `.github/` | `workflows/ci.yml`, `workflows/release.yml`, `release/` (the release scripts), the issue forms, `CONTRIBUTING.md` | |
 
@@ -430,12 +429,12 @@ runners.
   NATIVE_ABI.md).
 - The Python package and the .NET library run on the core. The acceptance runs on the EC-GRBP8M gripper exercised it
   through the Python package, the .NET `Axis` and the C++ and C# command lines
-  ([COMPATIBILITY.md](COMPATIBILITY.md#hardware-results)). The rest of the core is simulator-tested and UNVERIFIED on
+  ([COMPATIBILITY.md](../COMPATIBILITY.md#hardware-results)). The rest of the core is simulator-tested and UNVERIFIED on
   hardware.
 - The GUI runs on the core too: its reads go through the core's preemptible read scope, its Coordinated tab through
   the core's coordinated motion.
 - The public .NET `Cell` has the group commands only; the group extras it lacks are listed in
-  [../bindings/dotnet/README.md](../bindings/dotnet/README.md#state-of-this-edition).
+  [../bindings/dotnet/README.md](../../bindings/dotnet/README.md#state-of-this-edition).
 
 ## Working on the driver
 

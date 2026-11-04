@@ -12,7 +12,7 @@ and C++ libraries, a command line and a local web GUI share one C++ core. Versio
   lines: servo, home, moves, jog, push, stored positions, stop, pause, alarms, parameters and backup.
 - Reads every range from the unit itself and checks each move against it before anything is sent.
 - Runs many axes through `Cell` (up to 16 per cable). Coordinated motion is alpha
-  ([docs/COORDINATED.md](docs/COORDINATED.md)).
+  ([docs/DRIVER.md](docs/DRIVER.md#coordinated-motion-alpha)).
 - Includes a simulator, so everything runs without hardware.
 
 ## Install
@@ -64,11 +64,11 @@ PSEL, MSEL, TTA), ELECYLINDER on an RCON-EC / REC unit, ROBONET in gateway mode.
 
 [Getting started](docs/GETTING_STARTED.md), [Hardware setup](docs/HARDWARE_SETUP.md),
 [Compatibility](docs/COMPATIBILITY.md), [Driver API](docs/DRIVER.md), [Reference](docs/REFERENCE.md),
-[Troubleshooting](docs/TROUBLESHOOTING.md), [FAQ](docs/FAQ.md), [Examples](examples/README.md),
-[GUI](apps/gui/README.md), [C ABI](docs/NATIVE_ABI.md), [Architecture](docs/ARCHITECTURE.md),
-[Python fallback (removed)](docs/PYTHON_FALLBACK.md), [Contributing](.github/CONTRIBUTING.md),
+[Troubleshooting and questions](docs/TROUBLESHOOTING.md), [Examples](examples/README.md), [GUI](apps/gui/README.md),
 [Changelog](CHANGELOG.md). Language guides: [Python](docs/getting-started/python.md),
-[C#](docs/getting-started/csharp.md), [C++](docs/getting-started/cpp.md), [C](docs/getting-started/c.md).
+[C#](docs/getting-started/csharp.md), [C++](docs/getting-started/cpp.md), [C](docs/getting-started/c.md). For
+maintainers: [C ABI](docs/dev/NATIVE_ABI.md), [Architecture](docs/dev/ARCHITECTURE.md),
+[Contributing](.github/CONTRIBUTING.md).
 
 Claims carry one of four evidence words: **VERIFIED** (tried on hardware), **ON-WIRE** (seen in serial traffic),
 **DOC** (in a public IAI manual), **UNVERIFIED** (expected, not yet tried).

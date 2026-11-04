@@ -7,11 +7,11 @@ is the contract and the model of that ABI. The header documents each function.
 - C, LabVIEW and any language with a C FFI call the ABI directly. C++ programs can also link the core itself.
 - The Python package (`bindings/python/`) and the .NET library (`bindings/dotnet/`) are thin layers over the ABI. Both
   bind every function of both headers, checked against the committed manifest in `core/abi/`.
-- The Python package runs on the core only: its pure-Python fallback was removed after 1.0.x.
+- The Python package runs on the core only.
 - `core/include/iai_actuator_driver_testing.h` declares the test hooks the same library exports. It has no stability
   promise.
 
-IAI Actuator Driver is unofficial: it is not an IAI product. See the [README](../README.md).
+IAI Actuator Driver is unofficial: it is not an IAI product. See the [README](../../README.md).
 
 ## The 1.0 contract
 
@@ -171,7 +171,7 @@ work with it. Rebuild it against the 1.0 header.
 ## Evidence
 
 Evidence words are those of the other documents: VERIFIED (hardware), ON-WIRE, DOC, UNVERIFIED. The step-by-step results
-are in [COMPATIBILITY.md](COMPATIBILITY.md).
+are in [COMPATIBILITY.md](../COMPATIBILITY.md).
 
 | What | Unit | Evidence |
 |---|---|---|
@@ -966,7 +966,7 @@ int main(void) {
 - The repository's binding (`bindings/dotnet/src/IaiActuatorDriver/Interop/`, netstandard2.0 and net8.0) passes strings
   as NUL-terminated UTF-8 byte arrays and `size_t` as `UIntPtr`, so it behaves the same on netstandard2.0, where
   `LPUTF8Str` and `Marshal.PtrToStringUTF8` are missing. Its use:
-  [bindings/dotnet/README.md](../bindings/dotnet/README.md).
+  [bindings/dotnet/README.md](../../bindings/dotnet/README.md).
 
 ### Python (ctypes)
 
@@ -1123,5 +1123,5 @@ from the same commit, so their ABI versions always match.
   them).
 - Of what the bindings asked for: `row_words` / `monitor_record_words` / `missing_items` / `model_string`, and
   `iad_shutdown`.
-- What the C++ core does not do yet is listed in [core/README.md](../core/README.md) ("Where this edition is shaped
+- What the C++ core does not do yet is listed in [core/README.md](../../core/README.md) ("Where this edition is shaped
   differently from the Python one").

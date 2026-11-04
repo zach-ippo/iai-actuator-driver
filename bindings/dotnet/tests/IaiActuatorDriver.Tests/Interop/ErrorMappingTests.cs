@@ -8,7 +8,7 @@ namespace IaiActuatorDriver.Tests.Interop
 {
     /// <summary>
     /// Result codes become the managed edition's exception classes, with the library's message and the details of
-    /// iad_last_error_json (docs/NATIVE_ABI.md, "Results and errors"). No native library needed.
+    /// iad_last_error_json (docs/dev/NATIVE_ABI.md, "Results and errors"). No native library needed.
     /// </summary>
     public class ErrorMappingTests
     {

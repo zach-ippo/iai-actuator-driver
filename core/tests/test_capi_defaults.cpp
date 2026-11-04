@@ -1,4 +1,4 @@
-// C ABI 1.0 (the 0.8 layout): the rule of the defaults (docs/NATIVE_ABI.md, "Defaults"), on the simulator only:
+// C ABI 1.0 (the 0.8 layout): the rule of the defaults (docs/dev/NATIVE_ABI.md, "Defaults"), on the simulator only:
 //  - IAD_UNKNOWN is 2; a tribool input is 0 false, 2 unknown / keep, any other value true (a VB True, -1, too);
 //  - 0 is the default of every enumeration (IAD_METHOD_* renumbered: DEFAULT 0, COIL 1, IAI 2, IAI2 3, REGISTER 4);
 //  - NaN is the default of a double and a 0 a value (checked), except in the two structs without an _init, where NaN or

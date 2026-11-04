@@ -1,5 +1,5 @@
 // C ABI 0.2: coordinated motion of several cell axes (include/iai_actuator_driver.h, "cell: coordinated motion"; the
-// model is in docs/NATIVE_ABI.md). The request is one JSON object read here into a coord::Path and the plan and run
+// model is in docs/dev/NATIVE_ABI.md). The request is one JSON object read here into a coord::Path and the plan and run
 // options; the work is CoordinatedGroup::plan / run (src/coord_run.cpp) on a group of the cell's axes made for the call
 // (Cell::coordinated: a cheap handle). The errors are mapped in c_api_support.cpp (CoordinatedMotionError,
 // InfeasiblePathError, NoMotionError).

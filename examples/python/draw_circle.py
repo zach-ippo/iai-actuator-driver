@@ -1,5 +1,5 @@
 """Draw a circle with two axes: a dry-run plan printed as numbers, then the run (coordinated motion, UNVERIFIED on
-hardware; see docs/COORDINATED.md).
+hardware; see docs/DRIVER.md, "Coordinated motion (alpha)").
 
     python examples/python/draw_circle.py --sim                              # two simulated axes, no serial port
     python examples/python/draw_circle.py --x COM3:1 --y COM4:1 --dry-run    # plan only: reads positions and ranges

@@ -18,8 +18,8 @@ namespace IaiActuatorDriver.Interop
     /// <para>Threads: <see cref="StopAll"/>, <see cref="PauseAll"/> and <see cref="Cancel"/> may be called from another
     /// thread while a group command waits. The events (<see cref="Fault"/>, <see cref="MotionDone"/>...) are raised on a
     /// thread the binding owns.</para>
-    /// <para>Evidence: VERIFIED on the PCON-CB with an RCP6 (steps in docs/NATIVE_ABI.md), tested on the native simulator
-    /// besides; everything else UNVERIFIED.</para>
+    /// <para>Evidence: VERIFIED on the PCON-CB with an RCP6 (steps in docs/dev/NATIVE_ABI.md), tested on the native
+    /// simulator besides; everything else UNVERIFIED.</para>
     /// </remarks>
     internal sealed partial class NativeCell : IDisposable, IEnumerable<NativeAxis>
     {

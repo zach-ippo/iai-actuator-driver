@@ -282,7 +282,7 @@ class LayoutTest(unittest.TestCase):
 
 
 class ErrorMappingTest(unittest.TestCase):
-    """Each result code raises the package's own class (docs/NATIVE_ABI.md, the Python column)."""
+    """Each result code raises the package's own class (docs/dev/NATIVE_ABI.md, the Python column)."""
 
     def test_codes_map_to_the_package_classes(self) -> None:
         cases = {

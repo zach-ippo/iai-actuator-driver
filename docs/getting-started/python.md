@@ -204,8 +204,7 @@ checks its ABI version. It looks in this order:
 A `pip install` of the folder copies only the Python files, so it finds the library through 1 or, editable, 3. When
 none is usable the import raises `ImportError` saying where it looked. `iai_actuator_driver.backend_info()` and
 `iai-actuator-driver --version` name the library loaded and its ABI. `IAI_DRIVER_BACKEND` may be unset, `auto` or
-`native`, all the core; `python` chose the pure-Python fallback, removed after 1.0.x, and now raises `ImportError`
-([PYTHON_FALLBACK.md](../PYTHON_FALLBACK.md)).
+`native`, all the core.
 
 To build it from source on Windows x64:
 
@@ -248,7 +247,6 @@ hardware only the steps in [Evidence](#evidence) are VERIFIED; the rest is UNVER
 
 | Part | Evidence |
 |---|---|
-| The package API (`Axis`, `Cell`) up to 1.0.x, on its fallback | VERIFIED on the units in [../COMPATIBILITY.md](../COMPATIBILITY.md) |
 | The package API on the core | VERIFIED on the EC-GRBP8M gripper; steps in [../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit) |
 | `iai_actuator_driver.native` on the core | VERIFIED on the PCON-CB with an RCP6; steps in [../COMPATIBILITY.md](../COMPATIBILITY.md#which-editions-were-run-on-a-unit) |
 | Everything else through the core | UNVERIFIED (tested on the simulator) |
@@ -259,5 +257,5 @@ hardware only the steps in [Evidence](#evidence) are VERIFIED; the rest is UNVER
 
 - [../DRIVER.md](../DRIVER.md): every function with its inputs and ranges.
 - [../../examples/python/](../../examples/python/): short programs, one task each, on the simulator or a unit.
-- [../NATIVE_ABI.md](../NATIVE_ABI.md): the C ABI under `iai_actuator_driver.native`.
+- [../dev/NATIVE_ABI.md](../dev/NATIVE_ABI.md): the C ABI under `iai_actuator_driver.native`.
 - [../TROUBLESHOOTING.md](../TROUBLESHOOTING.md): error messages and what to do.

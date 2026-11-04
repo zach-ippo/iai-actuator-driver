@@ -700,6 +700,8 @@ std::optional<Status> move_and_change(Axis& axis, double target, const MoveOptio
     start.wait = false;
     axis.move_to(target, start);
     nap(args.number("--change-after").value_or(1.0));
+    // Ctrl+C during the wait: no change frame (the watcher stops the move); before, it went out ahead of the STOP
+    if (interrupted()) throw WaitCancelledError("interrupted (Ctrl+C) before the change; nothing more sent");
     const std::optional<double> speed = args.number("--change-speed");
     const std::optional<double> accel = args.number("--change-accel");
     std::optional<Status> result;

@@ -222,3 +222,16 @@ TEST(cli_ctrl_c_before_the_move_sends_no_motion_frame) {
         check_stopped_before_the_move(cli_run(move));
     }
 }
+
+TEST(cli_ctrl_c_sends_no_change_speed_frame) {
+    // ON-WIRE on a PCON-CB: move --change-speed sent the 0x9900 change frame after Ctrl+C, before the STOP
+    auto second_direct = [n = std::make_shared<int>(0)](const Pdu& pdu) { return is_direct_move(pdu) && ++*n == 2; };
+    const InterruptAt at(second_direct, [] { cli::request_interrupt(); });
+    const CliRun r = cli_run({"--sim", "--sim-time-scale", "5", "--log-frames", "move", "30", "--speed", "5",
+                              "--change-speed", "10", "--change-after", "0.2"});
+    CHECK_EQ(r.code, 130);
+    const std::vector<std::string> w = writes(r.err);
+    CHECK_EQ(count_prefix(w, kDirectMove), std::size_t{1});  // the move itself; no change frame
+    CHECK(count_prefix(w, kStopOn) >= 1);
+    CHECK(!w.empty() && w.back().rfind(kStopOff, 0) == 0);
+}

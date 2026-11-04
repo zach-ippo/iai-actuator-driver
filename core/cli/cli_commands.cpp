@@ -148,7 +148,7 @@ Connection and safety options:
 
 Commands that change the unit's state first read identity and ranges and take Modbus control while the axis
 is at rest ('mode pio' gives control back to the PIO); read-only commands write nothing. Ctrl+C during a move
-or home sends the decel STOP sequence.
+or home sends the decel STOP sequence; no motion frame is sent after it.
 This tool is not a safety function: keep a hardware emergency stop. This edition is UNVERIFIED on hardware.
 Exit codes: 0 ok, 1 nothing found by scan / a failed check / a line error, 2 error, 130 interrupted.
 )";
@@ -953,26 +953,44 @@ int run_axis_command(const Args& args, std::ostream& out, std::ostream& err) {
         report_error(err, e);
         return 2;
     }
+    // Ctrl+C while the port opened: the command never starts (before, a move went out ~1.3 s after Ctrl+C and ran its
+    // full travel; ON-WIRE on a PCON-CB)
+    if (interrupted() && !(command == "monitor" && args.has("--watch"))) return interrupted_exit(err);
+    // Ctrl+C during a motion command: the watcher sends STOP ON at once and ends the command's waits (the cancel
+    // latch: a move, jog or home not yet sent is refused); the STOP is held until the command has ended and released
+    // at exit (finish_watch). Meanwhile the gate refuses every write of the command (nothing sent) once Ctrl+C is seen
+    // or a STOP went to the axis: checked right before the wire under the bus lock (modbus.hpp SendGate); stop-class
+    // frames still pass. Not for check: its self-test gives back the servo / Modbus control it took (moves latched).
     std::atomic<bool> done{false};
     std::thread watcher;
+    std::optional<detail::SendGate> gate;
+    const std::shared_ptr<ModbusRtu> bus = axis->bus();
     if (spec.motion) {
         Axis* ax = axis.get();
         watcher = std::thread([ax, &done]() {
-            while (!done.load()) {
-                if (interrupted()) {
-                    try {
-                        ax->stop(false, 5.0);
-                    } catch (...) {
-                    }
-                    return;
-                }
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            while (!done.load() && !interrupted()) std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            if (done.load()) return;  // the command ended: finish_watch stops the axis if needed
+            try {
+                ax->begin_stop();
+            } catch (...) {
             }
+            ax->set_cancel_latch(true);
         });
+        if (bus && command != "check")
+            gate.emplace(*bus, axis->slave(), detail::stop_mark(*bus, axis->slave()), [] {
+                if (interrupted()) throw WaitCancelledError("interrupted (Ctrl+C): nothing more is sent");
+            });
     }
     auto finish_watch = [&]() {
+        gate.reset();
         done = true;
         if (watcher.joinable()) watcher.join();
+        if (!spec.motion || !interrupted()) return;
+        try {
+            axis->stop(false, 5.0);  // held until standstill, then released: nothing of this command follows
+        } catch (...) {
+        }
+        axis->set_cancel_latch(false);
     };
     int code = 2;
     auto keep_sim_state = [&]() {

@@ -101,7 +101,8 @@ std::string usage();
 /// Run one command line (argv without the program name). Never throws: errors are printed to `err`.
 int run(const std::vector<std::string>& argv, std::ostream& out, std::ostream& err);
 
-/// Ctrl+C (main.cpp's handler): a running motion command stops its axis and run() returns 130. Signal-safe.
+/// Ctrl+C (main.cpp's handler): a running motion command stops its axis, sends no motion frame afterwards, and run()
+/// returns 130. Signal-safe.
 void request_interrupt() noexcept;
 bool interrupted() noexcept;
 

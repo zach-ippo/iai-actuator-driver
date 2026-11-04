@@ -1,13 +1,19 @@
-// The command line on the simulator (in process, through cli::run): read-only commands, a move, and the non-volatile
-// write guard as a user sees it (an unchanged parameter or row is not written; --force writes it). No COM port.
+// The command line on the simulator (in process, through cli::run): read-only commands, a move, the non-volatile
+// write guard as a user sees it (an unchanged parameter or row is not written; --force writes it), and Ctrl+C (raised
+// from a bus hook as a frame is about to go). No COM port.
+#include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <filesystem>
+#include <functional>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "cli.hpp"
 #include "harness.hpp"
+#include "iai_actuator_driver/modbus.hpp"
 
 using namespace iai_actuator_driver;
 
@@ -33,6 +39,61 @@ std::vector<std::string> sim_args(const std::string& state, std::vector<std::str
     std::vector<std::string> argv{"--sim", "--sim-profile", "gripper", "--sim-time-scale", "20", "--sim-state", state};
     argv.insert(argv.end(), command.begin(), command.end());
     return argv;
+}
+
+using Pdu = std::vector<std::uint8_t>;
+
+bool is_direct_move(const Pdu& pdu) { return pdu.size() > 2 && pdu[0] == 0x10 && pdu[1] == 0x99 && pdu[2] == 0x00; }
+
+/// The write frames on the wire (--log-frames "T tx HEX" lines; FC05 / FC06 / FC0F / FC10): hex, with the CRC.
+std::vector<std::string> writes(const std::string& err) {
+    std::vector<std::string> frames;
+    std::istringstream lines(err);
+    std::string line;
+    while (std::getline(lines, line)) {
+        const std::size_t at = line.find(" tx ");
+        if (at == std::string::npos) continue;
+        const std::string hex = line.substr(line.find_first_not_of(' ', at + 3));
+        const std::string fc = hex.substr(3, 2);
+        if (fc == "05" || fc == "06" || fc == "0f" || fc == "10") frames.push_back(hex);
+    }
+    return frames;
+}
+
+std::size_t count_prefix(const std::vector<std::string>& frames, const std::string& prefix) {
+    return static_cast<std::size_t>(
+        std::count_if(frames.begin(), frames.end(), [&](const std::string& f) { return f.rfind(prefix, 0) == 0; }));
+}
+
+constexpr const char* kDirectMove = "01 10 99 00";
+constexpr const char* kStopOn = "01 05 04 2c ff 00";
+constexpr const char* kStopOff = "01 05 04 2c 00 00";
+
+/// Ctrl+C as the command line is about to send a request: `raise` runs once, at the first request `when`
+/// picks (the bus's before_bus_wait hook, cleared at the end of the scope).
+class InterruptAt {
+public:
+    InterruptAt(std::function<bool(const Pdu&)> when, std::function<void()> raise) {
+        auto fired = std::make_shared<bool>(false);
+        detail::bus_test_hooks().before_bus_wait = [when, raise, fired](int, const Pdu& pdu) {
+            if (*fired || !when(pdu)) return;
+            *fired = true;
+            raise();
+        };
+    }
+    ~InterruptAt() { detail::bus_test_hooks().before_bus_wait = nullptr; }
+    InterruptAt(const InterruptAt&) = delete;
+    InterruptAt& operator=(const InterruptAt&) = delete;
+};
+
+/// A move interrupted at its 0x9900 frame: exit 130, no 0x9900 on the wire, the STOP sent and released last.
+void check_stopped_before_the_move(const CliRun& r) {
+    CHECK_EQ(r.code, 130);
+    CHECK(r.says("interrupted"));
+    const std::vector<std::string> w = writes(r.err);
+    CHECK_EQ(count_prefix(w, kDirectMove), std::size_t{0});
+    CHECK(count_prefix(w, kStopOn) >= 1);
+    CHECK(!w.empty() && w.back().rfind(kStopOff, 0) == 0);
 }
 
 }  // namespace
@@ -143,4 +204,21 @@ TEST(cli_teach_method_chooses_the_table_or_the_coil_sequence) {
     CHECK(!table.says("01 05 04 14 ff 00"));
     CHECK(teach("row").says("--method: table or coil"));
     std::remove(state.c_str());
+}
+
+TEST(cli_ctrl_c_before_the_move_sends_no_motion_frame) {
+    // ON-WIRE on a PCON-CB (driver 1.1.0): Ctrl+C before the 0x9900 frame sent STOP ON / OFF, then the move went out
+    // ~1.3 s later and ran its full travel (exit 130)
+    const std::vector<std::string> move{"--sim", "--sim-time-scale", "20", "--log-frames", "move", "30", "--speed",
+                                        "50"};
+    {
+        const InterruptAt at([](const Pdu&) { return true; }, [] { cli::request_interrupt(); });  // the port opens
+        const CliRun r = cli_run(move);
+        CHECK_EQ(r.code, 130);
+        CHECK(writes(r.err).empty());  // the command never started: nothing written
+    }
+    {
+        const InterruptAt at(is_direct_move, [] { cli::request_interrupt(); });  // as the move frame is about to go
+        check_stopped_before_the_move(cli_run(move));
+    }
 }

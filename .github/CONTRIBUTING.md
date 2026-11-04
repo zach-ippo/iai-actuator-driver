@@ -131,8 +131,8 @@ these words:
 A word changes only with the test or the manual behind it. Name a unit by its model (the EC-DS4H slider, the EC-GRBP8M
 gripper, the EC-R6S rod, the EC-S6HH slider, the PCON-CB with an RCP6). Add new hardware results, with the date, to
 [docs/COMPATIBILITY.md](../docs/COMPATIBILITY.md#hardware-results). For a new unit, the `iai-check` report is the most
-useful result: it goes into a unit report on
-[GitHub Issues](https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose)
+useful result: it goes into an issue on
+[GitHub Issues](https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose), as "A result from my unit"
 ([Sending a report](../docs/COMPATIBILITY.md#sending-a-report)). Lab notes, serial captures and unit backups stay out of
 the repository; `.gitignore` covers `backups/` and capture files.
 

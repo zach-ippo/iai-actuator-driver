@@ -87,7 +87,7 @@ commanded over PIO (only a hand-wired PIO input was tried, VERIFIED; see
 the TTA table-top robots) do not answer Modbus, and an ELECYLINDER on an RCON-EC / REC connection unit has its serial
 port disabled. The driver says so when a port gets no answer.
 
-Other models: run `iai-check` and open a unit report ([how](COMPATIBILITY.md#sending-a-report)).
+Other models: run `iai-check` and send the result ([how](COMPATIBILITY.md#sending-a-report)).
 
 ## Command line reference
 
@@ -409,7 +409,7 @@ From Python:
 Prints one PASS / FAIL / WARN / SKIP line per item and writes a JSON report (`iai-check-<timestamp>.json`, or
 `--report PATH`) with model, serial number, firmware, soft limits, timestamp and all raw data. If the report cannot be
 written there, it goes to the temp directory or, failing that, to the console. When you try a new model or firmware,
-attach the report to a unit report ([Sending a report](COMPATIBILITY.md#sending-a-report)).
+attach the report to an issue ([Sending a report](COMPATIBILITY.md#sending-a-report)).
 
 | Item | What it checks (read-only unless noted) |
 |---|---|

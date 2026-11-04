@@ -67,7 +67,7 @@ THINGS TO TRY
 WHAT TO REPORT
 
 The test report, the steps, what you expected and what happened, in an issue at
-https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose (a form for a bug, one for a unit report).
+https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose (one form for a bug or a result from your unit).
 IAI does not support this program.
 
 

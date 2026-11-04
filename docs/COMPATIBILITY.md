@@ -327,7 +327,7 @@ A report from your unit moves a path to VERIFIED: see [Sending a report](#sendin
 ## Notes per product line
 
 Every supported line uses the same protocol and register layout, so the driver talks to each the same way and reads
-its limits from the unit. Results from any unit are welcome: run `iai-check` and open a unit report
+its limits from the unit. Results from any unit are welcome: run `iai-check` and send the result
 ([Sending a report](#sending-a-report)).
 
 - **ELECYLINDER types.** A rotary axis is driven in degrees (the unit reports its kind). Wire types and 3-position
@@ -375,7 +375,7 @@ take control the same way (UNVERIFIED). Disconnect the other tool, then connect 
 (the "directory"), and the driver uses it to find every area and limit. A unit without it is read at the standard
 addresses, and the identity notes say `index table: ...`. When its stroke or limits cannot be read, moves are refused
 until you state the stroke (`--stroke MIN MAX`), and speed, acceleration and push fall back to conservative defaults
-(100 mm/s, 0.3 G, 70 %). Run `iai-check` and open a unit report ([Sending a report](#sending-a-report)).
+(100 mm/s, 0.3 G, 70 %). Run `iai-check` and send the result ([Sending a report](#sending-a-report)).
 
 **CCM conveyor control motor.** Its identity code is recognised and named "CCM conveyor control motor (not an EC
 actuator)". It is not a positioning actuator with a stroke, so the mm moves and stroke limits of an axis do not
@@ -392,8 +392,9 @@ the brake by hand. Test vertical axes unloaded and slow, with the hardware emerg
 
 ## Sending a report
 
-Reports go to [GitHub Issues](https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose). Use **Unit report**
-for "my unit works" or "my unit does not work", and **Bug report** for anything else.
+Reports go to [GitHub Issues](https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose), in one form. Under
+**What is this?** choose **A result from my unit** for "my unit works" or "my unit does not work", and **A bug** for
+anything else.
 
 `iai-check --port COM3` (read-only) writes `iai-check-<timestamp>.json` with the model, firmware, limits and every
 raw value read. `iai-check --port COM3 --motion` adds a short move of at most 5 mm at 10 mm/s and back. Attach that

@@ -201,7 +201,7 @@ port take turns on it, and their moves still run at the same time.
 8. First motion, with a hand on the emergency stop: home first if `status` shows the axis not homed. Then run
    `iai-check --port COM3 --motion` (a move of at most 5 mm, and at most a quarter of the stroke, at 10 mm/s and back;
    the servo and control state are restored afterwards) or the slow move in [GETTING_STARTED.md](GETTING_STARTED.md).
-9. If the model is not in [COMPATIBILITY.md](COMPATIBILITY.md), open a unit report with the `iai-check` report
+9. If the model is not in [COMPATIBILITY.md](COMPATIBILITY.md), send the result with the `iai-check` report
    ([how](COMPATIBILITY.md#sending-a-report)).
 
 ## Common problems

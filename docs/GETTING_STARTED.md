@@ -74,8 +74,9 @@ iai-actuator-driver --port COM3 limits  # every range the driver will enforce, f
 ```
 
 `iai-check` prints PASS / FAIL / WARN / SKIP per item and writes `iai-check-<timestamp>.json`. Every unit is driven
-the same way, whatever its model; results from any unit are welcome: open a unit report on
-[GitHub Issues](https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose) and attach that file.
+the same way, whatever its model; results from any unit are welcome: open an issue on
+[GitHub Issues](https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose) ("A result from my unit") and
+attach that file.
 
 ## 6. First move
 

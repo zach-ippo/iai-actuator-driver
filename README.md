@@ -75,7 +75,8 @@ Claims carry one of four evidence words: **VERIFIED** (tried on hardware), **ON-
 
 ## Support and licence
 
-Bugs, questions and unit reports go to
-[GitHub Issues](https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose), not to IAI.
+Bugs, questions and results from your unit go to
+[GitHub Issues](https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose) (one form for a bug or a unit
+result), not to IAI.
 Apache License 2.0: [LICENSE](LICENSE), [NOTICE](licenses/NOTICE),
 [NATIVE_THIRD_PARTY.txt](licenses/NATIVE_THIRD_PARTY.txt).

@@ -1,12 +1,21 @@
-name: Bug report
-description: The driver, a command line or the GUI does something wrong.
-labels: ["bug"]
+name: Bug report or unit result
+description: A bug in the driver, a command line or the GUI, or a result from your unit.
 body:
   - type: markdown
     attributes:
       value: |
         This driver is unofficial: do not report it to IAI. Close IA-OS before you test (one program per port).
-        If the problem also shows with `--sim`, say so: then no unit is needed to reproduce it.
+        If a bug also shows with `--sim`, say so: then no unit is needed to reproduce it. A result from your unit is
+        how a path moves from UNVERIFIED to VERIFIED, so say exactly what you tried.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is this?
+      options:
+        - A bug
+        - A result from my unit
+    validations:
+      required: true
   - type: input
     id: version
     attributes:
@@ -22,7 +31,6 @@ body:
       description: "`iai-actuator-driver` is Python, `iai-actuator-driver-cpp` is C++, `iai-actuator-driver-cs` is C#."
       options:
         - Python on the core (the default)
-        - Python pure fallback (1.0.x and earlier, IAI_DRIVER_BACKEND=python)
         - C# / .NET
         - C++
         - C or another C FFI (LabVIEW ...)
@@ -45,18 +53,42 @@ body:
       placeholder: EC-GRBP8M-20-1-1-PN-WA-WL2
     validations:
       required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result (a result from my unit)
+      options:
+        - It works
+        - It works in part
+        - It does not work
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware (a result from my unit)
+      description: The `firmware` in the iai-check report, or the output of `iai-actuator-driver --port COM3 identify`.
+      placeholder: "0002"
+  - type: input
+    id: connection
+    attributes:
+      label: Connection (a result from my unit)
+      description: The adapter, the port, the baud rate and the slave address.
+      placeholder: IAI USB adapter on the SIO port, slave address 1, 38400 baud
   - type: textarea
     id: what
     attributes:
       label: What happened
-      description: What you expected and what you got instead. Include the full error message.
+      description: |
+        A bug: what you expected and what you got instead, with the full error message. A result from your unit: what
+        worked and what did not.
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
       label: Steps
-      description: The commands or code, in order, from a connected unit or from `--sim`.
+      description: |
+        The commands or code, in order, from a connected unit or from `--sim`, and what each one did: whether the unit
+        moved, and the output of anything that failed. Say if you ran `iai-check --motion`.
     validations:
       required: true
   - type: textarea
@@ -66,4 +98,4 @@ body:
       description: |
         Run `iai-check --port COM3` (read-only; use your own port) and drag the file `iai-check-<time>.json` into this
         box. It is too long to paste; zip it if GitHub refuses it. The file holds the unit's serial number and the
-        port name, and the issue is public. Leave this empty if no unit is involved.
+        port name, and the issue is public. A result from your unit needs it; leave it empty if no unit is involved.

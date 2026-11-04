@@ -345,7 +345,7 @@ speed, the baud rate, servo, alarm reset and every read. Back a unit up before a
 ## Sending a report
 
 `iai-check --port COM3` (read-only) writes `iai-check-<timestamp>.json` with the model, firmware, limits and every raw
-value read. Open a bug report on [GitHub Issues](https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose)
+value read. Open an issue on [GitHub Issues](https://github.com/zach-ippo/iai-actuator-driver/issues/new/choose)
 and attach it with the `--log-frames` output of the failing command and, if you are willing to share it, a backup
 (`backup unit1.json`). See [COMPATIBILITY.md](COMPATIBILITY.md#sending-a-report).
 
@@ -406,7 +406,7 @@ Every IAI unit that speaks Modbus RTU on its serial port, driven the same way, w
 | Not supported | SEL-protocol controllers (XSEL, SSEL, ASEL, PSEL, MSEL, TTA), an ELECYLINDER on an RCON-EC / REC connection unit, ROBONET in gateway mode |
 
 Every range is read from the unit, so the driver keeps no model list. Results from other units are welcome: run
-`iai-check` and open a unit report ([how](COMPATIBILITY.md#sending-a-report)). Details:
+`iai-check` and send the result ([how](COMPATIBILITY.md#sending-a-report)). Details:
 [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ### Is the driver a safety function?

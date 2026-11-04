@@ -5,7 +5,9 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import signal
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -335,6 +337,26 @@ class NewCommandsTest(unittest.TestCase):
         code, _, err = run("--sim", "push", "70", "10", "30")
         self.assertEqual(code, 2)
         self.assertIn("push zone", err)
+
+
+@unittest.skipUnless(hasattr(signal, "SIGBREAK"), "Ctrl+Break (SIGBREAK) is Windows only")
+class CtrlBreakTest(unittest.TestCase):
+    def test_ctrl_break_is_handled_as_ctrl_c(self) -> None:
+        # ON-WIRE on a PCON-CB (driver 1.1.0): Ctrl+Break during a move ended the command line at once (exit
+        # 0xC000013A) with no decel STOP, and the move ran on to its target
+        before = signal.getsignal(signal.SIGBREAK)
+        factory = SimFactory()
+        timer = threading.Timer(0.8, signal.raise_signal, (signal.SIGBREAK,))
+        timer.start()
+        try:
+            code, _, err = run("--sim", "--log-frames", "move", "30", "--speed", "5", factory=factory)
+        finally:
+            timer.cancel()
+        self.assertEqual(code, 130, err)
+        self.assertIn("interrupted", err)
+        self.assertIn("01 05 04 2c ff 00", err)  # the decel STOP
+        self.assertGreater(factory.instances[0].position_mm, 60.0)  # stopped early on its way from 73.95 to 30
+        self.assertIs(signal.getsignal(signal.SIGBREAK), before)  # the handler is put back
 
 
 if __name__ == "__main__":

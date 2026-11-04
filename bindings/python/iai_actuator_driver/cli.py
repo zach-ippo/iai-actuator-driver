@@ -77,16 +77,18 @@ the hardware stop).
 from __future__ import annotations
 
 import argparse
+import contextlib
 import dataclasses
 import datetime as _dt
 import json
 import math
 import queue
+import signal
 import sys
 import tempfile
 import threading
 import time
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -1623,17 +1625,43 @@ def _main_ports(args: argparse.Namespace, out: TextIO) -> int:
     return 0 if found else 1
 
 
+@contextlib.contextmanager
+def _break_as_interrupt() -> Iterator[None]:
+    """Ctrl+Break (Windows: SIGBREAK) is handled as Ctrl+C while a command runs: ``KeyboardInterrupt``, the decel stop,
+    exit 130. Before, it ended the process at once (exit 0xC000013A) with no decel STOP and a move ran on to its target
+    (ON-WIRE on a PCON-CB). The previous handler comes back afterwards; nothing changes off the main thread."""
+    sigbreak = getattr(signal, "SIGBREAK", None)
+    if sigbreak is None or threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    on_int = signal.getsignal(signal.SIGINT)
+    previous = signal.signal(sigbreak, on_int if callable(on_int) else signal.default_int_handler)
+    try:
+        yield
+    finally:
+        signal.signal(sigbreak, previous)
+
+
 def main(argv: Sequence[str] | None = None, out: TextIO | None = None) -> int:
     """Entry point for ``python -m iai_actuator_driver`` / ``iai-actuator-driver``."""
     argv = list(sys.argv[1:] if argv is None else argv)
+    try:
+        with _break_as_interrupt():
+            return _main_argv(argv, out)
+    finally:
+        _end_frame_lines()  # every frame line written before the command returns
+
+
+def _main_argv(argv: list[str], out: TextIO | None) -> int:
     try:
         if _port_command(argv) is not None:
             port_args = build_port_parser().parse_args(argv)
             return _main_ports(port_args, out or sys.stdout)
         args = build_parser().parse_args(argv)
         return _main(args, out or sys.stdout)
-    finally:
-        _end_frame_lines()  # every frame line written before the command returns
+    except KeyboardInterrupt:  # before the command opened its axis (scan, ports, stop-all, argument parsing)
+        print("interrupted", file=sys.stderr)
+        return 130
 
 
 def check_main(argv: Sequence[str] | None = None, out: TextIO | None = None) -> int:
@@ -1644,7 +1672,8 @@ def check_main(argv: Sequence[str] | None = None, out: TextIO | None = None) -> 
     args = parser.parse_args(argv)
     args.command, args.json = "check", False
     try:
-        return _main(args, out or sys.stdout)
+        with _break_as_interrupt():
+            return _main(args, out or sys.stdout)
     finally:
         _end_frame_lines()
 

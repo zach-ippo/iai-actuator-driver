@@ -5,6 +5,7 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <csignal>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -34,6 +35,11 @@ namespace cli {
 namespace {
 
 std::atomic<bool> g_interrupt{false};
+
+extern "C" void ec_cli_on_interrupt(int sig) {
+    g_interrupt.store(true);     // the running motion command stops its axis, then exits with 130
+    std::signal(sig, SIG_DFL);   // a second Ctrl+C / Ctrl+Break ends the program at once
+}
 
 constexpr double kDefaultMaxPushPct = 70.0;  ///< the tool's conservative push cap without --max-push / --unit-max
 
@@ -147,8 +153,8 @@ Connection and safety options:
   --version, --help
 
 Commands that change the unit's state first read identity and ranges and take Modbus control while the axis
-is at rest ('mode pio' gives control back to the PIO); read-only commands write nothing. Ctrl+C during a move
-or home sends the decel STOP sequence; no motion frame is sent after it.
+is at rest ('mode pio' gives control back to the PIO); read-only commands write nothing. Ctrl+C (or Ctrl+Break)
+during a move or home sends the decel STOP sequence; no motion frame is sent after it.
 This tool is not a safety function: keep a hardware emergency stop. This edition is UNVERIFIED on hardware.
 Exit codes: 0 ok, 1 nothing found by scan / a failed check / a line error, 2 error, 130 interrupted.
 )";
@@ -1024,6 +1030,15 @@ int run_axis_command(const Args& args, std::ostream& out, std::ostream& err) {
 
 void request_interrupt() noexcept { g_interrupt.store(true); }
 bool interrupted() noexcept { return g_interrupt.load(); }
+
+void install_interrupt_handlers() {
+    std::signal(SIGINT, ec_cli_on_interrupt);
+#ifdef SIGBREAK
+    // Ctrl+Break (CTRL_BREAK_EVENT): before, it ended the program at once (exit 0xC000013A) with no decel STOP and the
+    // move ran on to its target (ON-WIRE on a PCON-CB)
+    std::signal(SIGBREAK, ec_cli_on_interrupt);
+#endif
+}
 
 std::string usage() { return kHelp; }
 

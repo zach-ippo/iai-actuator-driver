@@ -1,7 +1,8 @@
 // The command line on the simulator (in process, through cli::run): read-only commands, a move, the non-volatile
-// write guard as a user sees it (an unchanged parameter or row is not written; --force writes it), and Ctrl+C (raised
-// from a bus hook as a frame is about to go). No COM port.
+// write guard as a user sees it (an unchanged parameter or row is not written; --force writes it), and Ctrl+C /
+// Ctrl+Break (raised from a bus hook as a frame is about to go). No COM port.
 #include <algorithm>
+#include <csignal>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
@@ -69,7 +70,7 @@ constexpr const char* kDirectMove = "01 10 99 00";
 constexpr const char* kStopOn = "01 05 04 2c ff 00";
 constexpr const char* kStopOff = "01 05 04 2c 00 00";
 
-/// Ctrl+C as the command line is about to send a request: `raise` runs once, at the first request `when`
+/// Ctrl+C / Ctrl+Break as the command line is about to send a request: `raise` runs once, at the first request `when`
 /// picks (the bus's before_bus_wait hook, cleared at the end of the scope).
 class InterruptAt {
 public:
@@ -234,4 +235,23 @@ TEST(cli_ctrl_c_sends_no_change_speed_frame) {
     CHECK_EQ(count_prefix(w, kDirectMove), std::size_t{1});  // the move itself; no change frame
     CHECK(count_prefix(w, kStopOn) >= 1);
     CHECK(!w.empty() && w.back().rfind(kStopOff, 0) == 0);
+}
+
+TEST(cli_ctrl_break_is_handled_as_ctrl_c) {
+    // ON-WIRE on a PCON-CB: Ctrl+Break ended the program at once (exit 0xC000013A), no decel STOP, the move ran on
+#ifdef SIGBREAK
+    constexpr int kSig = SIGBREAK;
+#else
+    constexpr int kSig = SIGINT;  // no Ctrl+Break outside Windows: the same handler
+#endif
+    cli::install_interrupt_handlers();
+    {
+        const InterruptAt at(is_direct_move, [] { std::raise(kSig); });
+        check_stopped_before_the_move(
+            cli_run({"--sim", "--sim-time-scale", "20", "--log-frames", "move", "30", "--speed", "50"}));
+    }
+    std::signal(SIGINT, SIG_DFL);
+#ifdef SIGBREAK
+    std::signal(SIGBREAK, SIG_DFL);
+#endif
 }

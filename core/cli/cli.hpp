@@ -34,7 +34,7 @@
 //   simulated gateway), --sim-unit CODE (the simulated unit's FC11 unit code).
 //
 // Exit codes (as the Python CLI): 0 done; 1 the command ran but reports a failure (nothing found by scan); 2 a driver
-// error or a usage error (the message on stderr); 130 interrupted (Ctrl+C: a decel stop is sent first).
+// error or a usage error (the message on stderr); 130 interrupted (Ctrl+C or Ctrl+Break: a decel stop is sent first).
 #pragma once
 
 #include <cstdint>
@@ -101,10 +101,13 @@ std::string usage();
 /// Run one command line (argv without the program name). Never throws: errors are printed to `err`.
 int run(const std::vector<std::string>& argv, std::ostream& out, std::ostream& err);
 
-/// Ctrl+C (main.cpp's handler): a running motion command stops its axis, sends no motion frame afterwards, and run()
-/// returns 130. Signal-safe.
+/// Ctrl+C or Ctrl+Break (the handlers of install_interrupt_handlers): a running motion command stops its axis, sends no
+/// motion frame afterwards, and run() returns 130. Signal-safe.
 void request_interrupt() noexcept;
 bool interrupted() noexcept;
+/// The handlers main.cpp installs: Ctrl+C (SIGINT) and, on Windows, Ctrl+Break (SIGBREAK) call request_interrupt(); a
+/// second one ends the program at once.
+void install_interrupt_handlers();
 
 // ------------------------------------------------------------------------------------------ text output
 namespace text {

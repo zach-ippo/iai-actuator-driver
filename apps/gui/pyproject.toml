@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "iai-actuator-driver-gui"
-version = "1.1.1"
+version = "1.2.0"
 description = "UNOFFICIAL: local web GUI (iai-gui) for the IAI Actuator Driver. Not an IAI product."
 readme = "README.md"
 license = "Apache-2.0"
@@ -15,7 +15,7 @@ license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 authors = [{name = "Zachary Ippolito"}]
 requires-python = ">=3.11"
-dependencies = ["iai-actuator-driver==1.1.1"]
+dependencies = ["iai-actuator-driver==1.2.0"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Manufacturing",

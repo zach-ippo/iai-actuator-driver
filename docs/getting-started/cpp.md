@@ -15,8 +15,9 @@ Design and scope: [core/DESIGN.md](../../core/DESIGN.md) and [core/README.md](..
 
 - The C++ classes are not a binary interface. Build the core with the same compiler and settings as your program (the
   CMake way below does that). Standard C++17, no third-party dependencies.
-- The C ABI is the stable interface: C ABI 1.0, frozen within major 1 ([../dev/NATIVE_ABI.md](../dev/NATIVE_ABI.md)).
-  A C++ program that must survive a library update without a rebuild calls the C ABI.
+- The C ABI is the stable interface: C ABI 1.1, which only adds to 1.0, frozen within major 1
+  ([../dev/NATIVE_ABI.md](../dev/NATIVE_ABI.md)). A C++ program that must survive a library update without a rebuild
+  calls the C ABI.
 - A release's C/C++ SDK zip ships only the C ABI prebuilt. For the C++ API, build `core/` from source.
 - The examples in `examples/cpp` link the static library, so no ABI check applies to them.
 

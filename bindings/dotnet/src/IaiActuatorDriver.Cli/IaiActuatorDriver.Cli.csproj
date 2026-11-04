@@ -8,7 +8,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <RootNamespace>IaiActuatorDriver.Cli</RootNamespace>
     <AssemblyName>iai-actuator-driver-cs</AssemblyName>
-    <Version>1.1.1</Version>
+    <Version>1.2.0</Version>
     <Description>UNOFFICIAL command-line tool for IAI actuators over serial Modbus RTU (C# edition of IAI Actuator Driver). Not an IAI product.</Description>
     <Authors>Zachary Ippolito</Authors>
     <Copyright>Copyright 2026 Zachary Ippolito</Copyright>

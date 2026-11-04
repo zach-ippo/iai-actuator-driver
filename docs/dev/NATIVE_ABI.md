@@ -891,7 +891,7 @@ The version rule is in [The 1.0 contract](#the-10-contract).
   needs a 1.1 function, so a binding accepts a 1.0 or a 1.1 library and refuses another major; it raises its minor
   when a public call starts to use a later function. The Python tests compare them with the header, the C# tests
   with the built library.
-- `iad_library_version()` is the core's version (`kVersion`), the release version of the repository ("1.1.1"),
+- `iad_library_version()` is the core's version (`kVersion`), the release version of the repository ("1.2.0"),
   independent of the ABI version.
 - **The library file.** CMake sets the shared library's `SOVERSION` to the ABI major (`libiai_actuator_driver.so.1`)
   and its `VERSION` to the product version. The release build (`.github/release/build_native.py`) links the Linux

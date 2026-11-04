@@ -1,7 +1,7 @@
 # IAI Actuator Driver
 
 Drive IAI actuators from a PC over the unit's RS-485 port with Modbus RTU, with no PNP/NPN I/O wiring. Python, C#, C
-and C++ libraries, a command line and a local web GUI share one C++ core. Version 1.1.1.
+and C++ libraries, a command line and a local web GUI share one C++ core. Version 1.2.0.
 
 > **UNOFFICIAL.** This is not an IAI product and is not supported, documented or endorsed by IAI. It is not a safety
 > function: keep a hardware emergency stop.

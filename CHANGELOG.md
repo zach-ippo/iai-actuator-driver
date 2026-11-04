@@ -2,15 +2,23 @@
 
 Unofficial: not an IAI product. Versions follow PEP 440.
 
-## Unreleased
+## 1.2.0 - 2026-11-03
+
+A minor release over 1.1.1. The C ABI becomes 1.1 with one addition, `iad_transport_open_serial_options`; ABI 1.0 is
+unchanged, so programs built against 1.0 run unchanged, and the bindings accept a 1.0 or a 1.1 library. The core
+also carries the internal groundwork for SEL controllers (frames, messages, a link and a simulator): not a customer
+API yet, nothing of it in the C ABI, Python or C#, and UNVERIFIED on a controller. The documents are shorter and
+fewer.
 
 ### Added
 
 - C ABI 1.1: `iad_transport_open_serial_options` opens a serial port with another character framing (7 or 8 data
   bits, parity none / even / odd, 1 or 2 stop bits), with `iad_serial_options`, `iad_serial_options_init` and the
   `IAD_PARITY_*` constants. 8N1 stays the default; the Modbus RTU stacks need 8 data bits. ABI 1.0 is unchanged and
-  both bindings still need only 1.0, so they accept a 1.0 or a 1.1 library. 7 data bits, parity and 2 stop bits are
-  UNVERIFIED on hardware.
+  both bindings still need only 1.0, so they accept a 1.0 or a 1.1 library. A C program built against the 1.2.0
+  header asks for ABI 1.1 and so needs a 1.2.0 library or later. 7 data bits, parity and 2 stop bits are UNVERIFIED on
+  hardware.
+- C++: the same framing as `SerialFraming`, taken by a `SerialTransport` constructor; `reopen()` keeps it.
 - C++: the non-volatile write tracker (`NvWriteTracker`) has a public header, `iai_actuator_driver/nonvolatile.hpp`.
 
 ### Changed
@@ -23,7 +31,18 @@ Unofficial: not an IAI product. Versions follow PEP 440.
   0x000".
 - Actuator kind: a unit without AKID (item 7.33), such as a CON controller, is "linear" when ATYP 7.7 bit 8 says it is
   not rotary, instead of "unknown" (seen on the PCON-CB with an RCP6); the GUI's workbench line leaves out a kind that
-  is still unknown.
+  is still unknown. Behaviour change: code that took "unknown" for such a unit now sees "linear"; "unknown" stays for
+  a unit whose registers could not be read.
+- C ABI documents: `core/abi/json_keys.json` also lists, under "requests", the keys that each JSON request of the
+  stable header reads (the coordinated request's `expect_start` among them), and the header comment of
+  `iad_axis_session_from_info` names its keys. No function changed.
+- Documents: a shorter README and shorter guides, with nothing dropped. `docs/COORDINATED.md` is now the "Coordinated
+  motion (alpha)" section of `docs/DRIVER.md`, `docs/FAQ.md` the "Questions" section of `docs/TROUBLESHOOTING.md`,
+  `docs/PYTHON_FALLBACK.md` is gone (the pure-Python edition went in 1.1.0), and `ARCHITECTURE.md` and `NATIVE_ABI.md`
+  moved to `docs/dev/`. The CHANGELOG starts at 1.1.0.
+- Issues: one form, with a "What is this?" choice (a bug, or a result from my unit) and the unit-report fields as
+  optional ones. Bugs and questions go to GitHub Issues.
+- Releases: no `SHA256SUMS.txt` file among the release files.
 
 ## 1.1.1 - 2026-11-03
 
